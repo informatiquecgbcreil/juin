@@ -1027,8 +1027,8 @@ def _xlsx_write_table(wb, title: str, headers: list[str], rows: list[list], tabl
 
 def _build_sector_finance_workbook(secteur: str, year: int, data: dict):
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from openpyxl.chart import BarChart, Reference, PieChart
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.chart import BarChart, Reference
 
     wb = Workbook()
     ws = wb.active
@@ -2793,7 +2793,7 @@ def projets_cr_download(projet_id):
     if not p.cr_filename:
         abort(404)
 
-    folder = ensure_projets_folder()
+    ensure_projets_folder()
     return send_media_file(media_relpath("projets", p.cr_filename), as_attachment=True, download_name=(p.cr_original_name or p.cr_filename))
 
 # ---------------------------------------------------------------------

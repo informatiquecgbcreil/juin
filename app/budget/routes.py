@@ -322,7 +322,6 @@ def depense_new():
 
     if request.method == "POST":
         sub_id = int(request.form.get("subvention_id") or 0)
-        compte = (request.form.get("compte") or "").strip()
         ligne_id = int(request.form.get("ligne_budget_id") or 0)
 
         sub = db.get_or_404(Subvention, sub_id)
@@ -634,7 +633,7 @@ def depense_doc_download(doc_id):
     if not depense_visible(dep):
         abort(403)
 
-    folder = ensure_justifs_folder()
+    ensure_justifs_folder()
     return send_media_file(media_relpath("justifs", doc.filename), as_attachment=True, download_name=doc.original_name)
 
 @bp.route("/depense/doc/<int:doc_id>/delete", methods=["POST"])

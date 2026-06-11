@@ -37,11 +37,7 @@ from app.models import (
     Projet,
     PasseportNote,
     SessionScheduleEditLog,
-    Framework,
-    Skill,
-    SessionSkill,
     Secteur,
-    MaterielType,
 )
 
 from ..rbac import require_perm, can_access_secteur
@@ -71,13 +67,11 @@ from app.services.consumption import (
     assign_session_config,
     calculate_session_consumption,
     default_individual_materiel_id,
-    upsert_presence_consumption,
     replace_presence_consumptions,
     ensure_presence_consumption_from_session_default,
     regenerate_presence_consumptions_for_session,
     clear_presence_consumptions_for_session,
     build_presence_consumption_maps,
-    session_consumption_period,
     resolve_consumption_period,
 )
 from app.utils.delete_guard import commit_delete
@@ -1219,7 +1213,6 @@ def sessions(atelier_id: int):
 def atelier_delete(atelier_id: int):
     require_perm("activite:delete")(lambda: None)()
     """Met un atelier (et ses sessions) en corbeille."""
-    secteur = _user_secteur()
     atelier = db.get_or_404(AtelierActivite, atelier_id)
     if not _can_access_activity_secteur(atelier.secteur):
         return _deny_activity_access()
@@ -1248,7 +1241,6 @@ def atelier_delete(atelier_id: int):
 def atelier_restore(atelier_id: int):
     require_perm("activite:restore")(lambda: None)()
     """Restaure un atelier (et ses sessions)."""
-    secteur = _user_secteur()
     atelier = db.get_or_404(AtelierActivite, atelier_id)
     if not _can_access_activity_secteur(atelier.secteur):
         return _deny_activity_access()
@@ -1273,7 +1265,6 @@ def atelier_restore(atelier_id: int):
 def session_delete(session_id: int):
     require_perm("activite:delete")(lambda: None)()
     """Met une session/RDV en corbeille."""
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
@@ -1299,7 +1290,6 @@ def session_delete(session_id: int):
 def session_restore(session_id: int):
     require_perm("activite:restore")(lambda: None)()
     """Restaure une session/RDV."""
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
@@ -1325,7 +1315,6 @@ def session_restore(session_id: int):
 def session_purge(session_id: int):
     require_perm("activite:purge")(lambda: None)()
     """Suppression définitive d'une session (nécessite qu'elle soit déjà en corbeille)."""
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
@@ -1666,7 +1655,6 @@ def session_skills(session_id: int):
 @bp.route("/session/<int:session_id>/skills/add", methods=["POST"])
 @login_required
 def session_skill_add(session_id: int):
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
@@ -1698,7 +1686,6 @@ def session_skill_add(session_id: int):
 @bp.route("/session/<int:session_id>/skills/remove", methods=["POST"])
 @login_required
 def session_skill_remove(session_id: int):
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
@@ -1735,7 +1722,6 @@ def evaluation_batch(session_id: int):
     _require_any_perm("emargement:view", "pedagogie:view")
     if request.method == "POST":
         require_perm("pedagogie:edit")(lambda: None)()
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if s.is_deleted or atelier.is_deleted:
@@ -2250,7 +2236,6 @@ def emargement(session_id: int):
 @login_required
 def kiosk_open(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -2279,7 +2264,6 @@ def kiosk_open(session_id: int):
 @login_required
 def kiosk_close(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -2300,7 +2284,6 @@ def kiosk_close(session_id: int):
 @login_required
 def generate_collectif(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if s.session_type != "COLLECTIF":
@@ -2345,7 +2328,6 @@ def download_collectif_archive(session_id: int, kind: str):
     if kind not in {"docx", "pdf"}:
         abort(404)
 
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
@@ -2408,7 +2390,6 @@ def download_collectif_archive(session_id: int, kind: str):
 @login_required
 def upload_collectif_corrected(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
@@ -2458,7 +2439,6 @@ def upload_collectif_corrected(session_id: int):
 @login_required
 def email_collectif_archive(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
@@ -2553,7 +2533,6 @@ def download_individuel_archive(atelier_id: int, annee: int, mois: int, kind: st
     if kind not in {"docx", "pdf"}:
         abort(404)
 
-    secteur = _user_secteur()
     atelier = db.get_or_404(AtelierActivite, atelier_id)
 
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
@@ -2592,7 +2571,6 @@ def download_individuel_archive(atelier_id: int, annee: int, mois: int, kind: st
 @login_required
 def upload_individuel_corrected(atelier_id: int, annee: int, mois: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
         flash("Atelier non individuel mensuel.", "warning")
@@ -2640,7 +2618,6 @@ def upload_individuel_corrected(atelier_id: int, annee: int, mois: int):
 @login_required
 def email_individuel_archive(atelier_id: int, annee: int, mois: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
         flash("Atelier non individuel mensuel.", "warning")
@@ -2704,7 +2681,6 @@ def email_individuel_archive(atelier_id: int, annee: int, mois: int):
 @login_required
 def finalize_individuel(atelier_id: int, annee: int, mois: int):
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _user_secteur()
     atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
         flash("Atelier non individuel mensuel.", "warning")

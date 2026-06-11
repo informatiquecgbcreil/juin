@@ -1,8 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 
-from app.extensions import db
-from app.models import Atelier, Projet, ProjetAtelier
+from app.models import Atelier, ProjetAtelier
 from app.rbac import require_perm
 from app.ateliers.services import sync_ateliers_from_presence_db
 

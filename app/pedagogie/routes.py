@@ -9,7 +9,6 @@ from io import StringIO
 
 from flask import Response, current_app, flash, redirect, render_template, request, send_file, url_for
 from sqlalchemy import delete
-from sqlalchemy.exc import IntegrityError
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
@@ -596,7 +595,6 @@ def import_referentiel_csv(referentiel_id: int):
     # index existants par code (case-insensitive)
     existing = {c.code.strip().lower(): c for c in Competence.query.filter_by(referentiel_id=referentiel.id).all()}
 
-    header_count = len(reader.fieldnames or [])
 
     for i, row in enumerate(reader, start=2):
         # DictReader met les colonnes excédentaires sous la clé None sous forme de liste.

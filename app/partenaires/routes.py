@@ -13,7 +13,6 @@ from openpyxl.utils import get_column_letter
 
 from app.extensions import db
 from app.models import Partenaire, PartenaireSecteur, PartenaireIntervention, OrientationAccesDroit, Participant, Quartier
-from app.utils.delete_guard import commit_delete
 from app.rbac import require_perm, can
 
 from . import bp

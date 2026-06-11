@@ -12,7 +12,6 @@ from app.models import (
     ParticipantInsertionCertification,
     ParticipantInsertionParcours,
     ParticipantInsertionProfile,
-    ParticipantInsertionPositionnement,
 )
 
 
