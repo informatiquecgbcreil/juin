@@ -7,7 +7,7 @@ Create Date: 2026-04-02 00:00:00.000000
 
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import datetime, timezone, date
 
 from alembic import op
 import sqlalchemy as sa
@@ -157,7 +157,7 @@ def upgrade():
     titre_ref = sa.Table("insertion_titre_sejour_type_ref", meta, autoload_with=bind)
     diplome_ref = sa.Table("insertion_diplome_ref", meta, autoload_with=bind)
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def get_or_create(table, label):
         cleaned = _clean(label)

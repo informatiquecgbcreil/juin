@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 
+from app.extensions import db
 from app.models import Evaluation, Objectif, ObjectifCompetenceMap, Participant
 
 
@@ -18,7 +19,7 @@ def _eval_rows(competence_ids: set[int], start_date: date | None = None, end_dat
 
 
 def participant_timeline(participant_id: int):
-    participant = Participant.query.get_or_404(participant_id)
+    participant = db.get_or_404(Participant, participant_id)
     events = (
         Evaluation.query
         .filter(Evaluation.participant_id == participant_id)

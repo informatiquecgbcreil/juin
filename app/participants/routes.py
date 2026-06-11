@@ -578,7 +578,7 @@ def search_participants():
 @login_required
 @require_perm("participants:view")
 def synthese_participant(participant_id: int):
-    participant = Participant.query.get_or_404(participant_id)
+    participant = db.get_or_404(Participant, participant_id)
     if not _can_read_participant(participant) or not _can_see_participant(participant):
         abort(403)
 
@@ -987,7 +987,7 @@ def edit_participant(participant_id: int):
     if False:
         abort(403)
 
-    p = Participant.query.get_or_404(participant_id)
+    p = db.get_or_404(Participant, participant_id)
 
     # Lecture globale autorisée (annuaire), mais édition verrouillée
     if not _can_read_participant(p):
@@ -1059,7 +1059,7 @@ def anonymize_participant(participant_id: int):
     if False:
         abort(403)
 
-    p = Participant.query.get_or_404(participant_id)
+    p = db.get_or_404(Participant, participant_id)
     if not _can_edit_participant(p):
         abort(403)
 
@@ -1097,7 +1097,7 @@ def delete_participant(participant_id: int):
     if not can('participants:delete'):
         abort(403)
 
-    p = Participant.query.get_or_404(participant_id)
+    p = db.get_or_404(Participant, participant_id)
     if not _can_edit_participant(p):
         abort(403)
 
@@ -1373,7 +1373,7 @@ def merge_participants():
         flash("La fusion est impossible : la sélection est invalide.", "danger")
         return redirect(url_for("participants.duplicates"))
 
-    keep = Participant.query.get_or_404(keep_id)
+    keep = db.get_or_404(Participant, keep_id)
     victims = Participant.query.filter(Participant.id.in_(merge_ids)).all()
 
     try:

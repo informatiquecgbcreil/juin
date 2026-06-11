@@ -76,7 +76,7 @@ def _compute_bilan_global_payload():
     if not has_global_scope:
         selected_secteur = current_user.secteur_assigne
         if selected_projet_id:
-            pjt = Projet.query.get(selected_projet_id)
+            pjt = db.session.get(Projet, selected_projet_id)
             sec_pjt = (pjt.secteur or "").strip().lower() if pjt else ""
             sec_user = (selected_secteur or "").strip().lower()
             if (not pjt) or (sec_pjt != sec_user):

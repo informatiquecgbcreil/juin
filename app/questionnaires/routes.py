@@ -127,7 +127,7 @@ def create():
 @login_required
 @require_perm("questionnaires:edit")
 def edit(questionnaire_id: int):
-    questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+    questionnaire = db.get_or_404(Questionnaire, questionnaire_id)
     ateliers = AtelierActivite.query.filter_by(is_deleted=False).order_by(AtelierActivite.nom.asc()).all()
 
     if request.method == "POST":
@@ -174,7 +174,7 @@ def edit(questionnaire_id: int):
 @login_required
 @require_perm("questionnaires:delete")
 def delete(questionnaire_id: int):
-    questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+    questionnaire = db.get_or_404(Questionnaire, questionnaire_id)
     db.session.delete(questionnaire)
     commit_delete(
         f"le questionnaire « {questionnaire.titre} »",
@@ -188,7 +188,7 @@ def delete(questionnaire_id: int):
 @login_required
 @require_perm("questionnaires:edit")
 def add_question(questionnaire_id: int):
-    questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+    questionnaire = db.get_or_404(Questionnaire, questionnaire_id)
     label = (request.form.get("label") or "").strip()
     if not label:
         flash("Le libellé de la question est obligatoire.", "danger")
@@ -227,7 +227,7 @@ def add_question(questionnaire_id: int):
 @login_required
 @require_perm("questionnaires:edit")
 def delete_question(question_id: int):
-    question = Question.query.get_or_404(question_id)
+    question = db.get_or_404(Question, question_id)
     questionnaire_id = question.questionnaire_id
     db.session.delete(question)
     db.session.commit()
@@ -239,8 +239,8 @@ def delete_question(question_id: int):
 @login_required
 @require_perm("questionnaires:respond")
 def respond(session_id: int):
-    session = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get(session.atelier_id)
+    session = db.get_or_404(SessionActivite, session_id)
+    atelier = db.session.get(AtelierActivite, session.atelier_id)
     questionnaires = _questionnaires_for_session(session)
     presences = (
         db.session.query(Participant)
@@ -356,7 +356,7 @@ def respond(session_id: int):
 @login_required
 @require_perm("questionnaires:export")
 def export_csv(questionnaire_id: int):
-    questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+    questionnaire = db.get_or_404(Questionnaire, questionnaire_id)
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(["questionnaire", "question", "participant_id", "session_id", "atelier_id", "secteur", "valeur", "date"])

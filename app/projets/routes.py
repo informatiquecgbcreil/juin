@@ -2,12 +2,15 @@ import os
 import json
 from io import BytesIO
 from datetime import datetime, date
+
+from app.utils.dates import utcnow
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, current_app, send_file
 from flask_login import login_required, current_user
 from app.rbac import require_perm, can, can_access_secteur
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
+from app.services.storage import ensure_upload_subdir, media_relpath, send_media_file
 from app.services.indicators import (
     INDICATOR_PACKS,
     INDICATOR_METRIC_GROUPS,
@@ -1346,7 +1349,7 @@ def _validate_line_capacity_for_new_affectations(line_amounts: dict[int, float])
     enveloppes, mais chaque enveloppe/ligne ne doit pas être surconsommée.
     """
     for line_id, amount in line_amounts.items():
-        ligne = LigneBudget.query.get(line_id)
+        ligne = db.session.get(LigneBudget, line_id)
         if not ligne:
             return False, "Une ligne de financement est introuvable."
         available = _line_available_amount(ligne)
@@ -1430,7 +1433,7 @@ def _create_depense_from_simple_form(secteur: str, year: int):
         except Exception:
             line_id = 0
 
-        ligne = LigneBudget.query.get(line_id)
+        ligne = db.session.get(LigneBudget, line_id)
         if not ligne or getattr(ligne, "nature", "charge") != "charge":
             flash("Une ligne de répartition est invalide.", "danger")
             return False, None
@@ -1812,7 +1815,7 @@ def projets_new():
 @login_required
 @require_perm("projets:view")
 def projets_edit(projet_id):
-    p = Projet.query.get_or_404(projet_id)
+    p = db.get_or_404(Projet, projet_id)
     if not can_see_secteur(p.secteur):
         abort(403)
 
@@ -1857,7 +1860,7 @@ def projets_edit(projet_id):
 
             folder = ensure_projets_folder()
             safe_original = secure_filename(file.filename)
-            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            ts = utcnow().strftime("%Y%m%d_%H%M%S")
             stored = secure_filename(f"P{p.id}_{ts}_{safe_original}")
             file.save(os.path.join(folder, stored))
 
@@ -1872,7 +1875,7 @@ def projets_edit(projet_id):
             if not can("subventions:link"):
                 abort(403)
             sub_id = int(request.form.get("subvention_id") or 0)
-            s = Subvention.query.get_or_404(sub_id)
+            s = db.get_or_404(Subvention, sub_id)
 
             if s.secteur != p.secteur:
                 abort(400)
@@ -1894,7 +1897,7 @@ def projets_edit(projet_id):
             if not can("ateliers:edit"):
                 abort(403)
             atelier_id = int(request.form.get("atelier_id") or 0)
-            a = AtelierActivite.query.get_or_404(atelier_id)
+            a = db.get_or_404(AtelierActivite, atelier_id)
             if a.secteur != p.secteur or a.is_deleted:
                 abort(400)
 
@@ -1959,7 +1962,7 @@ def projets_edit(projet_id):
 
         if action == "toggle_indicateur":
             indic_id = int(request.form.get("indicateur_id") or 0)
-            ind = ProjetIndicateur.query.get_or_404(indic_id)
+            ind = db.get_or_404(ProjetIndicateur, indic_id)
             if ind.projet_id != p.id:
                 abort(400)
             ind.is_active = not bool(ind.is_active)
@@ -1969,7 +1972,7 @@ def projets_edit(projet_id):
 
         if action == "save_indicateur":
             indic_id = int(request.form.get("indicateur_id") or 0)
-            ind = ProjetIndicateur.query.get_or_404(indic_id)
+            ind = db.get_or_404(ProjetIndicateur, indic_id)
             if ind.projet_id != p.id:
                 abort(400)
 
@@ -2032,7 +2035,7 @@ def projets_edit(projet_id):
 
         if action == "delete_indicateur":
             indic_id = int(request.form.get("indicateur_id") or 0)
-            ind = ProjetIndicateur.query.get_or_404(indic_id)
+            ind = db.get_or_404(ProjetIndicateur, indic_id)
             if ind.projet_id != p.id:
                 abort(400)
             db.session.delete(ind)
@@ -2076,7 +2079,7 @@ def projets_edit(projet_id):
 @login_required
 @require_perm("projets:view")
 def projet_indicateurs(projet_id):
-    p = Projet.query.get_or_404(projet_id)
+    p = db.get_or_404(Projet, projet_id)
     if not can_see_secteur(p.secteur):
         abort(403)
 
@@ -2238,7 +2241,7 @@ def projet_indicateurs(projet_id):
 
         if action == "update_indicateur":
             indic_id = int(request.form.get("indicateur_id") or 0)
-            ind = ProjetIndicateur.query.get_or_404(indic_id)
+            ind = db.get_or_404(ProjetIndicateur, indic_id)
             if ind.projet_id != p.id:
                 abort(400)
 
@@ -2284,7 +2287,7 @@ def projet_indicateurs(projet_id):
 
         if action == "delete_indicateur":
             indic_id = int(request.form.get("indicateur_id") or 0)
-            ind = ProjetIndicateur.query.get_or_404(indic_id)
+            ind = db.get_or_404(ProjetIndicateur, indic_id)
             if ind.projet_id != p.id:
                 abort(400)
             db.session.delete(ind)
@@ -2318,7 +2321,7 @@ def projet_indicateurs(projet_id):
 @login_required
 @require_perm("projets:view")
 def projet_synthese(projet_id):
-    p = Projet.query.get_or_404(projet_id)
+    p = db.get_or_404(Projet, projet_id)
     if not can_see_secteur(p.secteur):
         abort(403)
 
@@ -2353,7 +2356,7 @@ def projet_synthese(projet_id):
 
         if action == "delete_journal":
             entry_id = int(request.form.get("entry_id") or 0)
-            entry = ProjetJournalEntry.query.get_or_404(entry_id)
+            entry = db.get_or_404(ProjetJournalEntry, entry_id)
             if entry.projet_id != p.id:
                 abort(400)
             db.session.delete(entry)
@@ -2475,7 +2478,7 @@ def projet_synthese(projet_id):
 @login_required
 @require_perm("projets:view")
 def projet_fiche_document(projet_id):
-    p = Projet.query.get_or_404(projet_id)
+    p = db.get_or_404(Projet, projet_id)
     if not can_see_secteur(p.secteur):
         abort(403)
 
@@ -2569,7 +2572,7 @@ def projet_fiche_document(projet_id):
 @login_required
 @require_perm("projets:view")
 def projet_action_detail(projet_id, action_id):
-    p = Projet.query.get_or_404(projet_id)
+    p = db.get_or_404(Projet, projet_id)
     if not can_see_secteur(p.secteur):
         abort(403)
     action = ProjetAction.query.filter_by(id=action_id, projet_id=p.id).first_or_404()
@@ -2662,7 +2665,7 @@ def projet_action_detail(projet_id, action_id):
 @login_required
 @require_perm("projets:view")
 def projet_action_fiche_document(projet_id, action_id):
-    p = Projet.query.get_or_404(projet_id)
+    p = db.get_or_404(Projet, projet_id)
     if not can_see_secteur(p.secteur):
         abort(403)
     action = ProjetAction.query.filter_by(id=action_id, projet_id=p.id).first_or_404()
@@ -2717,7 +2720,7 @@ def projets_delete(projet_id: int):
 
     ⚠️ Non réversible. (On pourrait faire un soft-delete plus tard si tu veux.)
     """
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
 
     if not can_access_secteur(getattr(projet, "secteur", None)):
         flash("Accès refusé.", "danger")
@@ -2783,7 +2786,7 @@ def projets_delete(projet_id: int):
 @login_required
 @require_perm("projets:files")
 def projets_cr_download(projet_id):
-    p = Projet.query.get_or_404(projet_id)
+    p = db.get_or_404(Projet, projet_id)
     if not can_see_secteur(p.secteur):
         abort(403)
 
@@ -2801,7 +2804,7 @@ def projets_cr_download(projet_id):
 @login_required
 @require_perm("projets:view")
 def projet_finance(projet_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
 
@@ -2826,7 +2829,7 @@ def projet_finance(projet_id):
 @login_required
 @require_perm("projets:view")
 def projet_finance_action(projet_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
 
@@ -2921,7 +2924,7 @@ def projet_finance_action(projet_id):
         if not can("subventions:link"):
             abort(403)
         sub_id = int(request.form.get("subvention_id") or 0)
-        sub = Subvention.query.get_or_404(sub_id)
+        sub = db.get_or_404(Subvention, sub_id)
         if sub.secteur != projet.secteur:
             abort(400)
 
@@ -2939,7 +2942,7 @@ def projet_finance_action(projet_id):
             abort(403)
 
         ligne_id = int(request.form.get("ligne_budget_id") or 0)
-        ligne = LigneBudget.query.get_or_404(ligne_id)
+        ligne = db.get_or_404(LigneBudget, ligne_id)
         sub = ligne.source_sub
         if not sub or sub.secteur != projet.secteur:
             abort(400)
@@ -2953,7 +2956,7 @@ def projet_finance_action(projet_id):
         charge_id = int(request.form.get("charge_projet_id") or 0)
         charge = None
         if charge_id:
-            charge = ChargeProjet.query.get_or_404(charge_id)
+            charge = db.get_or_404(ChargeProjet, charge_id)
             if charge.projet_id != projet.id:
                 abort(400)
 
@@ -2993,7 +2996,7 @@ def projet_finance_action(projet_id):
 @login_required
 @require_perm("aap:view")
 def projet_budget_home(projet_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
     return redirect(url_for("projets.projet_budget_charges", projet_id=projet_id))
@@ -3003,7 +3006,7 @@ def projet_budget_home(projet_id):
 @login_required
 @require_perm("aap:charges_view")
 def projet_budget_charges(projet_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
 
@@ -3046,7 +3049,7 @@ def projet_budget_charges(projet_id):
 @login_required
 @require_perm("aap:charges_edit")
 def projet_budget_charge_edit(projet_id, charge_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
     charge = ChargeProjet.query.filter_by(id=charge_id, projet_id=projet.id).first_or_404()
@@ -3075,7 +3078,7 @@ def projet_budget_charge_edit(projet_id, charge_id):
 @login_required
 @require_perm("aap:charges_edit")
 def projet_budget_charge_delete(projet_id, charge_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
     charge = ChargeProjet.query.filter_by(id=charge_id, projet_id=projet.id).first_or_404()
@@ -3092,7 +3095,7 @@ def projet_budget_charge_delete(projet_id, charge_id):
 @login_required
 @require_perm("aap:produits_view")
 def projet_budget_produits(projet_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
 
@@ -3139,7 +3142,7 @@ def projet_budget_produits(projet_id):
 @login_required
 @require_perm("aap:produits_edit")
 def projet_budget_produit_edit(projet_id, produit_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
     produit = ProduitProjet.query.filter_by(id=produit_id, projet_id=projet.id).first_or_404()
@@ -3170,7 +3173,7 @@ def projet_budget_produit_edit(projet_id, produit_id):
 @login_required
 @require_perm("aap:produits_edit")
 def projet_budget_produit_delete(projet_id, produit_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
     produit = ProduitProjet.query.filter_by(id=produit_id, projet_id=projet.id).first_or_404()
@@ -3187,7 +3190,7 @@ def projet_budget_produit_delete(projet_id, produit_id):
 @login_required
 @require_perm("aap:ventilation_view")
 def projet_budget_ventilation(projet_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
 
@@ -3291,7 +3294,7 @@ def projet_budget_ventilation(projet_id):
 @login_required
 @require_perm("aap:synthese_view")
 def projet_budget_synthese(projet_id):
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
     if not can_access_secteur(projet.secteur):
         abort(403)
     charges = ChargeProjet.query.filter_by(projet_id=projet.id).all()

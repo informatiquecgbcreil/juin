@@ -109,7 +109,7 @@ def delete_user(user_id):
         flash("Vous ne pouvez pas supprimer votre propre compte.", "danger")
         return redirect(url_for("admin.users"))
 
-    u = User.query.get_or_404(user_id)
+    u = db.get_or_404(User, user_id)
     db.session.delete(u)
     commit_delete(
         f"l'utilisateur « {u.nom} »",
@@ -150,7 +150,7 @@ def droits():
         # --- Affecter un rôle (unique) à un user ---
         if action == "set_user_roles":
             user_id = int(request.form.get("user_id") or 0)
-            u = User.query.get_or_404(user_id)
+            u = db.get_or_404(User, user_id)
 
             role_code = _get_single_role_code_from_form()
 
@@ -202,7 +202,7 @@ def droits():
 @require_perm("admin:rbac")
 def set_user_roles():
     user_id = int(request.form.get("user_id") or 0)
-    u = User.query.get_or_404(user_id)
+    u = db.get_or_404(User, user_id)
 
     role_code = _get_single_role_code_from_form()
 
@@ -335,7 +335,7 @@ def secteurs():
 @login_required
 @require_perm("secteurs:edit")
 def secteur_rename(secteur_id: int):
-    s = Secteur.query.get_or_404(secteur_id)
+    s = db.get_or_404(Secteur, secteur_id)
     new_label = (request.form.get("label") or "").strip()
     if not new_label:
         flash("Nom de secteur vide ❌", "danger")
@@ -357,7 +357,7 @@ def secteur_rename(secteur_id: int):
 @login_required
 @require_perm("secteurs:edit")
 def secteur_toggle(secteur_id: int):
-    s = Secteur.query.get_or_404(secteur_id)
+    s = db.get_or_404(Secteur, secteur_id)
     s.is_active = not bool(s.is_active)
     try:
         db.session.commit()

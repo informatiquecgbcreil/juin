@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.utils.dates import utcnow
+
 from app.extensions import db
 
 
@@ -16,7 +18,7 @@ class BudgetCompteReferentiel(db.Model):
     secteur = db.Column(db.String(80), nullable=True, index=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
     ordre = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     categories = db.relationship("BudgetCategorieReferentiel", back_populates="compte", cascade="all, delete-orphan")
 
@@ -38,7 +40,7 @@ class BudgetCategorieReferentiel(db.Model):
     secteur = db.Column(db.String(80), nullable=True, index=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
     ordre = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     compte = db.relationship("BudgetCompteReferentiel", back_populates="categories")
 
@@ -58,7 +60,7 @@ class BudgetModeleReferentiel(db.Model):
     secteur = db.Column(db.String(80), nullable=True, index=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
     ordre = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     lignes = db.relationship(
         "BudgetModeleLigneReferentiel",
@@ -77,7 +79,7 @@ class BudgetModeleLigneReferentiel(db.Model):
     montant_defaut = db.Column(db.Float, nullable=True)
     ordre = db.Column(db.Integer, nullable=False, default=0)
     commentaire = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     modele = db.relationship("BudgetModeleReferentiel", back_populates="lignes")
     categorie = db.relationship("BudgetCategorieReferentiel")

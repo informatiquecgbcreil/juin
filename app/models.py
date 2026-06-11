@@ -1,4 +1,5 @@
-from datetime import datetime
+
+from app.utils.dates import utcnow
 from datetime import date
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,7 +13,7 @@ class User(db.Model):
     nom = db.Column(db.String(120), nullable=False, default="Utilisateur")
     role = db.Column(db.String(40), nullable=False, default="responsable_secteur")
     secteur_assigne = db.Column(db.String(80), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     # Flask-Login
     @property
@@ -91,8 +92,8 @@ class UserDashboardPreference(db.Model):
     quick_actions_json = db.Column(db.Text, nullable=True)
     widgets_json = db.Column(db.Text, nullable=True)
     customized = db.Column(db.Boolean, nullable=False, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     user = db.relationship("User", backref=db.backref("dashboard_pref", uselist=False, cascade="all, delete-orphan"))
 
@@ -164,7 +165,7 @@ class InstanceSettings(db.Model):
     smtp_use_tls = db.Column(db.Boolean, nullable=True)
     smtp_sender = db.Column(db.String(255), nullable=True)
 
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 
 class Secteur(db.Model):
@@ -179,7 +180,7 @@ class Secteur(db.Model):
     code = db.Column(db.String(80), unique=True, nullable=False, index=True)
     label = db.Column(db.String(120), unique=True, nullable=False, index=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     def __repr__(self) -> str:
         return f"<Secteur {self.code} ({'on' if self.is_active else 'off'})>"
@@ -263,7 +264,7 @@ class PedagogieModule(db.Model):
     nom = db.Column(db.String(160), nullable=False, unique=True, index=True)
     description = db.Column(db.Text, nullable=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     competences = db.relationship(
         "Competence",
@@ -280,7 +281,7 @@ class ObjectifCompetenceMap(db.Model):
     competence_id = db.Column(db.Integer, db.ForeignKey("competence.id", ondelete="CASCADE"), nullable=False, index=True)
     poids = db.Column(db.Float, nullable=False, default=1.0)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     objectif = db.relationship("Objectif")
     competence = db.relationship("Competence")
@@ -300,7 +301,7 @@ class PlanProjetAtelierModule(db.Model):
     atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), nullable=False, index=True)
     module_id = db.Column(db.Integer, db.ForeignKey("pedagogie_module.id", ondelete="CASCADE"), nullable=False, index=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     projet = db.relationship("Projet")
     atelier = db.relationship("AtelierActivite")
@@ -324,7 +325,7 @@ class Objectif(db.Model):
     session_id = db.Column(db.Integer, db.ForeignKey("session_activite.id"), nullable=True)
     module_id = db.Column(db.Integer, db.ForeignKey("pedagogie_module.id"), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     parent = db.relationship("Objectif", remote_side=[id], backref=db.backref("enfants", cascade="all, delete-orphan"))
     projet = db.relationship("Projet")
@@ -348,7 +349,7 @@ class Projet(db.Model):
     cr_filename = db.Column(db.String(255), nullable=True)
     cr_original_name = db.Column(db.String(255), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     subventions = db.relationship("SubventionProjet", back_populates="projet", cascade="all, delete-orphan")
     # AAP / Budget projet (charges/produits/ventilations)
@@ -434,7 +435,7 @@ class ChargeProjet(db.Model):
     montant_reel = db.Column(db.Float, default=0.0)
 
     commentaire = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     projet = db.relationship("Projet", back_populates="charges_projet")
     ventilations = db.relationship("VentilationProjet", back_populates="charge", cascade="all, delete-orphan")
@@ -474,7 +475,7 @@ class ProduitProjet(db.Model):
 
     reference_dossier = db.Column(db.String(120), nullable=True)
     commentaire = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     projet = db.relationship("Projet", back_populates="produits_projet")
     ventilations = db.relationship("VentilationProjet", back_populates="produit", cascade="all, delete-orphan")
@@ -494,7 +495,7 @@ class VentilationProjet(db.Model):
     charge_id = db.Column(db.Integer, db.ForeignKey("charge_projet.id", ondelete="CASCADE"), nullable=False)
     produit_id = db.Column(db.Integer, db.ForeignKey("produit_projet.id", ondelete="CASCADE"), nullable=False)
     montant_ventile = db.Column(db.Float, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     charge = db.relationship("ChargeProjet", back_populates="ventilations")
     produit = db.relationship("ProduitProjet", back_populates="ventilations")
@@ -507,8 +508,8 @@ class BudgetPrevisionnel(db.Model):
     secteur = db.Column(db.String(80), nullable=False, index=True)
     statut = db.Column(db.String(30), nullable=False, default="brouillon")  # brouillon / valide / archive
     notes = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     lignes = db.relationship("BudgetPrevisionnelLigne", back_populates="budget", cascade="all, delete-orphan")
     appels = db.relationship("AppelProjetBudget", back_populates="budget", cascade="all, delete-orphan")
@@ -538,7 +539,7 @@ class BudgetPrevisionnelLigne(db.Model):
     montant = db.Column(db.Float, default=0.0)
     commentaire = db.Column(db.Text, nullable=True)
     ordre = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     budget = db.relationship("BudgetPrevisionnel", back_populates="lignes")
     projet = db.relationship("Projet", backref=db.backref("lignes_previsionnelles", lazy="dynamic"))
@@ -556,7 +557,7 @@ class AppelProjetBudget(db.Model):
     financeur = db.Column(db.String(200), nullable=True)
     statut = db.Column(db.String(30), nullable=False, default="preparation")
     notes = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     budget = db.relationship("BudgetPrevisionnel", back_populates="appels")
     subvention = db.relationship("Subvention", backref=db.backref("budgets_appel", lazy="dynamic"))
@@ -584,7 +585,7 @@ class AppelProjetBudgetLigne(db.Model):
     montant_retenu = db.Column(db.Float, default=0.0)
     pourcentage_retenu = db.Column(db.Float, nullable=True)
     commentaire = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     appel = db.relationship("AppelProjetBudget", back_populates="lignes")
     ligne_budget = db.relationship("BudgetPrevisionnelLigne", back_populates="lignes_appel")
@@ -593,7 +594,7 @@ class SubventionProjet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     projet_id = db.Column(db.Integer, db.ForeignKey("projet.id"), nullable=False)
     subvention_id = db.Column(db.Integer, db.ForeignKey("subvention.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     projet = db.relationship("Projet", back_populates="subventions")
     subvention = db.relationship("Subvention", back_populates="projets")
@@ -610,7 +611,7 @@ class ProjetAtelier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     projet_id = db.Column(db.Integer, db.ForeignKey("projet.id"), nullable=False, index=True)
     atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id"), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     projet = db.relationship("Projet", backref=db.backref("ateliers", cascade="all, delete-orphan"))
     atelier = db.relationship("AtelierActivite")
@@ -631,7 +632,7 @@ class ProjetIndicateur(db.Model):
     label = db.Column(db.String(200), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     params_json = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     projet = db.relationship("Projet", backref=db.backref("indicateurs", cascade="all, delete-orphan"))
 
@@ -656,8 +657,8 @@ class ProjetJournalEntry(db.Model):
     titre = db.Column(db.String(180), nullable=True)
     contenu = db.Column(db.Text, nullable=False)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     projet = db.relationship("Projet", back_populates="journal_entries")
     user = db.relationship("User")
@@ -682,8 +683,8 @@ class ProjetAction(db.Model):
     partenaires_text = db.Column(db.Text, nullable=True)
     bilan_qualitatif = db.Column(db.Text, nullable=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     projet = db.relationship("Projet", back_populates="actions_detaillees")
     user = db.relationship("User")
@@ -696,7 +697,7 @@ class ProjetActionAtelier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     action_id = db.Column(db.Integer, db.ForeignKey("projet_action.id", ondelete="CASCADE"), nullable=False, index=True)
     atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     action = db.relationship("ProjetAction", back_populates="atelier_links")
     atelier = db.relationship("AtelierActivite")
@@ -720,7 +721,7 @@ class Subvention(db.Model):
     montant_recu = db.Column(db.Float, default=0.0)
 
     est_archive = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     lignes = db.relationship("LigneBudget", backref="source_sub", cascade="all, delete-orphan")
     depense_affectations = db.relationship("DepenseAffectation", back_populates="subvention", cascade="all, delete-orphan")
@@ -787,7 +788,7 @@ class LigneBudget(db.Model):
     montant_base = db.Column(db.Float, default=0.0)
     montant_reel = db.Column(db.Float, default=0.0)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     depenses = db.relationship("Depense", backref="budget_source", cascade="all, delete-orphan")
     depense_affectations = db.relationship("DepenseAffectation", back_populates="ligne_budget", cascade="all, delete-orphan")
@@ -845,7 +846,7 @@ class Depense(db.Model):
     anomalie = db.Column(db.String(255), nullable=True)
     est_supprimee = db.Column(db.Boolean, default=False)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     documents = db.relationship("DepenseDocument", backref="depense", cascade="all, delete-orphan")
     affectations = db.relationship("DepenseAffectation", back_populates="depense", cascade="all, delete-orphan")
@@ -885,7 +886,7 @@ class DepenseAffectation(db.Model):
     libelle_source = db.Column(db.String(200), nullable=True)
     montant = db.Column(db.Float, nullable=False, default=0.0)
     commentaire = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     depense = db.relationship("Depense", back_populates="affectations")
     subvention = db.relationship("Subvention", back_populates="depense_affectations")
@@ -913,7 +914,7 @@ class DepenseDocument(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     original_name = db.Column(db.String(255), nullable=False)
 
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=utcnow)
 
 
 # ---------- FACTURES / INVENTAIRE ----------
@@ -932,7 +933,7 @@ class FactureAchat(db.Model):
     original_name = db.Column(db.String(255), nullable=True)
 
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     lignes = db.relationship("FactureLigne", backref="facture", cascade="all, delete-orphan")
 
@@ -961,7 +962,7 @@ class FactureLigne(db.Model):
     charge_projet_id = db.Column(db.Integer, db.ForeignKey("charge_projet.id", ondelete="SET NULL"), nullable=True)
     subvention_id = db.Column(db.Integer, db.ForeignKey("subvention.id"), nullable=False)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     depenses = db.relationship("Depense", backref="facture_ligne", passive_deletes=True)
     inventaire_items = db.relationship("InventaireItem", backref="facture_ligne", passive_deletes=True)
@@ -990,7 +991,7 @@ class InventaireItem(db.Model):
     depense_id = db.Column(db.Integer, db.ForeignKey("depense.id", ondelete="SET NULL"), nullable=True)
 
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 # ==========================================================
@@ -1030,8 +1031,8 @@ class Partenaire(db.Model):
     modalites_orientation = db.Column(db.Text, nullable=True)
     niveau_orientation = db.Column(db.String(40), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     secteurs = db.relationship("PartenaireSecteur", backref="partenaire", cascade="all, delete-orphan")
     interventions = db.relationship(
@@ -1069,7 +1070,7 @@ class PartenaireIntervention(db.Model):
     date_intervention = db.Column(db.Date, nullable=False)
     description = db.Column(db.Text, nullable=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 class OrientationAccesDroit(db.Model):
@@ -1092,8 +1093,8 @@ class OrientationAccesDroit(db.Model):
     quartier_id = db.Column(db.Integer, db.ForeignKey("quartier.id", ondelete="SET NULL"), nullable=True, index=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     participant = db.relationship("Participant", backref=db.backref("orientations_acces_droit", lazy="dynamic"))
     partenaire = db.relationship("Partenaire", back_populates="orientations")
@@ -1117,8 +1118,8 @@ class SuiviRappel(db.Model):
 
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True)
     done_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     user = db.relationship("User")
 
@@ -1129,8 +1130,8 @@ class Questionnaire(db.Model):
     nom = db.Column(db.String(180), nullable=False)
     description = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     secteurs = db.relationship("QuestionnaireSecteur", backref="questionnaire", cascade="all, delete-orphan")
     ateliers = db.relationship("QuestionnaireAtelier", backref="questionnaire", cascade="all, delete-orphan")
@@ -1182,7 +1183,7 @@ class QuestionnaireResponseGroup(db.Model):
     atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id"), nullable=True)
     secteur = db.Column(db.String(80), nullable=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     participant = db.relationship("Participant")
     session = db.relationship("SessionActivite")
@@ -1232,8 +1233,8 @@ class Participant(db.Model):
     quartier_id = db.Column(db.Integer, db.ForeignKey("quartier.id"), nullable=True)
     quartier = db.relationship("Quartier")
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     # Pour permettre la création "en avance" (avant toute présence) tout en respectant
     # le cloisonnement par secteur en rôle responsable_secteur.
@@ -1301,8 +1302,8 @@ class InsertionDispositifRef(db.Model):
     code = db.Column(db.String(80), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def __repr__(self) -> str:
         return f"<InsertionDispositifRef {self.label}>"
@@ -1315,8 +1316,8 @@ class InsertionPrescripteurRef(db.Model):
     code = db.Column(db.String(80), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def __repr__(self) -> str:
         return f"<InsertionPrescripteurRef {self.label}>"
@@ -1329,8 +1330,8 @@ class InsertionTitreSejourTypeRef(db.Model):
     code = db.Column(db.String(80), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def __repr__(self) -> str:
         return f"<InsertionTitreSejourTypeRef {self.label}>"
@@ -1343,8 +1344,8 @@ class InsertionDiplomeRef(db.Model):
     code = db.Column(db.String(80), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def __repr__(self) -> str:
         return f"<InsertionDiplomeRef {self.label}>"
@@ -1357,8 +1358,8 @@ class InsertionNiveauRef(db.Model):
     code = db.Column(db.String(80), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def __repr__(self) -> str:
         return f"<InsertionNiveauRef {self.label}>"
@@ -1369,8 +1370,8 @@ class ParticipantInsertionProfile(db.Model):
     participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), primary_key=True)
     pays_origine = db.Column(db.String(120), nullable=True)
     cir_obtenu = db.Column(db.Boolean, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     updated_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
@@ -1395,8 +1396,8 @@ class ParticipantInsertionParcours(db.Model):
     date_sortie = db.Column(db.Date, nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     legacy_source = db.Column(db.Boolean, nullable=False, default=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     updated_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
@@ -1421,8 +1422,8 @@ class ParticipantInsertionPositionnement(db.Model):
     type_positionnement = db.Column(db.String(32), nullable=False, default="entree")
     commentaire = db.Column(db.Text, nullable=True)
     legacy_source = db.Column(db.Boolean, nullable=False, default=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     updated_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
@@ -1448,8 +1449,8 @@ class ParticipantInsertionCertification(db.Model):
     resultat = db.Column(db.String(32), nullable=True)
     commentaire = db.Column(db.Text, nullable=True)
     legacy_source = db.Column(db.Boolean, nullable=False, default=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     updated_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
@@ -1481,7 +1482,7 @@ class AtelierActivite(db.Model):
     modele_docx_collectif = db.Column(db.String(255), nullable=True)
     modele_docx_individuel = db.Column(db.String(255), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     # Statut métier + soft-delete
     is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
@@ -1536,7 +1537,7 @@ class SessionActivite(db.Model):
     rdv_fin = db.Column(db.String(10), nullable=True)
     duree_minutes = db.Column(db.Integer, nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     consommation_config_id = db.Column(
         db.Integer,
         db.ForeignKey("materiel_consommation_config.id"),
@@ -1649,7 +1650,7 @@ class SessionScheduleEditLog(db.Model):
 
     reason = db.Column(db.Text, nullable=False)
     edited_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
-    edited_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    edited_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
 
     session = db.relationship("SessionActivite")
     atelier = db.relationship("AtelierActivite")
@@ -1689,7 +1690,7 @@ class PresenceActivite(db.Model):
     # signature: stockée en fichier (temp), ici juste le chemin
     signature_path = db.Column(db.String(255), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     __table_args__ = (
         db.UniqueConstraint("session_id", "participant_id", name="uq_presence_session_participant"),
@@ -1720,8 +1721,8 @@ class PresenceMaterielConsommation(db.Model):
     co2_kg_snapshot = db.Column(db.Float, nullable=False, default=0.0)
     co2_kg_par_kwh_snapshot = db.Column(db.Float, nullable=False, default=0.06)
     mode_calcul = db.Column(db.String(40), nullable=False, default="manuel")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     materiel = db.relationship("MaterielType")
     session = db.relationship("SessionActivite")
@@ -1763,7 +1764,7 @@ class PasseportNote(db.Model):
     categorie = db.Column(db.String(60), nullable=False, default="journal", index=True)
     contenu = db.Column(db.Text, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
     participant = db.relationship("Participant")
     session = db.relationship("SessionActivite")
@@ -1783,7 +1784,7 @@ class PasseportPieceJointe(db.Model):
     original_name = db.Column(db.String(255), nullable=False)
     mime_type = db.Column(db.String(120), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
     participant = db.relationship("Participant")
     session = db.relationship("SessionActivite")
@@ -1805,8 +1806,8 @@ class ObjectifSuivi(db.Model):
 
     date_saisie = db.Column(db.Date, nullable=False, default=date.today, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     objectif = db.relationship("Objectif")
     session = db.relationship("SessionActivite")
@@ -1836,7 +1837,7 @@ class ArchiveEmargement(db.Model):
     last_emailed_to = db.Column(db.String(255), nullable=True)
     last_emailed_at = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="open")  # open/locked
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 
@@ -1854,7 +1855,7 @@ class PeriodeFinancement(db.Model):
     date_fin = db.Column(db.Date, nullable=False, index=True)
 
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
@@ -1877,8 +1878,8 @@ class BilanLourdNarratif(db.Model):
 
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     updated_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
         db.UniqueConstraint("annee", "secteur", name="uq_bilan_lourd_narratif_annee_secteur"),
@@ -1962,7 +1963,7 @@ class Framework(db.Model):
     lang = db.Column(db.String(8), nullable=True, default="fr")
     source_url = db.Column(db.String(512), nullable=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     skills = db.relationship("Skill", backref="framework", lazy=True)
 
@@ -1985,7 +1986,7 @@ class Skill(db.Model):
     domain_label = db.Column(db.String(255), nullable=True)
     sort_order = db.Column(db.Integer, nullable=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     def __repr__(self):
         return f"<Skill {self.framework_id}:{self.code}>"
@@ -2003,7 +2004,7 @@ class LearningProject(db.Model):
     framework_id_default = db.Column(db.Integer, db.ForeignKey("framework.id"), nullable=True, index=True)
     seuil_reussite = db.Column(db.Float, nullable=False, default=0.6)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
 
     framework_default = db.relationship("Framework", foreign_keys=[framework_id_default])
@@ -2027,7 +2028,7 @@ class LearningProjectSkill(db.Model):
     obligatoire = db.Column(db.Boolean, nullable=False, default=False)
     notes = db.Column(db.Text, nullable=True)
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     project = db.relationship("LearningProject", backref=db.backref("skills", lazy=True, cascade="all, delete-orphan"))
     skill = db.relationship("Skill")
@@ -2041,7 +2042,7 @@ class AtelierProject(db.Model):
 
     atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey("learning_project.id", ondelete="CASCADE"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     atelier = db.relationship("AtelierActivite", backref=db.backref("projects", lazy=True, cascade="all, delete-orphan"))
     project = db.relationship("LearningProject", backref=db.backref("ateliers", lazy=True))
@@ -2057,7 +2058,7 @@ class SessionSkill(db.Model):
     skill_id = db.Column(db.Integer, db.ForeignKey("skill.id", ondelete="CASCADE"), nullable=False)
     expected_level = db.Column(db.String(32), nullable=True)
     coverage = db.Column(db.Float, nullable=False, default=1.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     session = db.relationship("SessionActivite", backref=db.backref("skills", lazy=True, cascade="all, delete-orphan"))
     skill = db.relationship("Skill")
@@ -2071,7 +2072,7 @@ class SessionAssessment(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey("learning_project.id", ondelete="SET NULL"), nullable=True, index=True)
     method = db.Column(db.String(32), nullable=False, default="OBSERVATION")
     notes = db.Column(db.Text, nullable=True)
-    assessed_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    assessed_at = db.Column(db.DateTime, default=utcnow, index=True)
     assessed_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
 
     session = db.relationship("SessionActivite")
@@ -2099,7 +2100,7 @@ class SessionAssessmentSkill(db.Model):
     score = db.Column(db.Integer, nullable=True)
     observed_level = db.Column(db.String(32), nullable=True)
     comment = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     assessment = db.relationship(
         "SessionAssessment",

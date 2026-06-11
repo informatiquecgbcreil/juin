@@ -234,7 +234,7 @@ def controle():
             return redirect(url_for("main.controle"))
         if action == "toggle_materiel":
             mid = request.form.get("materiel_id", type=int)
-            m = MaterielType.query.get_or_404(mid)
+            m = db.get_or_404(MaterielType, mid)
             m.actif = not bool(m.actif)
             db.session.commit()
             flash("État du matériel mis à jour.", "success")
@@ -274,7 +274,7 @@ def controle():
 
         if action == "update_conso_config":
             cfg_id = request.form.get("config_id", type=int)
-            cfg = MaterielConsommationConfig.query.get_or_404(cfg_id)
+            cfg = db.get_or_404(MaterielConsommationConfig, cfg_id)
 
             label = (request.form.get("label") or "").strip()
             date_debut = _parse_iso_date(request.form.get("date_debut") or "")
@@ -307,7 +307,7 @@ def controle():
 
         if action == "delete_conso_config":
             cfg_id = request.form.get("config_id", type=int)
-            cfg = MaterielConsommationConfig.query.get_or_404(cfg_id)
+            cfg = db.get_or_404(MaterielConsommationConfig, cfg_id)
 
             used_count = SessionActivite.query.filter(SessionActivite.consommation_config_id == cfg.id).count()
             if used_count:

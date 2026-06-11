@@ -1007,7 +1007,7 @@ def index():
         seen_cat_ids = set()
 
         if modele_id:
-            modele = BudgetModeleReferentiel.query.get_or_404(modele_id)
+            modele = db.get_or_404(BudgetModeleReferentiel, modele_id)
             if modele.secteur and modele.secteur != budget.secteur:
                 abort(400)
             if not modele.actif:
@@ -1063,7 +1063,7 @@ def index():
 @login_required
 @require_perm("subventions:view")
 def detail(budget_id: int):
-    budget = BudgetPrevisionnel.query.get_or_404(budget_id)
+    budget = db.get_or_404(BudgetPrevisionnel, budget_id)
     _check_budget_scope(budget)
 
     if request.method == "POST":
@@ -1087,14 +1087,14 @@ def detail(budget_id: int):
             cat_id = _parse_int(request.form.get("categorie_ref_id"), 0) or None
             cat = None
             if cat_id:
-                cat = BudgetCategorieReferentiel.query.get_or_404(cat_id)
+                cat = db.get_or_404(BudgetCategorieReferentiel, cat_id)
                 if not _category_allowed_for_budget(cat, budget):
                     abort(400)
                 nature = cat.nature
 
             projet_id = _parse_int(request.form.get("projet_id"), 0) or None
             if projet_id:
-                projet = Projet.query.get_or_404(projet_id)
+                projet = db.get_or_404(Projet, projet_id)
                 if projet.secteur != budget.secteur:
                     abort(400)
 
@@ -1121,7 +1121,7 @@ def detail(budget_id: int):
             return redirect(url_for("previsionnel.detail", budget_id=budget.id, tab=("produits" if nature == "produit" else "charges")))
 
         if action == "create_subvention_from_line":
-            line = BudgetPrevisionnelLigne.query.get_or_404(_parse_int(request.form.get("line_id")))
+            line = db.get_or_404(BudgetPrevisionnelLigne, _parse_int(request.form.get("line_id")))
             if line.budget_id != budget.id:
                 abort(400)
             if line.nature != "produit":
@@ -1167,7 +1167,7 @@ def detail(budget_id: int):
             return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
 
         if action == "delete_line":
-            line = BudgetPrevisionnelLigne.query.get_or_404(_parse_int(request.form.get("line_id")))
+            line = db.get_or_404(BudgetPrevisionnelLigne, _parse_int(request.form.get("line_id")))
             if line.budget_id != budget.id:
                 abort(400)
             if line.lignes_appel:
@@ -1185,12 +1185,12 @@ def detail(budget_id: int):
             subvention_id = _parse_int(request.form.get("subvention_id"), 0) or None
             financeur = (request.form.get("financeur") or "").strip() or None
             if subvention_id:
-                sub = Subvention.query.get_or_404(subvention_id)
+                sub = db.get_or_404(Subvention, subvention_id)
                 if sub.secteur != budget.secteur:
                     abort(400)
                 financeur = financeur or sub.nom
             if projet_id:
-                projet = Projet.query.get_or_404(projet_id)
+                projet = db.get_or_404(Projet, projet_id)
                 if projet.secteur != budget.secteur:
                     abort(400)
             selected_ids = [int(x) for x in request.form.getlist("include_line") if str(x).isdigit()]
@@ -1320,14 +1320,14 @@ def referentiel():
             return redirect(url_for("previsionnel.referentiel"))
 
         if action == "toggle_compte":
-            compte = BudgetCompteReferentiel.query.get_or_404(_parse_int(request.form.get("compte_id")))
+            compte = db.get_or_404(BudgetCompteReferentiel, _parse_int(request.form.get("compte_id")))
             compte.actif = not bool(compte.actif)
             db.session.commit()
             flash("Statut du compte modifié.", "success")
             return redirect(url_for("previsionnel.referentiel"))
 
         if action == "create_categorie":
-            compte = BudgetCompteReferentiel.query.get_or_404(_parse_int(request.form.get("compte_id")))
+            compte = db.get_or_404(BudgetCompteReferentiel, _parse_int(request.form.get("compte_id")))
             cat = BudgetCategorieReferentiel(
                 compte_id=compte.id,
                 nature=compte.nature,
@@ -1348,7 +1348,7 @@ def referentiel():
             return redirect(url_for("previsionnel.referentiel"))
 
         if action == "toggle_categorie":
-            cat = BudgetCategorieReferentiel.query.get_or_404(_parse_int(request.form.get("categorie_id")))
+            cat = db.get_or_404(BudgetCategorieReferentiel, _parse_int(request.form.get("categorie_id")))
             cat.actif = not bool(cat.actif)
             db.session.commit()
             flash("Statut de la catégorie modifié.", "success")
@@ -1371,15 +1371,15 @@ def referentiel():
             return redirect(url_for("previsionnel.referentiel"))
 
         if action == "toggle_modele":
-            modele = BudgetModeleReferentiel.query.get_or_404(_parse_int(request.form.get("modele_id")))
+            modele = db.get_or_404(BudgetModeleReferentiel, _parse_int(request.form.get("modele_id")))
             modele.actif = not bool(modele.actif)
             db.session.commit()
             flash("Statut du modèle modifié.", "success")
             return redirect(url_for("previsionnel.referentiel"))
 
         if action == "add_modele_line":
-            modele = BudgetModeleReferentiel.query.get_or_404(_parse_int(request.form.get("modele_id")))
-            cat = BudgetCategorieReferentiel.query.get_or_404(_parse_int(request.form.get("categorie_id")))
+            modele = db.get_or_404(BudgetModeleReferentiel, _parse_int(request.form.get("modele_id")))
+            cat = db.get_or_404(BudgetCategorieReferentiel, _parse_int(request.form.get("categorie_id")))
             if modele.secteur and cat.secteur and modele.secteur != cat.secteur:
                 abort(400)
             exists = BudgetModeleLigneReferentiel.query.filter_by(modele_id=modele.id, categorie_id=cat.id).first()
@@ -1399,7 +1399,7 @@ def referentiel():
             return redirect(url_for("previsionnel.referentiel"))
 
         if action == "remove_modele_line":
-            row = BudgetModeleLigneReferentiel.query.get_or_404(_parse_int(request.form.get("modele_ligne_id")))
+            row = db.get_or_404(BudgetModeleLigneReferentiel, _parse_int(request.form.get("modele_ligne_id")))
             db.session.delete(row)
             db.session.commit()
             flash("Ligne retirée du modèle.", "warning")
@@ -1424,7 +1424,7 @@ def referentiel():
 @login_required
 @require_perm("subventions:view")
 def export_realise(budget_id: int):
-    budget = BudgetPrevisionnel.query.get_or_404(budget_id)
+    budget = db.get_or_404(BudgetPrevisionnel, budget_id)
     _check_budget_scope(budget)
     lines = BudgetPrevisionnelLigne.query.filter_by(budget_id=budget.id).order_by(
         BudgetPrevisionnelLigne.nature.asc(),
@@ -1450,7 +1450,7 @@ def export_realise(budget_id: int):
 @login_required
 @require_perm("subventions:view")
 def export_budget(budget_id: int):
-    budget = BudgetPrevisionnel.query.get_or_404(budget_id)
+    budget = db.get_or_404(BudgetPrevisionnel, budget_id)
     _check_budget_scope(budget)
     lines = BudgetPrevisionnelLigne.query.filter_by(budget_id=budget.id).order_by(BudgetPrevisionnelLigne.nature.asc(), BudgetPrevisionnelLigne.compte.asc(), BudgetPrevisionnelLigne.id.asc()).all()
     wb = _build_budget_workbook(budget, lines)
@@ -1464,7 +1464,7 @@ def export_budget(budget_id: int):
 @login_required
 @require_perm("subventions:view")
 def appel_detail(appel_id: int):
-    appel = AppelProjetBudget.query.get_or_404(appel_id)
+    appel = db.get_or_404(AppelProjetBudget, appel_id)
     _check_budget_scope(appel.budget)
 
     if request.method == "POST":
@@ -1552,7 +1552,7 @@ def appel_detail(appel_id: int):
             return redirect(url_for("previsionnel.appel_detail", appel_id=appel.id))
 
         if action == "remove_line":
-            row = AppelProjetBudgetLigne.query.get_or_404(_parse_int(request.form.get("appel_ligne_id")))
+            row = db.get_or_404(AppelProjetBudgetLigne, _parse_int(request.form.get("appel_ligne_id")))
             if row.appel_id != appel.id:
                 abort(400)
             db.session.delete(row)
@@ -1638,7 +1638,7 @@ def appel_detail(appel_id: int):
 def appel_delete(appel_id: int):
     if not _can_edit():
         abort(403)
-    appel = AppelProjetBudget.query.get_or_404(appel_id)
+    appel = db.get_or_404(AppelProjetBudget, appel_id)
     _check_budget_scope(appel.budget)
     budget_id = appel.budget_id
     db.session.delete(appel)
@@ -1651,7 +1651,7 @@ def appel_delete(appel_id: int):
 @login_required
 @require_perm("subventions:view")
 def export_appel(appel_id: int):
-    appel = AppelProjetBudget.query.get_or_404(appel_id)
+    appel = db.get_or_404(AppelProjetBudget, appel_id)
     _check_budget_scope(appel.budget)
     wb = _build_appel_workbook(appel)
     bio = BytesIO()
