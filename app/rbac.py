@@ -314,13 +314,22 @@ def bootstrap_rbac() -> None:
     db.session.commit()
 
 
-    # Rattrapage: si un utilisateur n'a aucun rôle RBAC, on l'aligne sur User.role (legacy)
+    # Rattrapage: si un utilisateur n'a aucun rôle RBAC, on l'aligne sur User.role (legacy).
+    # C'est l'unique pont avec la colonne legacy: ailleurs, seuls les rôles RBAC font foi.
+    legacy_aliases = {
+        "directrice": "direction",
+        "directeur": "direction",
+        "financiere": "finance",
+        "financière": "finance",
+        "responsable_secteurs": "responsable_secteur",
+    }
     users = User.query.all()
     for u in users:
         if getattr(u, "roles", None) is None:
             continue
         if len(u.roles) == 0:
-            legacy = (u.role or "responsable_secteur").strip()
+            legacy = (u.role or "responsable_secteur").strip().lower()
+            legacy = legacy_aliases.get(legacy, legacy)
             role = Role.query.filter_by(code=legacy).first()
             if role:
                 u.roles.append(role)

@@ -50,11 +50,12 @@ class User(db.Model):
 
 
     def has_role(self, code: str | None) -> bool:
-        """Compat helper: True si l'utilisateur possède le rôle `code`.
+        """True si l'utilisateur possède le rôle RBAC `code`.
 
-        - D'abord via RBAC (User.roles -> Role.code)
-        - Puis fallback legacy (User.role string) pour ne pas exploser les anciennes routes
-        - Gère quelques alias historiques (directrice -> direction, financière -> finance, etc.)
+        Seuls les rôles RBAC (User.roles -> Role.code) font foi. La colonne
+        legacy `User.role` ne donne aucun droit : elle est migrée vers un
+        rôle RBAC au démarrage par `bootstrap_rbac`.
+        Gère quelques alias historiques (directrice -> direction, etc.).
         """
         if not code:
             return False
@@ -71,7 +72,6 @@ class User(db.Model):
         }
         c = aliases.get(c, c)
 
-        # RBAC (relation roles)
         try:
             for r in (getattr(self, "roles", []) or []):
                 rc = (getattr(r, "code", "") or "").strip().lower()
@@ -81,10 +81,7 @@ class User(db.Model):
         except Exception:
             pass
 
-        # Legacy
-        legacy = (getattr(self, "role", None) or "").strip().lower()
-        legacy = aliases.get(legacy, legacy)
-        return legacy == c
+        return False
 
 
 class UserDashboardPreference(db.Model):
