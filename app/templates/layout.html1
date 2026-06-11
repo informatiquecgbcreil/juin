@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ APP_NAME }}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/feedback-kit.css') }}">
+
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <style>
+    :root{
+      color-scheme: light dark;
+
+      --bg: #0b1020;
+      --bg-grad-1: #070b16;
+      --bg-grad-2: #0b1020;
+
+      --surface: rgba(18,26,51,.78);
+      --surface-strong: #121a33;
+      --surface-soft: rgba(255,255,255,.04);
+
+      --text: #e8ecff;
+      --muted: #9aa6d6;
+
+      --border: rgba(255,255,255,.10);
+      --border-soft: rgba(255,255,255,.12);
+      --border-hard: rgba(255,255,255,.18);
+
+      --accent: #6aa5ff;
+      --danger: #ff6a6a;
+      --ok: #52d17c;
+      --warn: #ffcc66;
+
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+
+      --input-bg: rgba(255,255,255,.05);
+      --input-text: var(--text);
+      --input-border: var(--border-soft);
+
+      --option-bg: var(--surface-strong);
+      --option-text: var(--text);
+
+      --focus: rgba(106,165,255,.35);
+      --font-size-base: 16px;
+      --font-size-muted: 14px;
+      --touch-target-min: 44px;
+    }
+
+    html[data-theme="light"]{
+      color-scheme: light;
+
+      --bg: #f4f6fb;
+      --bg-grad-1: #ffffff;
+      --bg-grad-2: #eef2ff;
+
+      --surface: #ffffff;
+      --surface-strong: #ffffff;
+      --surface-soft: #f6f8ff;
+
+      --text: #0f172a;
+      --muted: #475569;
+
+      --border: rgba(15,23,42,.12);
+      --border-soft: rgba(15,23,42,.16);
+      --border-hard: rgba(15,23,42,.22);
+
+      --accent: #1d4ed8;
+      --danger: #dc2626;
+      --ok: #16a34a;
+      --warn: #d97706;
+
+      --shadow: 0 10px 26px rgba(2,6,23,.08);
+
+      --input-bg: #ffffff;
+      --input-text: var(--text);
+      --input-border: rgba(15,23,42,.20);
+
+      --option-bg: #ffffff;
+      --option-text: var(--text);
+
+      --focus: rgba(29,78,216,.28);
+      --font-size-base: 16px;
+      --font-size-muted: 14px;
+      --touch-target-min: 44px;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      font-family: "Atkinson Hyperlegible", "Arial", "Verdana", "Tahoma", system-ui, sans-serif;
+      background: linear-gradient(180deg, var(--bg-grad-1), var(--bg-grad-2));
+      color: var(--text);
+      font-size: var(--font-size-base);
+      line-height: 1.5;
+    }
+
+    a{ color:inherit; text-decoration:none; }
+    a:hover{ text-decoration: underline; }
+
+    .wrap{ max-width:1180px; margin:0 auto; padding:14px 16px; }
+    .container{ max-width:1180px; margin:0 auto; padding:18px 16px 46px; }
+
+    .skip-link{
+      position:absolute;
+      left:10px;
+      top:-60px;
+      z-index:1000;
+      background: var(--surface-strong);
+      border:2px solid var(--accent);
+      border-radius:10px;
+      padding:10px 12px;
+      color:var(--text);
+      font-weight:700;
+    }
+    .skip-link:focus{ top:10px; }
+
+    .topbar{
+      position:sticky; top:0; z-index:10;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    }
+
+    .nav{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .brand{ font-weight:900; letter-spacing:.3px; margin-right:10px; }
+
+    .nav-group{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      padding:4px 0;
+    }
+
+    .nav-group + .nav-group{
+      padding-left:10px;
+      margin-left:6px;
+      border-left:1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    }
+
+    .nav-group-title{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      color: var(--muted);
+      font-weight:700;
+      margin-right:4px;
+    }
+
+    .nav-more{
+      position:relative;
+    }
+
+    .nav-more summary{
+      list-style:none;
+    }
+
+    .nav-more summary::-webkit-details-marker{
+      display:none;
+    }
+
+    .nav-more-panel{
+      position:absolute;
+      top:48px;
+      left:0;
+      min-width:240px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      z-index:20;
+      max-height:min(70vh, 520px);
+      overflow:auto;
+    }
+    .nav-more-section-title{
+      width:100%;
+      font-size:11px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.4px;
+      color:var(--muted);
+      padding:8px 2px 0;
+      margin-top:6px;
+      border-top:1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    }
+    .nav-more-section-title:first-child{
+      border-top:none;
+      margin-top:0;
+      padding-top:2px;
+    }
+
+    .nav-more-panel .pill{
+      width:100%;
+      text-align:left;
+    }
+
+    .pill{
+      padding:10px 14px;
+      border:1px solid var(--border-soft);
+      border-radius:999px;
+      background: color-mix(in srgb, var(--surface) 70%, transparent);
+      cursor:pointer;
+      user-select:none;
+      min-height: var(--touch-target-min);
+      display:inline-flex;
+      align-items:center;
+      transition:border-color .15s ease, background .15s ease;
+    }
+
+    .pill:hover{ border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+    .pill.active{
+      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+      background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    }
+    .pill:focus-visible, .btn:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+      outline: 3px solid color-mix(in srgb, var(--accent) 82%, #ffffff);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px var(--focus);
+    }
+
+    .right{ margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .global-search{ position:relative; min-width:200px; max-width:360px; width:min(32vw, 360px); }
+    .global-search input{
+      width:100%;
+      border:1px solid var(--input-border);
+      border-radius:999px;
+      background: var(--input-bg);
+      color: var(--input-text);
+      padding:9px 14px;
+      font-size:14px;
+    }
+    .global-search input:focus{
+      outline:2px solid var(--focus);
+      outline-offset:1px;
+    }
+    .global-search__panel{
+      position:absolute;
+      top:calc(100% + 8px);
+      left:0;
+      right:0;
+      border:1px solid var(--border-soft);
+      border-radius:14px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      max-height:320px;
+      overflow:auto;
+      z-index:30;
+      display:none;
+    }
+    .global-search__panel.visible{ display:block; }
+    .global-search__item{
+      display:block;
+      padding:10px 12px;
+      border-bottom:1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      text-decoration:none !important;
+    }
+    .global-search__item:last-child{ border-bottom:none; }
+    .global-search__item:hover{
+      background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+    }
+    .global-search__item.is-active{
+      background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+      outline:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .global-search__section{
+      padding:8px 0 4px;
+      border-bottom:1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    }
+    .global-search__section:last-child{ border-bottom:none; padding-bottom:0; }
+    .global-search__section-title{
+      font-size:11px;
+      font-weight:800;
+      color:var(--muted);
+      letter-spacing:.4px;
+      text-transform:uppercase;
+      padding:0 12px 6px;
+    }
+    .global-search__type{ font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:700; letter-spacing:.3px; }
+    .global-search__label{ font-weight:700; margin-top:2px; }
+    .global-search__meta{ font-size:12px; color:var(--muted); margin-top:2px; }
+    .global-search mark{
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      color: inherit;
+      border-radius:4px;
+      padding:0 2px;
+    }
+    .global-search__empty{ padding:10px 12px; color:var(--muted); font-size:13px; }
+    .global-search__facets{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      padding:8px 10px 6px;
+      border-bottom:1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    }
+    .global-search__facet{
+      border:1px solid var(--border-soft);
+      background: color-mix(in srgb, var(--surface) 85%, transparent);
+      color:var(--text);
+      border-radius:999px;
+      font-size:12px;
+      padding:4px 8px;
+      cursor:pointer;
+    }
+    .global-search__facet.is-active{
+      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+      background: color-mix(in srgb, var(--accent) 13%, var(--surface));
+    }
+
+    .tag{
+      font-size:12px; color: var(--muted);
+      border:1px dashed color-mix(in srgb, var(--border-hard) 70%, transparent);
+      padding:6px 10px; border-radius:999px;
+      background: color-mix(in srgb, var(--surface) 78%, transparent);
+    }
+
+    .stack{ display:flex; flex-direction:column; gap:14px; }
+    .spacer{ height:12px; }
+
+    .flash{ border-radius:12px; padding:10px 12px; border:1px solid var(--border); background: var(--surface-soft); }
+    .flash.success{ border-color: color-mix(in srgb, var(--ok) 60%, var(--border)); }
+    .flash.danger{ border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); }
+    .flash.warning{ border-color: color-mix(in srgb, var(--warn) 60%, var(--border)); }
+
+    #themeToggle{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-width:44px;
+      font-weight:700;
+    }
+
+
+    .ux-callout{
+      border:1px solid var(--border-soft);
+      border-left:4px solid var(--accent);
+      border-radius:14px;
+      padding:12px 14px;
+      background: color-mix(in srgb, var(--surface-soft) 88%, transparent);
+      box-shadow: 0 2px 10px rgba(0,0,0,.03);
+    }
+    .ux-callout--warning{ border-left-color: var(--warn); }
+    .ux-callout--danger{ border-left-color: var(--danger); }
+    .ux-callout--success{ border-left-color: var(--ok); }
+    .ux-callout__title{ font-weight:800; margin-bottom:4px; }
+    .ux-callout__text{ color: var(--muted); line-height:1.45; }
+    .ux-helper{
+      margin-top:6px;
+      color: var(--muted);
+      font-size:12px;
+      line-height:1.4;
+    }
+    .ux-tooltip-trigger{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:18px;
+      height:18px;
+      margin-left:6px;
+      border:1px solid var(--border-hard);
+      border-radius:999px;
+      color: var(--muted);
+      font-size:11px;
+      font-weight:700;
+      cursor:help;
+      vertical-align:middle;
+      background: color-mix(in srgb, var(--surface) 86%, transparent);
+    }
+    .ux-tooltip-trigger:focus{ outline:2px solid var(--focus); outline-offset:2px; }
+
+    .context-banner{
+      border:1px solid var(--border-soft);
+      border-radius:14px;
+      padding:10px 12px;
+      background: color-mix(in srgb, var(--surface-soft) 90%, transparent);
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin-bottom:12px;
+    }
+    .context-badge{
+      border:1px solid var(--border-soft);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      color: var(--text);
+    }
+    .context-badge strong{ font-weight:800; }
+    .breadcrumb{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:6px;
+      margin-bottom:10px;
+      color: var(--muted);
+      font-size:13px;
+    }
+    .breadcrumb__item{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .breadcrumb__sep{
+      opacity:.7;
+      font-size:11px;
+    }
+
+    .sr-only{
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
+    }
+    .nav-quick{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .nav-quick-label{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      color:var(--muted);
+      font-weight:800;
+      margin-right:2px;
+    }
+    .mode-switch{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border-soft);
+      background: color-mix(in srgb, var(--surface) 90%, transparent);
+    }
+    .mode-switch__label{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    .mode-switch .pill{ padding:10px 14px; min-height: var(--touch-target-min); }
+    @media (max-width: 1220px){
+      .global-search{ min-width:160px; width:220px; }
+      .mode-switch__label{ display:none; }
+    }
+    .easy-banner{
+      margin:10px 0 0;
+      border:1px solid var(--border-soft);
+      border-radius:14px;
+      padding:10px 12px;
+      background: color-mix(in srgb, var(--surface-soft) 92%, transparent);
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px;
+    }
+    .easy-banner__title{ font-weight:800; }
+    .easy-banner__text{ color:var(--muted); font-size:13px; }
+    .context-banner--simple{ gap:6px; }
+    .context-banner--simple .context-badge{ font-size:11px; }
+    body[data-device-mode="mobile"] .nav{ gap:6px; }
+    body[data-device-mode="mobile"] .right{ width:100%; justify-content:flex-start; }
+    body[data-device-mode="mobile"] .global-search{ width:100%; max-width:none; min-width:0; }
+    body[data-device-mode="mobile"] .nav-more-panel{ position:fixed; left:10px; right:10px; top:76px; min-width:0; }
+    body[data-device-mode="tablet"] .global-search{ min-width:160px; width:240px; }
+    body[data-device-mode="kiosk"]{ font-size:18px; }
+    body[data-device-mode="kiosk"] .pill,
+    body[data-device-mode="kiosk"] .btn{ min-height:56px; font-size:18px; padding:12px 18px; }
+
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+
+<body data-device-mode="{{ UI_DEVICE_MODE if UI_DEVICE_MODE is defined else 'desktop' }}" class="mode-{{ UI_DEVICE_MODE if UI_DEVICE_MODE is defined else 'desktop' }}">
+  <a class="skip-link" href="#main-content">Aller au contenu principal</a>
+  {% set ep = request.endpoint or '' %}
+  {% set embed = request.args.get('embed') %}
+  {% set ui_mode = UI_MODE if UI_MODE is defined else 'simple' %}
+  {% set ui_simplified = UI_SIMPLIFIED if UI_SIMPLIFIED is defined else true %}
+  {% set ui_device_mode = UI_DEVICE_MODE if UI_DEVICE_MODE is defined else 'desktop' %}
+
+  {% if not embed %}
+  <div class="topbar">
+    <div class="wrap">
+      <div class="nav">
+        <div class="brand" style="display:flex;align-items:center;gap:8px;">{% if APP_LOGO_URL %}<img src="{{ APP_LOGO_URL }}" alt="Logo application" style="height:28px;width:28px;object-fit:contain;border-radius:6px;">{% endif %}<span>{{ APP_NAME }}</span></div>
+
+        {% if current_user.is_authenticated %}
+          {% if can('dashboard:view') %}<a class="pill {% if ep.startswith('main.dashboard') %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Accueil</a>{% endif %}
+          {% if can('participants:view') or can('participants:view_all') %}<a class="pill {% if ep.startswith('participants.') %}active{% endif %}" href="{{ url_for('participants.list_participants') }}">Participants</a>{% endif %}
+          {% if can('emargement:view') %}<a class="pill {% if ep.startswith('activite.') or ep.startswith('kiosk.') %}active{% endif %}" href="{{ url_for('activite.index') }}">Présences</a>{% endif %}
+          {% if not ui_simplified %}
+            {% if can('depenses:view') %}<a class="pill {% if ep.startswith('budget.depenses_list') %}active{% endif %}" href="{{ url_for('budget.depenses_list') }}">Dépenses</a>{% endif %}
+            {% if can('subventions:view') %}<a class="pill {% if ep.startswith('previsionnel.') %}active{% endif %}" href="{{ url_for('previsionnel.index') }}">Prévisionnel</a>{% endif %}
+            {% if can('stats:view') %}<a class="pill {% if ep.startswith('main.stats_bilans') or ep.startswith('main.stats') or ep.startswith('main.bilan_global') %}active{% endif %}" href="{{ url_for('main.stats_bilans') }}">Bilans</a>{% endif %}
+            {% if can('subventions:view') %}<a class="pill {% if ep.startswith('main.subventions') %}active{% endif %}" href="{{ url_for('main.subventions_list') }}">Subventions</a>{% endif %}
+            {% if can('projets:view') %}<a class="pill {% if ep.startswith('projets.') %}active{% endif %}" href="{{ url_for('projets.projets_list') }}">Projets</a>{% endif %}
+          {% endif %}
+
+          <details class="nav-more">
+            <summary class="pill">Plus</summary>
+            <div class="nav-more-panel">
+              {% if ui_simplified %}
+                <div class="nav-more-section-title">Mode simple · quotidien</div>
+                {% if can('depenses:view') %}<a class="pill {% if ep.startswith('budget.depenses_list') %}active{% endif %}" href="{{ url_for('budget.depenses_list') }}">Dépenses</a>{% endif %}
+                {% if can('subventions:view') %}<a class="pill {% if ep.startswith('previsionnel.') %}active{% endif %}" href="{{ url_for('previsionnel.index') }}">Prévisionnel</a>{% endif %}
+                {% if can('stats:view') %}<a class="pill {% if ep.startswith('main.stats_bilans') or ep.startswith('main.stats') or ep.startswith('main.bilan_global') %}active{% endif %}" href="{{ url_for('main.stats_bilans') }}">Bilans</a>{% endif %}
+                {% if can('subventions:view') %}<a class="pill {% if ep.startswith('main.subventions') %}active{% endif %}" href="{{ url_for('main.subventions_list') }}">Subventions</a>{% endif %}
+                {% if can('projets:view') %}<a class="pill {% if ep.startswith('projets.') %}active{% endif %}" href="{{ url_for('projets.projets_list') }}">Projets</a>{% endif %}
+                {% if can('statsimpact:view') or can('statsimpact:view_all') %}<a class="pill {% if ep.startswith('statsimpact.') %}active{% endif %}" href="{{ url_for('statsimpact.dashboard') }}">Données ateliers</a>{% endif %}
+                {% if can('depenses:create') %}<a class="pill {% if ep.startswith('budget.depense_new') %}active{% endif %}" href="{{ url_for('budget.depense_new') }}">Nouvelle dépense</a>{% endif %}
+                {% if can('subventions:view') %}<a class="pill {% if ep.startswith('previsionnel.') %}active{% endif %}" href="{{ url_for('previsionnel.index') }}">Budget prévisionnel</a>{% endif %}
+              {% else %}
+                <div class="nav-more-section-title">Mode expert · quotidien</div>
+                {% if can('partenaires:view') %}<a class="pill {% if ep.startswith('partenaires.') %}active{% endif %}" href="{{ url_for('partenaires.index') }}">Partenaires</a>{% endif %}
+                {% if can('quartiers:view') %}<a class="pill {% if ep.startswith('quartiers.') %}active{% endif %}" href="{{ url_for('quartiers.index') }}">Quartiers</a>{% endif %}
+                {% if can('insertion:view') %}<a class="pill {% if ep.startswith('insertion.') %}active{% endif %}" href="{{ url_for('insertion.index') }}">Insertion</a>{% endif %}
+                {% if can('statsimpact:view') or can('statsimpact:view_all') %}<a class="pill {% if ep.startswith('statsimpact.') %}active{% endif %}" href="{{ url_for('statsimpact.dashboard') }}">Données ateliers</a>{% endif %}
+                {% if can('inventaire:view') %}<a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire</a>{% endif %}
+
+                <div class="nav-more-section-title">Mode expert · ponctuel</div>
+                {% if can('depenses:create') %}<a class="pill {% if ep.startswith('budget.depense_new') %}active{% endif %}" href="{{ url_for('budget.depense_new') }}">Nouvelle dépense</a>{% endif %}
+                {% if can('pedagogie:view') %}<a class="pill {% if ep.startswith('pedagogie.referentiels_list') %}active{% endif %}" href="{{ url_for('pedagogie.referentiels_list') }}">Pédagogie (config)</a>{% endif %}
+                {% if can('pedagogie:view') %}<a class="pill {% if ep.startswith('pedagogie.suivi_pedagogique') %}active{% endif %}" href="{{ url_for('pedagogie.suivi_pedagogique') }}">Suivi pédagogique</a>{% endif %}
+                {% if can('bilans:view') %}<a class="pill {% if ep.startswith('bilans.') %}active{% endif %}" href="{{ url_for('bilans.bilans_lourds', year=2026) }}">Bilans lourds</a>{% endif %}
+                {% if can('questionnaires:view') %}<a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires</a>{% endif %}
+                {% if can('controle:view') %}<a class="pill {% if ep.startswith('main.controle') %}active{% endif %}" href="{{ url_for('main.controle') }}">Contrôle</a>{% endif %}
+
+                <div class="nav-more-section-title">Administration</div>
+                {% if can('admin:users') %}<a class="pill {% if ep.startswith('admin.users') %}active{% endif %}" href="{{ url_for('admin.users') }}">Équipe</a>{% endif %}
+                {% if can('secteurs:edit') %}<a class="pill {% if ep.startswith('admin.secteurs') %}active{% endif %}" href="{{ safe_url_for('admin.secteurs') }}">Secteurs</a>{% endif %}
+                {% if can('admin:rbac') %}<a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>{% endif %}
+                {% if can('admin:rbac') %}<a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Identité app</a>{% endif %}
+                {% if can('ateliers:sync') %}<a class="pill {% if request.endpoint == 'admin.import_excel' %}active{% endif %}" href="{{ url_for('admin.import_excel') }}">Import Excel</a>{% endif %}
+              {% endif %}
+            </div>
+          </details>
+
+          <div class="right">
+            <div class="global-search">
+              <label for="global-search-input" class="sr-only">Recherche globale</label>
+              <input id="global-search-input" type="search" placeholder="Rechercher une personne, un atelier, un quartier…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="global-search-results" />
+              <div id="global-search-results" class="global-search__panel" role="listbox" aria-label="Résultats de recherche"></div>
+            </div>
+            <form method="post" action="{{ url_for('main.set_ui_mode') }}" class="mode-switch">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+              <span class="mode-switch__label">Affichage</span>
+              <button class="pill {% if ui_simplified %}active{% endif %}" type="submit" name="mode" value="simple">Simple</button>
+              <button class="pill {% if not ui_simplified %}active{% endif %}" type="submit" name="mode" value="expert">Expert</button>
+            </form>
+            <form method="post" action="{{ url_for('main.set_ui_device_mode') }}" class="mode-switch">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+              <span class="mode-switch__label">Écran</span>
+              <button class="pill {% if ui_device_mode == 'desktop' %}active{% endif %}" type="submit" name="device_mode" value="desktop">Ordinateur</button>
+              <button class="pill {% if ui_device_mode == 'mobile' %}active{% endif %}" type="submit" name="device_mode" value="mobile">Mobile</button>
+              <button class="pill {% if ui_device_mode == 'tablet' %}active{% endif %}" type="submit" name="device_mode" value="tablet">Tablette</button>
+              <button class="pill {% if ui_device_mode == 'kiosk' %}active{% endif %}" type="submit" name="device_mode" value="kiosk">Borne</button>
+            </form>
+            <div class="pill" id="themeToggle" title="Changer de thème">🌙</div>
+
+            <div class="tag">
+              {{ current_user.nom }}
+              {% if current_user.secteur_assigne %} · {{ current_user.secteur_assigne }}{% endif %}
+            </div>
+
+            <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="pill" type="submit">Déconnexion</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if current_user.is_authenticated and ui_simplified and not embed %}
+  <div class="wrap">
+    <div class="easy-banner" aria-label="Mode simplifié activé">
+      <div class="easy-banner__title">Mode simplifié actif</div>
+      <div class="easy-banner__text">Tu vois d’abord les actions utiles au quotidien. Passe en mode expert si tu veux toutes les pages en permanence.</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <main id="main-content" class="container" tabindex="-1">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="stack flash-stack">
+          {% for category, msg in messages %}
+            {% set tone = 'info' %}
+            {% if category in ['success', 'ok'] %}{% set tone = 'success' %}{% endif %}
+            {% if category in ['warning', 'warn'] %}{% set tone = 'warning' %}{% endif %}
+            {% if category in ['danger', 'error'] %}{% set tone = 'danger' %}{% endif %}
+            <div class="flash flash-{{ tone }} {{ category }}" data-flash="1" data-flash-tone="{{ tone }}">
+              <div class="flash__icon" aria-hidden="true"></div>
+              <div class="flash__body">{{ msg }}</div>
+              <button type="button" class="flash__close" data-flash-close aria-label="Fermer">×</button>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="spacer"></div>
+      {% endif %}
+    {% endwith %}
+
+    {% if current_user.is_authenticated %}
+      {% set endpoint_module = (ep.split('.', 1)[0] if '.' in ep else ep) %}
+      {% set module_labels = {
+        'main': 'Pilotage',
+        'budget': 'Finance',
+        'projets': 'Projets',
+        'participants': 'Participants',
+        'activite': 'Activité',
+        'kiosk': 'Kiosque',
+        'statsimpact': 'Données ateliers',
+        'pedagogie': 'Pédagogie',
+        'bilans': 'Bilans',
+        'inventaire': 'Inventaire factures',
+        'inventaire_materiel': 'Inventaire matériel',
+        'quartiers': 'Quartiers',
+        'partenaires': 'Partenaires',
+        'questionnaires': 'Questionnaires',
+        'admin': 'Administration',
+        'auth': 'Connexion',
+        'setup': 'Initialisation',
+        'launcher': 'Portail'
+      } %}
+      {% set perm_hints = {
+        'main': 'dashboard:view',
+        'budget': 'depenses:view',
+        'projets': 'projets:view',
+        'participants': 'participants:view',
+        'activite': 'emargement:view',
+        'kiosk': 'emargement:view',
+        'statsimpact': 'statsimpact:view',
+        'pedagogie': 'pedagogie:view',
+        'bilans': 'bilans:view',
+        'inventaire': 'inventaire:view',
+        'inventaire_materiel': 'inventaire:view',
+        'quartiers': 'quartiers:view',
+        'partenaires': 'partenaires:view',
+        'questionnaires': 'questionnaires:view',
+        'admin': 'admin:users'
+      } %}
+      {% set role_code = (current_user.role_codes[0] if current_user.role_codes else '') %}
+      {% set role_labels = {
+        'direction': 'Direction',
+        'directrice': 'Direction',
+        'finance': 'Finance',
+        'admin_tech': 'Admin technique',
+        'responsable_secteur': 'Responsable secteur'
+      } %}
+
+      <nav class="breadcrumb" aria-label="Fil d’Ariane">
+        <span class="breadcrumb__item">Accueil</span>
+        <span class="breadcrumb__sep">›</span>
+        <span class="breadcrumb__item">{{ module_labels.get(endpoint_module, endpoint_module|capitalize) }}</span>
+        {% if '.' in ep %}
+          {% set endpoint_action = ep.split('.', 1)[1] %}
+          {% if endpoint_action %}
+            <span class="breadcrumb__sep">›</span>
+            <span class="breadcrumb__item">{{ endpoint_action.replace('_', ' ')|capitalize }}</span>
+          {% endif %}
+        {% endif %}
+      </nav>
+
+      <section class="context-banner {% if ui_simplified %}context-banner--simple{% endif %}" aria-label="Contexte de visibilité">
+        <span class="context-badge"><strong>Rôle</strong> · {{ role_labels.get(role_code, role_code or 'Utilisateur') }}</span>
+        <span class="context-badge"><strong>Portée</strong> · {% if can('scope:all_secteurs') %}Tous secteurs{% else %}{{ current_user.secteur_assigne or 'Secteur non défini' }}{% endif %}</span>
+        {% set hint = perm_hints.get(endpoint_module) %}
+        {% if hint and not ui_simplified %}
+          <span class="context-badge"><strong>Pourquoi je vois ça</strong> · permission {{ hint }}</span>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {% block body %}{% endblock %}
+  </main>
+
+  <script>
+  (function(){
+    const input = document.getElementById("global-search-input");
+    const panel = document.getElementById("global-search-results");
+    if(!input || !panel) return;
+
+    let debounce = null;
+    let lastValue = "";
+    let activeIndex = -1;
+    let facetType = "all";
+    let lastPayload = null;
+    let keepPanelOpen = false;
+
+    function escHtml(value){
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function highlighted(value){
+      const txt = String(value || "");
+      const raw = (input.value || "").trim().split(/\s+/).filter(Boolean);
+      const tokens = raw.filter((part)=>!part.toLowerCase().startsWith("type:") && !part.toLowerCase().startsWith("secteur:"));
+      if(!tokens.length) return escHtml(txt);
+      let out = escHtml(txt);
+      tokens.forEach((token) => {
+        const safe = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const reg = new RegExp(`(${safe})`, "ig");
+        out = out.replace(reg, "<mark>$1</mark>");
+      });
+      return out;
+    }
+
+    function hidePanel(){
+      panel.classList.remove("visible");
+      panel.innerHTML = "";
+      activeIndex = -1;
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+      lastPayload = null;
+    }
+
+    function effectiveTerm(){
+      const raw = (input.value || "").trim();
+      if(!raw) return "";
+      if(facetType && facetType !== "all"){
+        return `type:${facetType.toLowerCase()} ${raw}`.trim();
+      }
+      return raw;
+    }
+
+    function groupedItems(items){
+      const groups = new Map();
+      items.forEach((item) => {
+        const key = item.type || "Autres";
+        if(!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+      });
+      return Array.from(groups.entries());
+    }
+
+    function refreshActiveItem(){
+      const anchors = Array.from(panel.querySelectorAll(".global-search__item"));
+      anchors.forEach((node, idx) => {
+        const selected = idx === activeIndex;
+        node.classList.toggle("is-active", selected);
+        node.setAttribute("aria-selected", selected ? "true" : "false");
+        if(selected){
+          input.setAttribute("aria-activedescendant", node.id);
+          node.scrollIntoView({block: "nearest"});
+        }
+      });
+    }
+
+    function render(payload){
+      const facets = payload?.facets || {};
+      const items = payload?.results || [];
+      lastPayload = payload || {results: [], facets: {}};
+      const filteredItems = facetType === "all" ? items : items.filter((item) => item.type === facetType);
+      const duration = Number(payload?.debug?.duration_ms || 0);
+      const metaInfo = duration ? `<div class="global-search__empty">Résultats en ${duration} ms.</div>` : "";
+      const typeFacets = facets.types || {};
+      const knownTypes = Array.from(new Set(["Participant", "Atelier", "Projet", "Quartier", ...Object.keys(typeFacets)]));
+      const facetButtons = [
+        `<button type="button" class="global-search__facet ${facetType === "all" ? "is-active" : ""}" data-facet-type="all">Tout (${items.length})</button>`,
+        ...knownTypes.map((type) => `
+          <button type="button" class="global-search__facet ${facetType === type ? "is-active" : ""}" data-facet-type="${type}">${type}${typeFacets[type] ? ` (${typeFacets[type]})` : ""}</button>
+        `)
+      ].join("");
+      const currentTerm = (input.value || "").trim();
+      const fullResultsUrl = currentTerm ? `/recherche?q=${encodeURIComponent(effectiveTerm())}` : "#";
+
+      if(!items.length){
+        panel.innerHTML = `
+          <div class="global-search__facets">${facetButtons}</div>
+          ${metaInfo}
+          <div class="global-search__empty">${currentTerm ? 'Aucun résultat pour cette recherche.' : 'Commence à taper pour lancer la recherche.'}</div>
+        `;
+        panel.classList.add("visible");
+        input.setAttribute("aria-expanded", "true");
+      } else if(!filteredItems.length){
+        panel.innerHTML = `
+          <div class="global-search__facets">${facetButtons}</div>
+          ${metaInfo}
+          <div class="global-search__empty">Aucun résultat pour ce filtre.</div>
+          ${currentTerm ? `<div class="global-search__empty"><a href="${fullResultsUrl}">Voir tous les résultats sur une page dédiée</a></div>` : ''}
+        `;
+        panel.classList.add("visible");
+        input.setAttribute("aria-expanded", "true");
+      } else {
+        let index = 0;
+        panel.innerHTML = `
+          <div class="global-search__facets">${facetButtons}</div>
+          ${metaInfo}
+          ${groupedItems(filteredItems).map(([type, group]) => `
+          <section class="global-search__section" aria-label="${type}">
+            <div class="global-search__section-title">${type}</div>
+            ${group.map((item) => {
+              const itemId = `global-search-item-${index++}`;
+              return `
+                <a id="${itemId}" class="global-search__item" role="option" aria-selected="false" href="${item.url}">
+                  <div class="global-search__type">${escHtml(item.type)}</div>
+                  <div class="global-search__label">${highlighted(item.label)}</div>
+                  <div class="global-search__meta">${highlighted(item.meta || '')}</div>
+                </a>
+              `;
+            }).join("")}
+          </section>
+        `).join("")}
+          ${currentTerm ? `<div class="global-search__empty"><a href="${fullResultsUrl}">Voir tous les résultats sur une page dédiée</a></div>` : ''}
+        `;
+        panel.classList.add("visible");
+        input.setAttribute("aria-expanded", "true");
+        activeIndex = -1;
+      }
+
+      panel.querySelectorAll("[data-facet-type]").forEach((btn) => {
+        btn.addEventListener("mousedown", (event) => {
+          keepPanelOpen = true;
+          event.preventDefault();
+        });
+        btn.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          facetType = btn.getAttribute("data-facet-type") || "all";
+          const termNow = (input.value || "").trim();
+          if(termNow.length >= 2){
+            search(termNow);
+          } else {
+            render(lastPayload || {results: [], facets: {}});
+          }
+          requestAnimationFrame(() => {
+            input.focus();
+            keepPanelOpen = false;
+          });
+        });
+      });
+    }
+
+    async function search(term){
+      try{
+        const response = await fetch(`/api/global-search?q=${encodeURIComponent(effectiveTerm())}`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        if(!response.ok){
+          hidePanel();
+          return;
+        }
+        const data = await response.json();
+        if((input.value || "").trim() !== term){
+          return;
+        }
+        facetType = "all";
+        render(data || {});
+      }catch(_err){
+        hidePanel();
+      }
+    }
+
+    input.addEventListener("input", () => {
+      const term = (input.value || "").trim();
+      if(term === lastValue) return;
+      lastValue = term;
+      if(debounce) window.clearTimeout(debounce);
+      if(term.length < 2){
+        render(lastPayload || {results: [], facets: {}});
+        return;
+      }
+      debounce = window.setTimeout(() => search(term), 170);
+    });
+
+    input.addEventListener("focus", () => {
+      render(lastPayload || {results: [], facets: {}});
+    });
+
+    document.addEventListener("click", (event) => {
+      if(keepPanelOpen){
+        keepPanelOpen = false;
+        return;
+      }
+      if(event.target === input || panel.contains(event.target)){
+        return;
+      }
+      hidePanel();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const key = (event.key || "").toLowerCase();
+      if((event.ctrlKey || event.metaKey) && key === "k"){
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+
+    input.addEventListener("keydown", (event) => {
+      const anchors = Array.from(panel.querySelectorAll(".global-search__item"));
+      if((event.key === "ArrowDown" || event.key === "ArrowUp") && anchors.length){
+        event.preventDefault();
+        if(event.key === "ArrowDown"){
+          activeIndex = (activeIndex + 1) % anchors.length;
+        }else{
+          activeIndex = activeIndex <= 0 ? anchors.length - 1 : activeIndex - 1;
+        }
+        refreshActiveItem();
+        return;
+      }
+      if(event.key === "Enter" && activeIndex >= 0 && anchors[activeIndex]){
+        event.preventDefault();
+        window.location.href = anchors[activeIndex].getAttribute("href");
+        return;
+      }
+      if(event.key === "Escape"){
+        hidePanel();
+      }
+    });
+  })();
+  </script>
+
+  <script>
+  (function(){
+    const root = document.documentElement;
+    const btn  = document.getElementById("themeToggle");
+    if(!btn) return;
+
+    function apply(theme){
+      root.setAttribute("data-theme", theme);
+      localStorage.setItem("theme", theme);
+      btn.textContent = theme === "dark" ? "🌙" : "☀️";
+      btn.title = theme === "dark" ? "Passer en thème clair (finance)" : "Passer en thème sombre";
+    }
+
+    const saved = localStorage.getItem("theme");
+    if(saved){
+      apply(saved);
+    }else{
+      apply("light");
+    }
+
+    btn.addEventListener("click", ()=>{
+      const current = root.getAttribute("data-theme") || "dark";
+      apply(current === "dark" ? "light" : "dark");
+    });
+  })();
+  </script>
+
+  <script>
+  (function(){
+    function normalize(value){
+      return (value || "").trim().toLowerCase();
+    }
+
+    function applyFilter(select, villeValue){
+      const ville = normalize(villeValue);
+      let selectedHidden = false;
+      select.querySelectorAll("option").forEach((opt) => {
+        const optVille = opt.getAttribute("data-ville");
+        if (!opt.value || !optVille) {
+          opt.hidden = false;
+          return;
+        }
+        const match = !ville || normalize(optVille) === ville;
+        opt.hidden = !match;
+        if (opt.selected && !match) {
+          selectedHidden = true;
+        }
+      });
+      if (selectedHidden) {
+        select.value = "";
+      }
+    }
+
+    document.querySelectorAll("[data-quartier-select]").forEach((select) => {
+      const scope = select.closest("form") || document;
+      const villeInput = scope.querySelector("[data-ville-input]");
+      if (!villeInput) {
+        return;
+      }
+      const run = () => applyFilter(select, villeInput.value);
+      villeInput.addEventListener("input", run);
+      villeInput.addEventListener("change", run);
+      run();
+    });
+  })();
+  </script>
+
+  
+  <script>
+  (function(){
+    function cellValue(row, idx){
+      const cell = row.children[idx];
+      return cell ? (cell.getAttribute('data-sort') || cell.textContent || '').trim() : '';
+    }
+    function detectType(values){
+      const cleaned = values.filter(Boolean);
+      if (!cleaned.length) return 'text';
+      const numish = cleaned.every(v => /^[-+]?\d+[\d\s.,%€]*$/.test(v.replace(/\u00a0/g,' ')));
+      if (numish) return 'number';
+      const datish = cleaned.every(v => !isNaN(Date.parse(v.replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/, '$3-$2-$1'))));
+      if (datish) return 'date';
+      return 'text';
+    }
+    function toNumber(v){
+      return parseFloat(v.replace(/\s/g,'').replace(/[€%]/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',', '.')) || 0;
+    }
+    function toDate(v){
+      const fr = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (fr) return new Date(+fr[3], +fr[2]-1, +fr[1]).getTime();
+      const t = Date.parse(v);
+      return isNaN(t) ? 0 : t;
+    }
+    function sortTable(table, idx, dir){
+      const tbody = table.tBodies[0]; if (!tbody) return;
+      const rows = Array.from(tbody.rows);
+      const values = rows.map(r => cellValue(r, idx));
+      const type = detectType(values);
+      rows.sort((a,b)=>{
+        const va = cellValue(a, idx), vb = cellValue(b, idx);
+        let cmp = 0;
+        if (type === 'number') cmp = toNumber(va) - toNumber(vb);
+        else if (type === 'date') cmp = toDate(va) - toDate(vb);
+        else cmp = va.localeCompare(vb, 'fr', {numeric:true, sensitivity:'base'});
+        return dir === 'asc' ? cmp : -cmp;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    }
+    document.querySelectorAll('table.js-sortable').forEach((table)=>{
+      const headRow = table.tHead && table.tHead.rows[0];
+      if (!headRow) return;
+      Array.from(headRow.cells).forEach((th, idx)=>{
+        if (th.getAttribute('data-nosort') === '1') return;
+        th.classList.add('sortable');
+        th.addEventListener('click', ()=>{
+          const current = th.classList.contains('is-sorted') && th.classList.contains('asc') ? 'desc' : 'asc';
+          Array.from(headRow.cells).forEach(x=>x.classList.remove('is-sorted','asc','desc'));
+          th.classList.add('is-sorted', current);
+          sortTable(table, idx, current);
+        });
+      });
+    });
+
+    function labelFor(input){
+      const id = input.id;
+      if (id) {
+        const lab = document.querySelector(`label[for="${CSS.escape(id)}"]`);
+        if (lab) return lab.textContent.trim();
+      }
+      const wrap = input.closest('.field, .field-stack, .stack, div');
+      const lab = wrap ? wrap.querySelector('label') : null;
+      return lab ? lab.textContent.trim() : (input.name || 'Filtre');
+    }
+    function buildSummary(form){
+      const target = form.parentElement.querySelector('[data-filter-summary-target]') || form.querySelector('[data-filter-summary-target]');
+      if (!target) return;
+      target.innerHTML='';
+      const inputs = form.querySelectorAll('input[name], select[name], textarea[name]');
+      inputs.forEach(input=>{
+        if (input.type === 'hidden' || input.type === 'submit' || input.disabled) return;
+        let value = '';
+        if (input.tagName === 'SELECT') {
+          if (input.multiple) value = Array.from(input.selectedOptions).map(o=>o.textContent.trim()).filter(Boolean).join(', ');
+          else value = input.value ? input.options[input.selectedIndex]?.textContent.trim() || input.value : '';
+        } else if ((input.type === 'checkbox' || input.type === 'radio')) {
+          if (input.checked) value = input.value || 'Oui';
+        } else value = (input.value || '').trim();
+        if (!value) return;
+        const chip = document.createElement('span');
+        chip.className = 'filter-chip';
+        chip.innerHTML = `<b>${labelFor(input)}</b><span>${value}</span><button type="button" aria-label="Effacer">×</button>`;
+        chip.querySelector('button').addEventListener('click', ()=>{
+          if (input.tagName === 'SELECT') input.value = '';
+          else if (input.type === 'checkbox' || input.type === 'radio') input.checked = false;
+          else input.value = '';
+          buildSummary(form);
+        });
+        target.appendChild(chip);
+      });
+    }
+    document.querySelectorAll('form[data-filter-summary="true"]').forEach((form)=>{
+      const target = document.createElement('div');
+      target.className = 'filter-summary';
+      target.setAttribute('data-filter-summary-target','1');
+      form.insertAdjacentElement('afterend', target);
+      form.addEventListener('input', ()=>buildSummary(form));
+      form.addEventListener('change', ()=>buildSummary(form));
+      buildSummary(form);
+    });
+  })();
+  </script>
+
+
+  <div id="toast-viewport" class="toast-viewport" aria-label="Notifications"></div>
+  <div id="sr-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="sr-alert" class="sr-only" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+  <script src="{{ url_for('static', filename='js/feedback-kit.js') }}"></script>
+
+  {% block scripts_extra %}{% endblock %}
+</body>
+</html>

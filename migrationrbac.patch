@@ -1,0 +1,2458 @@
+From 3c79f3bea64a287f444bb04ca52402ebf331917f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 11 Jun 2026 15:04:29 +0000
+Subject: [PATCH] =?UTF-8?q?RBAC:=20les=20r=C3=B4les=20RBAC=20deviennent=20?=
+ =?UTF-8?q?la=20seule=20source=20de=20v=C3=A9rit=C3=A9?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- User.has_role ne retombe plus sur la colonne texte legacy user.role:
+  seuls les rôles RBAC (User.roles) font foi. La colonne legacy reste
+  en base pour la compatibilité de schéma mais ne donne aucun droit.
+- Le rattrapage au démarrage (bootstrap_rbac) reste l'unique pont:
+  un utilisateur sans rôle RBAC reçoit le rôle correspondant à sa
+  colonne legacy, désormais avec gestion des alias historiques
+  (directrice -> direction, financière -> finance, etc.).
+- Suppression de 4 fichiers morts jamais importés: rbac - Copie.py,
+  participants/routes - Copie.py, ateliers/excel_import - Copie.py,
+  bilans/services - Copie.py.
+- Nouveaux tests (tests/test_rbac.py): cloisonnement par secteur sur
+  les subventions, refus des pages admin pour un responsable secteur,
+  alias de rôles, neutralité de la colonne legacy, rattrapage au
+  démarrage. Suite complète: 43 tests verts.
+
+https://claude.ai/code/session_01WoDMN4woqLR14rpcrG9H4Y
+---
+ app/ateliers/excel_import - Copie.py | 367 ------------
+ app/bilans/services - Copie.py       | 827 ---------------------------
+ app/models.py                        |  15 +-
+ app/participants/routes - Copie.py   | 626 --------------------
+ app/rbac - Copie.py                  | 370 ------------
+ app/rbac.py                          |  13 +-
+ tests/test_rbac.py                   | 125 ++++
+ 7 files changed, 142 insertions(+), 2201 deletions(-)
+ delete mode 100644 app/ateliers/excel_import - Copie.py
+ delete mode 100644 app/bilans/services - Copie.py
+ delete mode 100644 app/participants/routes - Copie.py
+ delete mode 100644 app/rbac - Copie.py
+ create mode 100644 tests/test_rbac.py
+
+diff --git a/app/ateliers/excel_import - Copie.py b/app/ateliers/excel_import - Copie.py
+deleted file mode 100644
+index 11c005e..0000000
+--- a/app/ateliers/excel_import - Copie.py	
++++ /dev/null
+@@ -1,367 +0,0 @@
+-from __future__ import annotations
+-
+-import tempfile
+-from datetime import datetime, date
+-from typing import Any, Dict, List, Optional, Tuple
+-
+-from openpyxl import load_workbook
+-from sqlalchemy.exc import IntegrityError
+-
+-from app.extensions import db
+-from app.models import AtelierActivite, SessionActivite, PresenceActivite, Participant, Quartier
+-
+-
+-SKIP_SHEETS_DEFAULT = {
+-    "feuil1",
+-    "sheet1",
+-    "adultes",
+-    "adultes saveurs",
+-}
+-
+-
+-# Lignes "métier" en bas des tableaux qui ne sont PAS des participants.
+-# On s'arrête dès qu'on tombe dessus, sinon on crée des faux participants du genre "CAPACITE D'ACCUEIL ?".
+-FOOTER_ROW_PREFIXES = (
+-    "NOMBRE",
+-    "NBRE",
+-    "TAUX",
+-    "MOYENNE",
+-    "DUREE",
+-    "DURÉE",
+-    "CAPACITE",
+-    "CAPACITÉ",
+-    "TOTAL",
+-)
+-
+-
+-def _norm(s: Any) -> str:
+-    return (str(s or "")).strip()
+-    
+-def normalize_genre(value: Any) -> Optional[str]:
+-    if value is None:
+-        return None
+-    v = str(value).strip().lower()
+-    if not v:
+-        return None
+-    if v in ("f", "Fille", "fille", "femme"):
+-        return "Femme"
+-    if v in ("h", "m", "g", "garçon", "Garçon", "garcon", "Garcon", "homme"):
+-        return "Homme"
+-    return None
+-
+-
+-def normalize_secteur(value: Any) -> str:
+-    v = str(value or "").strip()
+-    if not v:
+-        return "Numérique"
+-    low = v.lower()
+-    if low in ("numerique", "numérique", "num", "nume"):
+-        return "Numérique"
+-    return v
+-
+-
+-def _is_presence(v: Any) -> bool:
+-    if v is None:
+-        return False
+-    if isinstance(v, bool):
+-        return bool(v)
+-    if isinstance(v, (int, float)):
+-        return v > 0
+-    s = _norm(v).lower()
+-    return s in {"1", "x", "p", "présent", "present", "oui", "o"}
+-
+-
+-def _to_date(v: Any) -> Optional[date]:
+-    if isinstance(v, datetime):
+-        return v.date()
+-    if isinstance(v, date):
+-        return v
+-
+-    if isinstance(v, str):
+-        s = v.strip()
+-        if not s:
+-            return None
+-
+-        # formats fréquents Excel FR
+-        for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y"):
+-            try:
+-                return datetime.strptime(s, fmt).date()
+-            except ValueError:
+-                continue
+-
+-    return None
+-
+-
+-def _get_or_create_quartier(nom_quartier: str, ville: str = "Creil") -> Optional[Quartier]:
+-    nom = _norm(nom_quartier)
+-    if not nom:
+-        return None
+-
+-    q = Quartier.query.filter_by(ville=ville, nom=nom).first()
+-    if q:
+-        return q
+-
+-    # Heuristique QPV (Creil)
+-    up = nom.upper()
+-    is_qpv = ("ROUHER" in up) or ("HAUT" in up and "CREIL" in up) or ("QPV" in up)
+-
+-    q = Quartier(ville=ville, nom=nom, is_qpv=is_qpv)
+-    db.session.add(q)
+-    # Utiliser un SAVEPOINT pour éviter de rollback toute la session sur collision d'unicité
+-    try:
+-        with db.session.begin_nested():
+-            db.session.flush()
+-    except IntegrityError:
+-        # Collision probable (ex: import concurrent) -> on récupère l'existant
+-        return Quartier.query.filter_by(ville=ville, nom=nom).first()
+-    return q
+-
+-
+-def _find_participant(nom: str, prenom: str, year_or_ddn: Any, sexe: Any, quartier: Optional[Quartier], secteur: str) -> Participant:
+-    n = _norm(nom)
+-    p = _norm(prenom)
+-
+-    # Essai 1: match strict nom/prenom (+date_naissance si possible)
+-    ddn: Optional[date] = None
+-    y = None
+-    try:
+-        y = int(str(year_or_ddn).strip())
+-    except Exception:
+-        y = None
+-    if y and 1900 <= y <= 2030:
+-        ddn = date(y, 1, 1)
+-
+-    q = Participant.query.filter(Participant.nom.ilike(n), Participant.prenom.ilike(p))
+-    if ddn:
+-        q = q.filter(Participant.date_naissance == ddn)
+-    existing = q.first()
+-    if existing:
+-        # On complète si des infos manquent
+-        changed = False
+-        if quartier and not existing.quartier_id:
+-            existing.quartier = quartier
+-            changed = True
+-        if ddn and not existing.date_naissance:
+-            existing.date_naissance = ddn
+-            changed = True
+-        new_genre = normalize_genre(sexe)
+-        if new_genre and existing.genre != new_genre:
+-            existing.genre = new_genre
+-            changed = True
+-        if changed:
+-            db.session.add(existing)
+-        return existing
+-
+-    part = Participant(
+-        nom=n or "?",
+-        prenom=p or "?",
+-        genre=normalize_genre(sexe),
+-        date_naissance=ddn,
+-        quartier=quartier,
+-        created_secteur=secteur,
+-    )
+-    db.session.add(part)
+-    db.session.flush()
+-    return part
+-
+-
+-def _get_or_create_atelier(secteur: str, nom_atelier: str) -> AtelierActivite:
+-    nom = _norm(nom_atelier)
+-    a = AtelierActivite.query.filter_by(secteur=secteur, nom=nom, is_deleted=False).first()
+-    if a:
+-        return a
+-    a = AtelierActivite(secteur=secteur, nom=nom, type_atelier="COLLECTIF")
+-    db.session.add(a)
+-    db.session.flush()
+-    return a
+-
+-
+-def _get_or_create_session(atelier: AtelierActivite, secteur: str, d: date) -> SessionActivite:
+-    s = (
+-        SessionActivite.query.filter_by(
+-            atelier_id=atelier.id,
+-            secteur=secteur,
+-            session_type="COLLECTIF",
+-            date_session=d,
+-            is_deleted=False,
+-        )
+-        .first()
+-    )
+-    if s:
+-        return s
+-    s = SessionActivite(
+-        atelier_id=atelier.id,
+-        secteur=secteur,
+-        session_type="COLLECTIF",
+-        date_session=d,
+-        statut="realisee",
+-    )
+-    db.session.add(s)
+-    db.session.flush()
+-    return s
+-
+-
+-def import_presences_from_xlsx(
+-    xlsx_path: str,
+-    secteur: str = "NUMERIQUE",
+-    skip_sheets: Optional[List[str]] = None,
+-    dry_run: bool = False,
+-    limit_rows_per_sheet: int = 5000,
+-) -> Dict[str, Any]:
+-    """Importe un fichier Excel "présences" (format Antoine).
+-
+-    Retourne un dict de stats + warnings.
+-    - Crée les Ateliers (par onglet)
+-    - Crée les Sessions (par date de colonne)
+-    - Crée les Participants (par ligne)
+-    - Crée les Présences (cellule non vide)
+-
+-    ⚠️ Heures / lieux / intervenants: pas dispo dans ce format -> sessions créées "date-only".
+-    """
+-    stats = {
+-        "ateliers_created": 0,
+-        "sessions_created": 0,
+-        "participants_created": 0,
+-        "presences_created": 0,
+-        "presences_skipped_duplicates": 0,
+-        "sheets_processed": 0,
+-        "warnings": [],
+-        "sheets": {},
+-    }
+-
+-    skip = {s.strip().lower() for s in (skip_sheets or [])}
+-    if not skip_sheets:
+-        skip = set(SKIP_SHEETS_DEFAULT)
+-
+-    wb = load_workbook(xlsx_path, data_only=True)
+-
+-    try:
+-        for sheet_name in wb.sheetnames:
+-            if sheet_name.strip().lower() in skip:
+-                continue
+-
+-            ws = wb[sheet_name]
+-            # Trouver la ligne d'entête (NOMS / PRENOMS)
+-            header_row = None
+-            for r in range(1, min(60, ws.max_row) + 1):
+-                v1 = ws.cell(r, 1).value
+-                v2 = ws.cell(r, 2).value
+-                if _norm(v1).upper() == "NOMS" and _norm(v2).upper().startswith("PRENOM"):
+-                    header_row = r
+-                    break
+-
+-            if not header_row:
+-                stats["warnings"].append(f"Onglet '{sheet_name}': entête NOMS/PRENOMS introuvable -> ignoré.")
+-                continue
+-
+-            # Colonnes dates
+-            date_cols: List[int] = []
+-            for c in range(1, ws.max_column + 1):
+-                hv = ws.cell(header_row, c).value
+-                if _to_date(hv):
+-                    date_cols.append(c)
+-
+-            if not date_cols:
+-                stats["warnings"].append(f"Onglet '{sheet_name}': aucune colonne date détectée -> ignoré.")
+-                continue
+-
+-            atelier = _get_or_create_atelier(secteur, sheet_name.strip())
+-            # Detect atelier created via transient flush (no easy way) -> count by existence check before
+-            stats_sheet = {
+-                "sheet": sheet_name,
+-                "participants": 0,
+-                "presences": 0,
+-                "sessions": 0,
+-                "warnings": [],
+-            }
+-
+-            blank_streak = 0
+-            processed_rows = 0
+-
+-            for r in range(header_row + 1, ws.max_row + 1):
+-                if processed_rows >= limit_rows_per_sheet:
+-                    stats_sheet["warnings"].append(f"Limite de lignes atteinte ({limit_rows_per_sheet}).")
+-                    break
+-
+-                nom = ws.cell(r, 1).value
+-                prenom = ws.cell(r, 2).value
+-
+-                nom_s = _norm(nom)
+-                prenom_s = _norm(prenom)
+-
+-                # Lignes vides -> compteur de streak
+-                if (not nom_s) and (not prenom_s):
+-                    blank_streak += 1
+-                    if blank_streak >= 8:
+-                        break
+-                    continue
+-                blank_streak = 0
+-                
+-                # Stop sur les lignes de stats métier (en bas du tableau)
+-                up_nom = nom_s.upper()
+-                if (not prenom_s) and up_nom.startswith(FOOTER_ROW_PREFIXES):
+-                    break
+-                # Ignore les lignes 'TOTAL' ou assimilées
+-                if up_nom in ("TOTAL",) or up_nom.startswith("TOTAL"):
+-                    break
+-                # Si prénom vide mais nom rempli, on ignore (évite faux participants)
+-                if nom_s and not prenom_s:
+-                    continue
+-
+-                processed_rows += 1
+-
+-                annee_naissance = ws.cell(r, 3).value
+-                sexe = ws.cell(r, 5).value
+-                quartier_name = ws.cell(r, 6).value
+-
+-                quartier = _get_or_create_quartier(_norm(quartier_name)) if _norm(quartier_name) else None
+-
+-                # participant
+-                # Determine if participant existed before to count creations
+-                before = Participant.query.filter(Participant.nom.ilike(_norm(nom)), Participant.prenom.ilike(_norm(prenom))).first()
+-                part = _find_participant(_norm(nom), _norm(prenom), annee_naissance, sexe, quartier, secteur)
+-                if before is None:
+-                    stats["participants_created"] += 1
+-                stats_sheet["participants"] += 1
+-
+-                # presences
+-                for c in date_cols:
+-                    d = _to_date(ws.cell(header_row, c).value)
+-                    if not d:
+-                        continue
+-                    v = ws.cell(r, c).value
+-                    if not _is_presence(v):
+-                        continue
+-
+-                    # session
+-                    session_before = SessionActivite.query.filter_by(
+-                        atelier_id=atelier.id, secteur=secteur, session_type="COLLECTIF", date_session=d, is_deleted=False
+-                    ).first()
+-                    session = _get_or_create_session(atelier, secteur, d)
+-                    if session_before is None:
+-                        stats["sessions_created"] += 1
+-                        stats_sheet["sessions"] += 1
+-
+-                    pr = PresenceActivite(session_id=session.id, participant_id=part.id)
+-                    # SAVEPOINT par insertion pour éviter de rollback toute la session sur un doublon
+-                    try:
+-                        with db.session.begin_nested():
+-                            db.session.add(pr)
+-                            db.session.flush()
+-                        stats["presences_created"] += 1
+-                        stats_sheet["presences"] += 1
+-                    except IntegrityError:
+-                        stats["presences_skipped_duplicates"] += 1
+-
+-            stats["sheets_processed"] += 1
+-            stats["sheets"][sheet_name] = stats_sheet
+-
+-        if dry_run:
+-            db.session.rollback()
+-        else:
+-            db.session.commit()
+-    except Exception as e:
+-        db.session.rollback()
+-        raise
+-
+-    return stats
+diff --git a/app/bilans/services - Copie.py b/app/bilans/services - Copie.py
+deleted file mode 100644
+index 01b9c8d..0000000
+--- a/app/bilans/services - Copie.py	
++++ /dev/null
+@@ -1,827 +0,0 @@
+-import datetime
+-from dataclasses import dataclass
+-from typing import Dict, List, Optional, Tuple
+-
+-from sqlalchemy import func
+-
+-from app.extensions import db
+-from app.models import Depense, FactureAchat, FactureLigne, LigneBudget, Subvention, InventaireItem
+-
+-
+-@dataclass
+-class BilansScope:
+-    """Périmètre de lecture (multi-secteurs possible côté finance/direction)."""
+-
+-    secteurs: Optional[List[str]]  # None = tous
+-
+-
+-def scope_for_user(user) -> BilansScope:
+-    """Détermine le périmètre autorisé pour un utilisateur."""
+-    has_perm = getattr(user, "has_perm", None)
+-    if callable(has_perm) and has_perm("scope:all_secteurs"):
+-        return BilansScope(secteurs=None)
+-    # responsable_secteur : un seul secteur
+-    sec = getattr(user, "secteur_assigne", None)
+-    if sec:
+-        return BilansScope(secteurs=[sec])
+-    # fallback : rien
+-    return BilansScope(secteurs=[])
+-
+-
+-def _apply_secteur_filter(query, scope: BilansScope, secteur_column):
+-    if scope.secteurs is None:
+-        return query
+-    return query.filter(secteur_column.in_(scope.secteurs))
+-
+-
+-def _year_bounds(year: int) -> Tuple[datetime.date, datetime.date]:
+-    start = datetime.date(year, 1, 1)
+-    end = datetime.date(year + 1, 1, 1)
+-    return start, end
+-
+-
+-def list_exercice_years(scope) -> list[int]:
+-    """
+-    Retourne les années disponibles pour les bilans, basées sur SessionActivite.date_session.
+-    Compatible SQLite/PostgreSQL.
+-
+-    Scope:
+-      - scope.secteurs is None  => global (tous secteurs)
+-      - scope.secteurs = [...]  => filtré sur ces secteurs
+-    """
+-
+-    q = (
+-        db.session.query(extract("year", SessionActivite.date_session).label("y"))
+-        .filter(SessionActivite.is_deleted == False)
+-        .filter(SessionActivite.date_session.isnot(None))
+-    )
+-
+-    # Filtre scope (responsable secteur / périmètre)
+-    if getattr(scope, "secteurs", None) is not None:
+-        secteurs = scope.secteurs or []
+-        if secteurs:
+-            q = q.filter(SessionActivite.secteur.in_(secteurs))
+-        else:
+-            # Scope vide => aucune donnée visible
+-            cur = date.today().year
+-            return [cur]
+-
+-    years = [int(r.y) for r in q.distinct().order_by(db.desc("y")).all() if r.y is not None]
+-
+-    # UX: inclure l'année courante même si vide
+-    cur = date.today().year
+-    if cur not in years:
+-        years.insert(0, cur)
+-
+-    return years or [cur]
+-
+-
+-def compute_kpis(year: int, scope: BilansScope) -> Dict[str, float]:
+-    """KPIs globaux (tuiles)."""
+-    start, end = _year_bounds(year)
+-
+-    # Dépenses validées (charges) sur l'année : via Depense + LigneBudget(nature=charge)
+-    q_dep = (
+-        db.session.query(func.coalesce(func.sum(Depense.montant), 0.0))
+-        .join(LigneBudget, Depense.ligne_budget_id == LigneBudget.id)
+-        .join(Subvention, LigneBudget.subvention_id == Subvention.id)
+-        .filter(Depense.est_supprimee.is_(False))
+-        .filter(Depense.statut == "valide")
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-        .filter(Subvention.annee_exercice == year)
+-    )
+-    q_dep = _apply_secteur_filter(q_dep, scope, Subvention.secteur)
+-    depenses = float(q_dep.scalar() or 0.0)
+-
+-    # Budget disponible = total des lignes "montant_reel" (charges) sur les subventions de l'année
+-    q_budget = (
+-        db.session.query(func.coalesce(func.sum(LigneBudget.montant_reel), 0.0))
+-        .join(Subvention, LigneBudget.subvention_id == Subvention.id)
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-        .filter(Subvention.annee_exercice == year)
+-    )
+-    q_budget = _apply_secteur_filter(q_budget, scope, Subvention.secteur)
+-    budget = float(q_budget.scalar() or 0.0)
+-
+-    # À ventiler = somme des lignes de facture marquées a_ventiler sur l'année (date facture)
+-    q_av = (
+-        db.session.query(func.coalesce(func.sum(FactureLigne.montant_ligne), 0.0))
+-        .join(FactureAchat, FactureLigne.facture_id == FactureAchat.id)
+-        .filter(FactureLigne.a_ventiler.is_(True))
+-        .filter(FactureAchat.date_facture >= start)
+-        .filter(FactureAchat.date_facture < end)
+-    )
+-    q_av = _apply_secteur_filter(q_av, scope, FactureLigne.secteur)
+-    a_ventiler = float(q_av.scalar() or 0.0)
+-
+-    # Nombre factures (sur l'année)
+-    q_fact = (
+-        db.session.query(func.count(FactureAchat.id))
+-        .filter(FactureAchat.date_facture >= start)
+-        .filter(FactureAchat.date_facture < end)
+-    )
+-    q_fact = _apply_secteur_filter(q_fact, scope, FactureAchat.secteur_principal)
+-    nb_factures = int(q_fact.scalar() or 0)
+-
+-    taux_exec = (depenses / budget * 100.0) if budget > 0 else 0.0
+-    reste = budget - depenses
+-
+-    return {
+-        "depenses": round(depenses, 2),
+-        "budget": round(budget, 2),
+-        "taux_exec": round(taux_exec, 1),
+-        "reste": round(reste, 2),
+-        "a_ventiler": round(a_ventiler, 2),
+-        "nb_factures": nb_factures,
+-    }
+-
+-
+-def compute_depenses_mensuelles(year: int, scope: BilansScope) -> List[Dict[str, float]]:
+-    """Séries mensuelles des dépenses (année en cours)."""
+-    start, end = _year_bounds(year)
+-
+-    # On essaye d'utiliser la date de facture si la dépense provient d'une ligne de facture,
+-    # sinon fallback date_paiement, sinon created_at.
+-    date_expr = func.coalesce(
+-        FactureAchat.date_facture,
+-        Depense.date_paiement,
+-        func.date(Depense.created_at),
+-    )
+-    month_expr = func.strftime("%m", date_expr)
+-
+-    q = (
+-        db.session.query(month_expr.label("mois"), func.coalesce(func.sum(Depense.montant), 0.0).label("total"))
+-        .select_from(Depense)
+-        .join(LigneBudget, Depense.ligne_budget_id == LigneBudget.id)
+-        .join(Subvention, LigneBudget.subvention_id == Subvention.id)
+-        .outerjoin(FactureLigne, Depense.facture_ligne_id == FactureLigne.id)
+-        .outerjoin(FactureAchat, FactureLigne.facture_id == FactureAchat.id)
+-        .filter(Depense.est_supprimee.is_(False))
+-        .filter(Depense.statut == "valide")
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-        .filter(date_expr >= start)
+-        .filter(date_expr < end)
+-    )
+-    # filtre secteur : via Subvention.secteur (car Depense rattachée à ligne budget)
+-    q = _apply_secteur_filter(q, scope, Subvention.secteur)
+-    q = q.group_by(month_expr).order_by(month_expr)
+-
+-    by_month = {int(m): float(t or 0.0) for m, t in q.all() if m is not None}
+-    out = []
+-    for m in range(1, 13):
+-        out.append({"mois": m, "total": round(by_month.get(m, 0.0), 2)})
+-    return out
+-
+-
+-def compute_depenses_par_secteur(year: int, scope: BilansScope) -> List[Dict[str, float]]:
+-    """Répartition des dépenses par secteur."""
+-    q = (
+-        db.session.query(Subvention.secteur, func.coalesce(func.sum(Depense.montant), 0.0))
+-        .join(LigneBudget, Depense.ligne_budget_id == LigneBudget.id)
+-        .join(Subvention, LigneBudget.subvention_id == Subvention.id)
+-        .filter(Depense.est_supprimee.is_(False))
+-        .filter(Depense.statut == "valide")
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-        .filter(Subvention.annee_exercice == year)
+-        .group_by(Subvention.secteur)
+-        .order_by(func.coalesce(func.sum(Depense.montant), 0.0).desc())
+-    )
+-    q = _apply_secteur_filter(q, scope, Subvention.secteur)
+-    return [{"secteur": s, "total": round(float(t or 0.0), 2)} for s, t in q.all()]
+-
+-
+-def compute_alertes(year: int, scope: BilansScope, seuil_ventiler: float = 500.0) -> List[Dict[str, str]]:
+-    """Alertes 'aide' (non bloquantes)."""
+-    kpis = compute_kpis(year, scope)
+-    alertes: List[Dict[str, str]] = []
+-
+-    # À ventiler
+-    if kpis["a_ventiler"] >= seuil_ventiler:
+-        alertes.append({
+-            "niveau": "warn",
+-            "titre": "Montant important à ventiler",
+-            "detail": f"{kpis['a_ventiler']:.2f} € en lignes marquées 'À ventiler'.",
+-        })
+-
+-    # Consommation (global ou secteur)
+-    if kpis["taux_exec"] >= 90:
+-        alertes.append({
+-            "niveau": "danger",
+-            "titre": "Budget presque consommé",
+-            "detail": f"Taux d'exécution {kpis['taux_exec']:.1f}%.",
+-        })
+-    # sous-consommation à mi-année
+-    today = datetime.date.today()
+-    if today.year == year and today.month >= 7 and kpis["taux_exec"] < 40:
+-        alertes.append({
+-            "niveau": "warn",
+-            "titre": "Sous-consommation (mi-année)",
+-            "detail": f"Taux d'exécution {kpis['taux_exec']:.1f}% au {today.strftime('%d/%m/%Y')}",
+-        })
+-
+-    # Factures sans inventaire associé (aide)
+-    start, end = _year_bounds(year)
+-    q_fact = (
+-        db.session.query(FactureAchat.id)
+-        .filter(FactureAchat.date_facture >= start)
+-        .filter(FactureAchat.date_facture < end)
+-    )
+-    q_fact = _apply_secteur_filter(q_fact, scope, FactureAchat.secteur_principal)
+-    facture_ids = [fid for (fid,) in q_fact.all()]
+-    if facture_ids:
+-        q_with_inv = (
+-            db.session.query(FactureAchat.id)
+-            .join(FactureLigne, FactureLigne.facture_id == FactureAchat.id)
+-            .join(InventaireItem, InventaireItem.facture_ligne_id == FactureLigne.id)
+-            .filter(FactureAchat.id.in_(facture_ids))
+-            .distinct()
+-        )
+-        have_inv = set([fid for (fid,) in q_with_inv.all()])
+-        missing = len([fid for fid in facture_ids if fid not in have_inv])
+-        if missing > 0:
+-            alertes.append({
+-                "niveau": "info",
+-                "titre": "Factures sans inventaire lié",
+-                "detail": f"{missing} facture(s) sans entrée inventaire associée.",
+-            })
+-
+-    return alertes
+-
+-
+-def list_secteurs(year: int, scope: BilansScope) -> List[str]:
+-    """Liste des secteurs visibles (selon périmètre)."""
+-    q = (
+-        db.session.query(Subvention.secteur)
+-        .filter(Subvention.annee_exercice == year)
+-        .distinct()
+-        .order_by(Subvention.secteur)
+-    )
+-    q = _apply_secteur_filter(q, scope, Subvention.secteur)
+-    return [s for (s,) in q.all() if s]
+-
+-
+-def list_subventions(year: int, scope: BilansScope) -> List[Dict[str, object]]:
+-    """Liste des subventions visibles (id + nom + secteur)."""
+-    q = (
+-        db.session.query(Subvention.id, Subvention.nom, Subvention.secteur, Subvention.montant_attribue)
+-        .filter(Subvention.annee_exercice == year)
+-        .filter(Subvention.est_archive.is_(False))
+-        .order_by(Subvention.secteur, Subvention.nom)
+-    )
+-    q = _apply_secteur_filter(q, scope, Subvention.secteur)
+-    return [
+-        {
+-            "id": int(i),
+-            "nom": n,
+-            "secteur": s,
+-            "montant_attribue": float(ma or 0.0),
+-        }
+-        for (i, n, s, ma) in q.all()
+-    ]
+-
+-
+-def compute_bilan_secteur(year: int, secteur: str, scope: BilansScope) -> Dict[str, object]:
+-    """Bilan détaillé d'un secteur : tuiles + tableau lignes budgétaires + top dépenses."""
+-    if not secteur:
+-        return {}
+-    # Sécurité : le secteur demandé doit être dans le scope
+-    if scope.secteurs is not None and secteur not in scope.secteurs:
+-        return {}
+-
+-    # KPIs secteur : on réutilise compute_kpis mais en forçant un scope sur ce secteur
+-    sec_scope = BilansScope(secteurs=[secteur])
+-    kpis = compute_kpis(year, sec_scope)
+-
+-    # Tableau lignes budgétaires (charges uniquement)
+-    q_lines = (
+-        db.session.query(
+-            LigneBudget.id,
+-            LigneBudget.compte,
+-            LigneBudget.libelle,
+-            func.coalesce(LigneBudget.montant_reel, 0.0),
+-            func.coalesce(func.sum(Depense.montant), 0.0).label("engage"),
+-        )
+-        .select_from(LigneBudget)
+-        .join(Subvention, LigneBudget.subvention_id == Subvention.id)
+-        .outerjoin(Depense, Depense.ligne_budget_id == LigneBudget.id)
+-        .filter(Subvention.annee_exercice == year)
+-        .filter(Subvention.secteur == secteur)
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-        .filter(func.coalesce(Depense.est_supprimee, False).is_(False) | (Depense.id.is_(None)))
+-        .filter((Depense.statut == "valide") | (Depense.id.is_(None)))
+-        .group_by(LigneBudget.id)
+-        .order_by(LigneBudget.compte, LigneBudget.libelle)
+-    )
+-    lignes = []
+-    for lid, compte, libelle, montant_reel, engage in q_lines.all():
+-        montant_reel = float(montant_reel or 0.0)
+-        engage = float(engage or 0.0)
+-        reste = montant_reel - engage
+-        lignes.append(
+-            {
+-                "id": int(lid),
+-                "compte": compte,
+-                "libelle": libelle,
+-                "montant_reel": round(montant_reel, 2),
+-                "engage": round(engage, 2),
+-                "reste": round(reste, 2),
+-                "taux": round((engage / montant_reel * 100.0) if montant_reel > 0 else 0.0, 1),
+-            }
+-        )
+-
+-    # Top 10 dépenses du secteur
+-    date_expr = func.coalesce(FactureAchat.date_facture, Depense.date_paiement, func.date(Depense.created_at))
+-    q_top = (
+-        db.session.query(
+-            Depense.id,
+-            date_expr.label("date"),
+-            func.coalesce(Depense.fournisseur, "").label("fournisseur"),
+-            Depense.libelle,
+-            Depense.montant,
+-            FactureAchat.reference_facture,
+-        )
+-        .select_from(Depense)
+-        .join(LigneBudget, Depense.ligne_budget_id == LigneBudget.id)
+-        .join(Subvention, LigneBudget.subvention_id == Subvention.id)
+-        .outerjoin(FactureLigne, Depense.facture_ligne_id == FactureLigne.id)
+-        .outerjoin(FactureAchat, FactureLigne.facture_id == FactureAchat.id)
+-        .filter(Depense.est_supprimee.is_(False))
+-        .filter(Depense.statut == "valide")
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-        .filter(Subvention.annee_exercice == year)
+-        .filter(Subvention.secteur == secteur)
+-        .order_by(Depense.montant.desc())
+-        .limit(10)
+-    )
+-    top_depenses = []
+-    for did, dte, four, lib, mnt, ref in q_top.all():
+-        top_depenses.append(
+-            {
+-                "id": int(did),
+-                "date": dte.strftime("%d/%m/%Y") if hasattr(dte, "strftime") and dte else "",
+-                "fournisseur": four or "",
+-                "libelle": lib or "",
+-                "montant": round(float(mnt or 0.0), 2),
+-                "reference": ref or "",
+-            }
+-        )
+-
+-    return {
+-        "secteur": secteur,
+-        "kpis": kpis,
+-        "lignes": lignes,
+-        "top_depenses": top_depenses,
+-    }
+-
+-
+-def compute_bilan_subvention(year: int, subvention_id: int, scope: BilansScope) -> Dict[str, object]:
+-    """Bilan d'une subvention : tuiles + dépenses imputées + matériel financé."""
+-    sub = db.session.query(Subvention).filter(Subvention.id == subvention_id).first()
+-    if not sub or sub.annee_exercice != year:
+-        return {}
+-    if scope.secteurs is not None and sub.secteur not in scope.secteurs:
+-        return {}
+-
+-    # Montant accordé : montant_attribue (sinon fallback sur budget réel des lignes)
+-    montant_accorde = float(sub.montant_attribue or 0.0)
+-    if montant_accorde <= 0:
+-        montant_accorde = float(sub.total_reel_lignes or 0.0)
+-
+-    # Dépenses imputées (charges)
+-    q_dep = (
+-        db.session.query(func.coalesce(func.sum(Depense.montant), 0.0))
+-        .join(LigneBudget, Depense.ligne_budget_id == LigneBudget.id)
+-        .filter(LigneBudget.subvention_id == subvention_id)
+-        .filter(Depense.est_supprimee.is_(False))
+-        .filter(Depense.statut == "valide")
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-    )
+-    depenses = float(q_dep.scalar() or 0.0)
+-    taux = (depenses / montant_accorde * 100.0) if montant_accorde > 0 else 0.0
+-    ecart = montant_accorde - depenses
+-
+-    # Liste des dépenses (détails)
+-    date_expr = func.coalesce(FactureAchat.date_facture, Depense.date_paiement, func.date(Depense.created_at))
+-    q_list = (
+-        db.session.query(
+-            Depense.id,
+-            date_expr.label("date"),
+-            func.coalesce(Depense.fournisseur, "").label("fournisseur"),
+-            Depense.libelle,
+-            Depense.montant,
+-            FactureAchat.reference_facture,
+-            LigneBudget.compte,
+-            LigneBudget.libelle.label("ligne_libelle"),
+-        )
+-        .select_from(Depense)
+-        .join(LigneBudget, Depense.ligne_budget_id == LigneBudget.id)
+-        .outerjoin(FactureLigne, Depense.facture_ligne_id == FactureLigne.id)
+-        .outerjoin(FactureAchat, FactureLigne.facture_id == FactureAchat.id)
+-        .filter(LigneBudget.subvention_id == subvention_id)
+-        .filter(Depense.est_supprimee.is_(False))
+-        .filter(Depense.statut == "valide")
+-        .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+-        .order_by(date_expr.desc())
+-        .limit(300)
+-    )
+-    depenses_list = []
+-    for did, dte, four, lib, mnt, ref, compte, ligne_lib in q_list.all():
+-        depenses_list.append(
+-            {
+-                "id": int(did),
+-                "date": dte.strftime("%d/%m/%Y") if hasattr(dte, "strftime") and dte else "",
+-                "fournisseur": four or "",
+-                "libelle": lib or "",
+-                "montant": round(float(mnt or 0.0), 2),
+-                "reference": ref or "",
+-                "compte": compte or "",
+-                "ligne": ligne_lib or "",
+-            }
+-        )
+-
+-    # Matériel financé (inventaire) lié à des lignes de facture imputées à cette subvention
+-    q_mat = (
+-        db.session.query(
+-            InventaireItem.id_interne,
+-            InventaireItem.designation,
+-            InventaireItem.etat,
+-            InventaireItem.localisation,
+-            InventaireItem.valeur_unitaire,
+-        )
+-        .select_from(InventaireItem)
+-        .join(FactureLigne, InventaireItem.facture_ligne_id == FactureLigne.id)
+-        .filter(FactureLigne.subvention_id == subvention_id)
+-        .order_by(InventaireItem.created_at.desc())
+-        .limit(500)
+-    )
+-    materiel = []
+-    for iid, des, etat, loc, val in q_mat.all():
+-        materiel.append(
+-            {
+-                "id_interne": iid or "",
+-                "designation": des or "",
+-                "etat": etat or "",
+-                "localisation": loc or "",
+-                "valeur": round(float(val or 0.0), 2) if val is not None else "",
+-            }
+-        )
+-
+-    return {
+-        "subvention": {
+-            "id": sub.id,
+-            "nom": sub.nom,
+-            "secteur": sub.secteur,
+-        },
+-        "kpis": {
+-            "montant_accorde": round(float(montant_accorde or 0.0), 2),
+-            "depenses": round(depenses, 2),
+-            "taux": round(taux, 1),
+-            "ecart": round(ecart, 2),
+-        },
+-        "depenses": depenses_list,
+-        "materiel": materiel,
+-    }
+-
+-
+-def compute_qualite_gestion(year: int, scope: BilansScope) -> Dict[str, object]:
+-    """Indicateurs 'qualité de gestion' (aide, non bloquant)."""
+-    start, end = _year_bounds(year)
+-
+-    # Lignes à ventiler (compteur, montant, ancienneté moyenne en jours)
+-    q = (
+-        db.session.query(
+-            func.count(FactureLigne.id),
+-            func.coalesce(func.sum(FactureLigne.montant_ligne), 0.0),
+-            func.avg(func.julianday(func.current_date()) - func.julianday(FactureAchat.date_facture)),
+-        )
+-        .join(FactureAchat, FactureLigne.facture_id == FactureAchat.id)
+-        .filter(FactureLigne.a_ventiler.is_(True))
+-        .filter(FactureAchat.date_facture >= start)
+-        .filter(FactureAchat.date_facture < end)
+-    )
+-    q = _apply_secteur_filter(q, scope, FactureLigne.secteur)
+-    nb_av, mt_av, avg_days = q.one()
+-
+-    # Dépenses sans subvention (hors subvention / fonds propres)
+-    q_hs = (
+-        db.session.query(func.count(Depense.id), func.coalesce(func.sum(Depense.montant), 0.0))
+-        .filter(Depense.est_supprimee.is_(False))
+-        .filter(Depense.statut == "valide")
+-        .filter(Depense.ligne_budget_id.is_(None))
+-        .filter(func.coalesce(Depense.date_paiement, func.date(Depense.created_at)) >= start)
+-        .filter(func.coalesce(Depense.date_paiement, func.date(Depense.created_at)) < end)
+-    )
+-    # Filtre secteur : on passe par Depense.secteur si présent, sinon rien
+-    if hasattr(Depense, "secteur"):
+-        q_hs = _apply_secteur_filter(q_hs, scope, Depense.secteur)
+-    nb_hs, mt_hs = q_hs.one()
+-
+-    # Factures sans inventaire
+-    q_fact = (
+-        db.session.query(FactureAchat.id)
+-        .filter(FactureAchat.date_facture >= start)
+-        .filter(FactureAchat.date_facture < end)
+-    )
+-    q_fact = _apply_secteur_filter(q_fact, scope, FactureAchat.secteur_principal)
+-    facture_ids = [fid for (fid,) in q_fact.all()]
+-    missing_inv = 0
+-    if facture_ids:
+-        q_with_inv = (
+-            db.session.query(FactureAchat.id)
+-            .join(FactureLigne, FactureLigne.facture_id == FactureAchat.id)
+-            .join(InventaireItem, InventaireItem.facture_ligne_id == FactureLigne.id)
+-            .filter(FactureAchat.id.in_(facture_ids))
+-            .distinct()
+-        )
+-        have_inv = set([fid for (fid,) in q_with_inv.all()])
+-        missing_inv = len([fid for fid in facture_ids if fid not in have_inv])
+-
+-    return {
+-        "a_ventiler": {
+-            "nb": int(nb_av or 0),
+-            "montant": round(float(mt_av or 0.0), 2),
+-            "age_moyen_jours": int(round(float(avg_days or 0.0))) if avg_days is not None else 0,
+-        },
+-        "hors_subvention": {
+-            "nb": int(nb_hs or 0),
+-            "montant": round(float(mt_hs or 0.0), 2),
+-        },
+-        "factures": {
+-            "sans_inventaire": int(missing_inv),
+-        },
+-    }
+-
+-
+-def compute_stats_inventaire(year: int, scope: BilansScope) -> Dict[str, object]:
+-    """Stats inventaire (patrimoine + qualité)."""
+-    start, end = _year_bounds(year)
+-
+-    # Total items / valeur
+-    q = db.session.query(
+-        func.count(InventaireItem.id),
+-        func.coalesce(func.sum(func.coalesce(InventaireItem.valeur_unitaire, 0.0) * func.coalesce(InventaireItem.quantite, 1)), 0.0),
+-    )
+-    q = _apply_secteur_filter(q, scope, InventaireItem.secteur)
+-    nb_items, valeur = q.one()
+-
+-    # Répartition états
+-    q_etat = (
+-        db.session.query(InventaireItem.etat, func.count(InventaireItem.id))
+-        .group_by(InventaireItem.etat)
+-        .order_by(func.count(InventaireItem.id).desc())
+-    )
+-    q_etat = _apply_secteur_filter(q_etat, scope, InventaireItem.secteur)
+-    repartition = [{"etat": e or "", "nb": int(n or 0)} for e, n in q_etat.all()]
+-
+-    # Qualité inventaire
+-    q_no_loc = db.session.query(func.count(InventaireItem.id)).filter(
+-        (InventaireItem.localisation.is_(None)) | (func.trim(InventaireItem.localisation) == "")
+-    )
+-    q_no_loc = _apply_secteur_filter(q_no_loc, scope, InventaireItem.secteur)
+-    sans_localisation = int(q_no_loc.scalar() or 0)
+-
+-    q_no_sn = db.session.query(func.count(InventaireItem.id)).filter(
+-        (InventaireItem.numero_serie.is_(None)) | (func.trim(InventaireItem.numero_serie) == "")
+-    )
+-    q_no_sn = _apply_secteur_filter(q_no_sn, scope, InventaireItem.secteur)
+-    sans_serie = int(q_no_sn.scalar() or 0)
+-
+-    return {
+-        "nb_items": int(nb_items or 0),
+-        "valeur": round(float(valeur or 0.0), 2),
+-        "repartition": repartition,
+-        "qualite": {
+-            "sans_localisation": sans_localisation,
+-            "sans_serie": sans_serie,
+-        },
+-    }
+-
+-
+-# ---------------------------------------------------------------------
+-# Bilans lourds (activité + présences + évaluations)
+-# ---------------------------------------------------------------------
+-
+-_ETAT_LABELS = {
+-    0: "Non acquis",
+-    1: "En cours",
+-    2: "Acquis",
+-    3: "Expert",
+-}
+-
+-
+-def _compute_bilans_lourds_core(year: int, scope: BilansScope) -> dict:
+-    """Noyau d'agrégations bilans lourds pour une année donnée."""
+-    from app.models import AtelierActivite, SessionActivite, PresenceActivite, Participant, Evaluation, Competence
+-
+-    # --------- base filters ----------
+-    start = datetime.date(year, 1, 1)
+-    end = datetime.date(year + 1, 1, 1)
+-
+-    # ateliers (non supprimés)
+-    q_ateliers = db.session.query(func.count(AtelierActivite.id)).filter(
+-        AtelierActivite.is_deleted.is_(False)
+-    )
+-    q_ateliers = _apply_secteur_filter(q_ateliers, scope, AtelierActivite.secteur)
+-    nb_ateliers = int(q_ateliers.scalar() or 0)
+-
+-    # sessions réalisées (non supprimées)
+-    q_sessions = db.session.query(func.count(SessionActivite.id)).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) >= start,
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) < end,
+-    )
+-    q_sessions = _apply_secteur_filter(q_sessions, scope, SessionActivite.secteur)
+-    nb_sessions = int(q_sessions.scalar() or 0)
+-
+-    # présences (émargements) sur sessions de l'année
+-    q_pres = db.session.query(func.count(PresenceActivite.id)).join(
+-        SessionActivite, PresenceActivite.session_id == SessionActivite.id
+-    ).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) >= start,
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) < end,
+-    )
+-    q_pres = _apply_secteur_filter(q_pres, scope, SessionActivite.secteur)
+-    nb_presences = int(q_pres.scalar() or 0)
+-
+-    # participants uniques (distinct) via présence
+-    q_pu = db.session.query(func.count(func.distinct(PresenceActivite.participant_id))).join(
+-        SessionActivite, PresenceActivite.session_id == SessionActivite.id
+-    ).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) >= start,
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) < end,
+-    )
+-    q_pu = _apply_secteur_filter(q_pu, scope, SessionActivite.secteur)
+-    nb_participants_uniques = int(q_pu.scalar() or 0)
+-
+-    # fidélisation : participants revenus >= 2 fois sur la période
+-    q_returning = db.session.query(PresenceActivite.participant_id).join(
+-        SessionActivite, PresenceActivite.session_id == SessionActivite.id
+-    ).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) >= start,
+-        func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) < end,
+-    )
+-    q_returning = _apply_secteur_filter(q_returning, scope, SessionActivite.secteur)
+-    q_returning = q_returning.group_by(PresenceActivite.participant_id).having(func.count(PresenceActivite.id) >= 2)
+-    nb_participants_retour = int(q_returning.count() or 0)
+-    taux_fidelisation = round((nb_participants_retour / nb_participants_uniques) * 100, 1) if nb_participants_uniques > 0 else 0.0
+-
+-    intensite_accompagnement = round((nb_presences / nb_participants_uniques), 2) if nb_participants_uniques > 0 else 0.0
+-
+-    # collectif : remplissage (présences / total places)
+-    q_total_places = db.session.query(func.sum(SessionActivite.capacite)).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        SessionActivite.session_type == "COLLECTIF",
+-        SessionActivite.date_session >= start,
+-        SessionActivite.date_session < end,
+-    )
+-    q_total_places = _apply_secteur_filter(q_total_places, scope, SessionActivite.secteur)
+-    total_places_collectif = int(q_total_places.scalar() or 0)
+-
+-    q_pres_coll = db.session.query(func.count(PresenceActivite.id)).join(
+-        SessionActivite, PresenceActivite.session_id == SessionActivite.id
+-    ).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        SessionActivite.session_type == "COLLECTIF",
+-        SessionActivite.date_session >= start,
+-        SessionActivite.date_session < end,
+-    )
+-    q_pres_coll = _apply_secteur_filter(q_pres_coll, scope, SessionActivite.secteur)
+-    nb_presences_collectif = int(q_pres_coll.scalar() or 0)
+-
+-    taux_remplissage_collectif = 0
+-    if total_places_collectif > 0:
+-        taux_remplissage_collectif = int(round((nb_presences_collectif / total_places_collectif) * 100))
+-
+-    # rdv individuel : nb + minutes
+-    q_rdv = db.session.query(func.count(SessionActivite.id)).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        SessionActivite.session_type != "COLLECTIF",
+-        SessionActivite.rdv_date >= start,
+-        SessionActivite.rdv_date < end,
+-    )
+-    q_rdv = _apply_secteur_filter(q_rdv, scope, SessionActivite.secteur)
+-    nb_rdv = int(q_rdv.scalar() or 0)
+-
+-    q_rdv_min = db.session.query(func.sum(SessionActivite.duree_minutes)).filter(
+-        SessionActivite.is_deleted.is_(False),
+-        SessionActivite.statut == "realisee",
+-        SessionActivite.session_type != "COLLECTIF",
+-        SessionActivite.rdv_date >= start,
+-        SessionActivite.rdv_date < end,
+-    )
+-    q_rdv_min = _apply_secteur_filter(q_rdv_min, scope, SessionActivite.secteur)
+-    minutes_rdv = int(q_rdv_min.scalar() or 0)
+-
+-    # évaluations (sur l'année)
+-    q_eval = db.session.query(func.count(Evaluation.id)).filter(
+-        Evaluation.date_evaluation >= start,
+-        Evaluation.date_evaluation < end,
+-    )
+-    # Filtre secteur: on passe par participant.secteur si présent, sinon via session.secteur.
+-    # Ici, on fait simple : si périmètre restrictif, on garde les évaluations dont le participant appartient au secteur.
+-    if scope.secteurs is not None:
+-        q_eval = q_eval.join(Participant, Evaluation.participant_id == Participant.id).filter(Participant.created_secteur.in_(scope.secteurs))
+-    total_eval = int(q_eval.scalar() or 0)
+-
+-    # évaluations par état
+-    par_etat = []
+-    for etat in (0, 1, 2, 3):
+-        q = db.session.query(func.count(Evaluation.id)).filter(
+-            Evaluation.date_evaluation >= start,
+-            Evaluation.date_evaluation < end,
+-            Evaluation.etat == etat,
+-        )
+-        if scope.secteurs is not None:
+-            q = q.join(Participant, Evaluation.participant_id == Participant.id).filter(Participant.created_secteur.in_(scope.secteurs))
+-        par_etat.append((_ETAT_LABELS.get(etat, str(etat)), int(q.scalar() or 0)))
+-
+-    q_comp_u = db.session.query(func.count(func.distinct(Evaluation.competence_id))).filter(
+-        Evaluation.date_evaluation >= start,
+-        Evaluation.date_evaluation < end,
+-    )
+-    if scope.secteurs is not None:
+-        q_comp_u = q_comp_u.join(Participant, Evaluation.participant_id == Participant.id).filter(Participant.created_secteur.in_(scope.secteurs))
+-    nb_comp_u = int(q_comp_u.scalar() or 0)
+-
+-    # détail par secteur (dans le périmètre)
+-    secteurs = scope.secteurs if scope.secteurs is not None else list_secteurs(year, scope)
+-    par_secteur = []
+-    for sec in secteurs:
+-        q_a = db.session.query(func.count(AtelierActivite.id)).filter(AtelierActivite.is_deleted.is_(False), AtelierActivite.secteur == sec)
+-        q_s = db.session.query(func.count(SessionActivite.id)).filter(
+-            SessionActivite.is_deleted.is_(False),
+-            SessionActivite.statut == "realisee",
+-            SessionActivite.secteur == sec,
+-            func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) >= start,
+-            func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) < end,
+-        )
+-        q_p = db.session.query(func.count(PresenceActivite.id)).join(SessionActivite, PresenceActivite.session_id == SessionActivite.id).filter(
+-            SessionActivite.is_deleted.is_(False),
+-            SessionActivite.statut == "realisee",
+-            SessionActivite.secteur == sec,
+-            func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) >= start,
+-            func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) < end,
+-        )
+-        q_pu2 = db.session.query(func.count(func.distinct(PresenceActivite.participant_id))).join(SessionActivite, PresenceActivite.session_id == SessionActivite.id).filter(
+-            SessionActivite.is_deleted.is_(False),
+-            SessionActivite.statut == "realisee",
+-            SessionActivite.secteur == sec,
+-            func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) >= start,
+-            func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date) < end,
+-        )
+-
+-        par_secteur.append({
+-            "secteur": sec,
+-            "nb_ateliers": int(q_a.scalar() or 0),
+-            "nb_sessions": int(q_s.scalar() or 0),
+-            "nb_presences": int(q_p.scalar() or 0),
+-            "nb_participants_uniques": int(q_pu2.scalar() or 0),
+-        })
+-
+-    return {
+-        "activite": {
+-            "nb_ateliers": nb_ateliers,
+-            "nb_sessions": nb_sessions,
+-            "nb_presences": nb_presences,
+-            "nb_participants_uniques": nb_participants_uniques,
+-            "total_places_collectif": total_places_collectif,
+-            "nb_presences_collectif": nb_presences_collectif,
+-            "taux_remplissage_collectif": taux_remplissage_collectif,
+-            "nb_rdv": nb_rdv,
+-            "minutes_rdv": minutes_rdv,
+-            "nb_participants_retour": nb_participants_retour,
+-            "taux_fidelisation": taux_fidelisation,
+-            "intensite_accompagnement": intensite_accompagnement,
+-        },
+-        "evaluations": {
+-            "total": total_eval,
+-            "par_etat": par_etat,
+-            "nb_competences_uniques": nb_comp_u,
+-        },
+-        "par_secteur": par_secteur,
+-    }
+-
+-
+-def compute_bilans_lourds(year: int, scope: BilansScope) -> dict:
+-    """Stats plus 'lourdes' (multi-agrégations) avec filtre par périmètre utilisateur.
+-
+-    Compatible SQLite & Postgres (pas de fonctions exotiques).
+-    """
+-    current = _compute_bilans_lourds_core(year, scope)
+-    previous = _compute_bilans_lourds_core(year - 1, scope)
+-    current["comparatif"] = {
+-        "annee_precedente": year - 1,
+-        "activite": previous.get("activite", {}),
+-        "evaluations": previous.get("evaluations", {}),
+-    }
+-    return current
+diff --git a/app/models.py b/app/models.py
+index 15fb7ff..4506550 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -50,11 +50,12 @@ class User(db.Model):
+ 
+ 
+     def has_role(self, code: str | None) -> bool:
+-        """Compat helper: True si l'utilisateur possède le rôle `code`.
++        """True si l'utilisateur possède le rôle RBAC `code`.
+ 
+-        - D'abord via RBAC (User.roles -> Role.code)
+-        - Puis fallback legacy (User.role string) pour ne pas exploser les anciennes routes
+-        - Gère quelques alias historiques (directrice -> direction, financière -> finance, etc.)
++        Seuls les rôles RBAC (User.roles -> Role.code) font foi. La colonne
++        legacy `User.role` ne donne aucun droit : elle est migrée vers un
++        rôle RBAC au démarrage par `bootstrap_rbac`.
++        Gère quelques alias historiques (directrice -> direction, etc.).
+         """
+         if not code:
+             return False
+@@ -71,7 +72,6 @@ class User(db.Model):
+         }
+         c = aliases.get(c, c)
+ 
+-        # RBAC (relation roles)
+         try:
+             for r in (getattr(self, "roles", []) or []):
+                 rc = (getattr(r, "code", "") or "").strip().lower()
+@@ -81,10 +81,7 @@ class User(db.Model):
+         except Exception:
+             pass
+ 
+-        # Legacy
+-        legacy = (getattr(self, "role", None) or "").strip().lower()
+-        legacy = aliases.get(legacy, legacy)
+-        return legacy == c
++        return False
+ 
+ 
+ class UserDashboardPreference(db.Model):
+diff --git a/app/participants/routes - Copie.py b/app/participants/routes - Copie.py
+deleted file mode 100644
+index 242a2ae..0000000
+--- a/app/participants/routes - Copie.py	
++++ /dev/null
+@@ -1,626 +0,0 @@
+-from __future__ import annotations
+-
+-from datetime import datetime
+-
+-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+-from flask_login import login_required, current_user
+-from ..rbac import require_perm, can
+-from ..rbac import can_access_secteur
+-
+-from app.extensions import db
+-from app.models import Participant, PresenceActivite, SessionActivite, Evaluation, Quartier
+-from app.services.quartiers import normalize_quartier_for_ville
+-
+-
+-bp = Blueprint("participants", __name__, url_prefix="/participants")
+-
+-
+-def _current_secteur() -> str:
+-    return (getattr(current_user, "secteur_assigne", "") or "").strip()
+-
+-
+-def _is_global_role() -> bool:
+-    return current_user.has_perm("participants:view_all") or current_user.has_perm("scope:all_secteurs")
+-
+-
+-def _can_read_participant(p: Participant) -> bool:
+-    return bool(can('participants:view') or can('participants:edit') or can('participants:delete'))
+-
+-
+-def _can_edit_participant(p: Participant) -> bool:
+-    return bool(can('participants:edit'))
+-
+-
+-def _can_see_participant(p: Participant) -> bool:
+-    # Visible (ancienne logique) : créé par secteur OU déjà présent dans secteur
+-    # Utilisé uniquement pour les listings "dans mon secteur", PAS pour l'édition.
+-    if _is_global_role():
+-        return True
+-    if not current_user.has_perm("participants:view_all"):
+-        sec = _current_secteur()
+-        if not sec:
+-            return False
+-        if (p.created_secteur or "") == sec:
+-            return True
+-        has_presence = (
+-            db.session.query(PresenceActivite.id)
+-            .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+-            .filter(PresenceActivite.participant_id == p.id)
+-            .filter(SessionActivite.secteur == sec)
+-            .first()
+-        )
+-        return bool(has_presence)
+-    return False
+-
+-
+-@bp.route("/")
+-@login_required
+-def list_participants():
+-    if False:
+-        abort(403)
+-
+-    q = (request.args.get("q") or "").strip()
+-    scope = (request.args.get("scope") or "").strip()  # ""/secteur, created, annuaire
+-
+-    participants_q = Participant.query
+-
+-    # Annuaire global : uniquement si recherche (>=2), sinon on retombe en sectoriel
+-    if scope == "annuaire" and (not q or len(q) < 2):
+-        scope = "secteur"
+-
+-    if not current_user.has_perm("participants:view_all"):
+-        sec = _current_secteur()
+-        if not sec:
+-            abort(403)
+-
+-        # En mode annuaire (avec recherche), pas de restriction sectorielle
+-        if not (scope == "annuaire" and q and len(q) >= 2):
+-            if scope == "created":
+-                participants_q = participants_q.filter(Participant.created_secteur == sec)
+-            else:
+-                # secteur = (créé par secteur) OU (a une présence dans secteur)
+-                subq_presence_ids = (
+-                    db.session.query(PresenceActivite.participant_id)
+-                    .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+-                    .filter(SessionActivite.secteur == sec)
+-                    .distinct()
+-                )
+-                participants_q = participants_q.filter(
+-                    (Participant.created_secteur == sec) | (Participant.id.in_(subq_presence_ids))
+-                )
+-    else:
+-        # finance/directrice : option filtre secteur
+-        if scope == "secteur":
+-            sec = (request.args.get("secteur") or "").strip()
+-            if sec:
+-                participants_q = participants_q.filter(Participant.created_secteur == sec)
+-
+-    # filtre recherche (tous rôles)
+-    if q:
+-        like = f"%{q.lower()}%"
+-        participants_q = participants_q.filter(
+-            db.or_(
+-                db.func.lower(Participant.nom).like(like),
+-                db.func.lower(Participant.prenom).like(like),
+-                db.func.lower(db.func.coalesce(Participant.email, "")).like(like),
+-                db.func.lower(db.func.coalesce(Participant.telephone, "")).like(like),
+-            )
+-        )
+-
+-    items = participants_q.order_by(Participant.nom.asc(), Participant.prenom.asc()).limit(1000).all()
+-    return render_template(
+-        "participants/list.html",
+-        items=items,
+-        q=q,
+-        scope=scope,
+-        secteur=_current_secteur(),
+-    )
+-
+-
+-@bp.route("/search")
+-@login_required
+-def search_participants():
+-    """Annuaire global (lecture seule) pour l'auto-complétion côté émargement."""
+-    if False:
+-        abort(403)
+-
+-    q = (request.args.get("q") or "").strip()
+-    if not q or len(q) < 2:
+-        return {"items": []}
+-
+-    like = f"%{q.lower()}%"
+-    participants_q = Participant.query.filter(
+-        db.or_(
+-            db.func.lower(Participant.nom).like(like),
+-            db.func.lower(Participant.prenom).like(like),
+-            db.func.lower(db.func.coalesce(Participant.email, "")).like(like),
+-            db.func.lower(db.func.coalesce(Participant.telephone, "")).like(like),
+-        )
+-    )
+-
+-    items = (
+-        participants_q.order_by(Participant.nom.asc(), Participant.prenom.asc())
+-        .limit(30)
+-        .all()
+-    )
+-
+-    def _year(d):
+-        try:
+-            return d.year if d else None
+-        except Exception:
+-            return None
+-
+-    return {
+-        "items": [
+-            {
+-                "id": p.id,
+-                "nom": p.nom,
+-                "prenom": p.prenom,
+-                "annee_naissance": _year(getattr(p, "date_naissance", None)),
+-                "ville": getattr(p, "ville", None),
+-                "created_secteur": getattr(p, "created_secteur", None),
+-            }
+-            for p in items
+-        ]
+-    }
+-
+-
+-@bp.route("/new", methods=["GET", "POST"])
+-@login_required
+-def new_participant():
+-    if False:
+-        abort(403)
+-
+-    if request.method == "POST":
+-        nom = (request.form.get("nom") or "").strip()
+-        prenom = (request.form.get("prenom") or "").strip()
+-        if not nom or not prenom:
+-            flash("Nom et prénom obligatoires.", "err")
+-            return redirect(url_for("participants.new_participant"))
+-
+-        p = Participant(
+-            nom=nom,
+-            prenom=prenom,
+-            adresse=(request.form.get("adresse") or "").strip() or None,
+-            ville=(request.form.get("ville") or "").strip() or None,
+-            email=(request.form.get("email") or "").strip() or None,
+-            telephone=(request.form.get("telephone") or "").strip() or None,
+-            genre=(request.form.get("genre") or "").strip() or None,
+-            type_public=(request.form.get("type_public") or "H").strip() or "H",
+-            created_by_user_id=getattr(current_user, "id", None),
+-            created_secteur=(
+-                _current_secteur()
+-                if not current_user.has_perm("participants:view_all")
+-                else (request.form.get("created_secteur") or "").strip() or None
+-            ),
+-        )
+-        quartier_id = request.form.get("quartier_id") or None
+-        p.quartier_id = normalize_quartier_for_ville(p.ville, quartier_id)
+-
+-        d = (request.form.get("date_naissance") or "").strip()
+-        if d:
+-            try:
+-                p.date_naissance = datetime.strptime(d, "%Y-%m-%d").date()
+-            except Exception:
+-                pass
+-
+-        db.session.add(p)
+-        db.session.commit()
+-        flash("Participant créé.", "ok")
+-        return redirect(url_for("participants.edit_participant", participant_id=p.id))
+-
+-    quartiers = Quartier.query.order_by(Quartier.ville.asc(), Quartier.nom.asc()).all()
+-    return render_template(
+-        "participants/form.html",
+-        item=None,
+-        secteur=_current_secteur(),
+-        is_editable=True,
+-        quartiers=quartiers,
+-    )
+-
+-
+-@bp.route("/<int:participant_id>/edit", methods=["GET", "POST"])
+-@login_required
+-def edit_participant(participant_id: int):
+-    if False:
+-        abort(403)
+-
+-    p = Participant.query.get_or_404(participant_id)
+-
+-    # Lecture globale autorisée (annuaire), mais édition verrouillée
+-    if not _can_read_participant(p):
+-        abort(403)
+-
+-    is_editable = _can_edit_participant(p)
+-
+-    if request.method == "POST":
+-        if not is_editable:
+-            abort(403)
+-
+-        p.nom = (request.form.get("nom") or "").strip() or p.nom
+-        p.prenom = (request.form.get("prenom") or "").strip() or p.prenom
+-        p.adresse = (request.form.get("adresse") or "").strip() or None
+-        p.ville = (request.form.get("ville") or "").strip() or None
+-        p.email = (request.form.get("email") or "").strip() or None
+-        p.telephone = (request.form.get("telephone") or "").strip() or None
+-        p.genre = (request.form.get("genre") or "").strip() or None
+-        p.type_public = (request.form.get("type_public") or p.type_public or "H").strip() or "H"
+-        quartier_id = request.form.get("quartier_id") or None
+-        p.quartier_id = normalize_quartier_for_ville(p.ville, quartier_id)
+-
+-        d = (request.form.get("date_naissance") or "").strip()
+-        if d:
+-            try:
+-                p.date_naissance = datetime.strptime(d, "%Y-%m-%d").date()
+-            except Exception:
+-                pass
+-        else:
+-            p.date_naissance = None
+-
+-        # finance/directrice peuvent requalifier created_secteur
+-        if _is_global_role():
+-            p.created_secteur = (request.form.get("created_secteur") or "").strip() or None
+-
+-        db.session.commit()
+-        flash("Participant mis à jour.", "ok")
+-        return redirect(url_for("participants.edit_participant", participant_id=p.id))
+-
+-    quartiers = Quartier.query.order_by(Quartier.ville.asc(), Quartier.nom.asc()).all()
+-    return render_template(
+-        "participants/form.html",
+-        item=p,
+-        secteur=_current_secteur(),
+-        is_editable=is_editable,
+-        quartiers=quartiers,
+-    )
+-
+-
+-@bp.route("/<int:participant_id>/anonymize", methods=["POST"])
+-@login_required
+-def anonymize_participant(participant_id: int):
+-    if False:
+-        abort(403)
+-
+-    p = Participant.query.get_or_404(participant_id)
+-    if not _can_edit_participant(p):
+-        abort(403)
+-
+-    p.nom = "ANONYME"
+-    p.prenom = f"P{p.id}"
+-    p.adresse = None
+-    p.ville = None
+-    p.email = None
+-    p.telephone = None
+-
+-    strict = (request.form.get("strict") or "").strip() == "1"
+-    if strict and _is_global_role():
+-        p.genre = None
+-        p.date_naissance = None
+-        p.quartier_id = None
+-        p.type_public = "H"
+-
+-    db.session.commit()
+-    flash("Participant anonymisé (les stats sont conservées).", "ok")
+-    return redirect(url_for("participants.edit_participant", participant_id=p.id))
+-
+-
+-@bp.route("/<int:participant_id>/delete", methods=["POST"])
+-@login_required
+-def delete_participant(participant_id: int):
+-    if False:
+-        abort(403)
+-    if not can('participants:delete'):
+-        abort(403)
+-
+-    p = Participant.query.get_or_404(participant_id)
+-    if not _can_edit_participant(p):
+-        abort(403)
+-
+-    # garde-fou : un responsable secteur ne supprime pas si le participant existe ailleurs
+-    if not current_user.has_perm("participants:view_all"):
+-        sec = _current_secteur()
+-        other = (
+-            db.session.query(PresenceActivite.id)
+-            .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+-            .filter(PresenceActivite.participant_id == p.id)
+-            .filter(SessionActivite.secteur != sec)
+-            .first()
+-        )
+-        if other:
+-            flash("Suppression refusée : participant présent dans d'autres secteurs. Utiliser 'Anonymiser'.", "err")
+-            return redirect(url_for("participants.edit_participant", participant_id=p.id))
+-
+-    db.session.query(PresenceActivite).filter(PresenceActivite.participant_id == p.id).delete(synchronize_session=False)
+-    db.session.query(Evaluation).filter(Evaluation.participant_id == p.id).delete(synchronize_session=False)
+-    db.session.delete(p)
+-    db.session.commit()
+-    flash("Participant supprimé définitivement.", "warning")
+-    return redirect(url_for("participants.list_participants"))
+-    
+-    import re
+-from flask import current_app
+-
+-_FAKE_PREFIXES = (
+-    "CAPACITE", "CAPACITÉ",
+-    "DUREE", "DURÉE",
+-    "NOMBRE",
+-    "TAUX",
+-    "MOYENNE",
+-    "TOTAL",
+-    "NB ",
+-    "? ",
+-    "STAT",
+-    "NBRE ",
+-)
+-
+-@bp.route("/cleanup-fakes", methods=["POST"])
+-@login_required
+-def cleanup_fakes():
+-    # Autorisation : tu peux choisir soit participants:delete, soit ateliers:sync
+-    if not (can("participants:delete") or can("ateliers:sync")):
+-        abort(403)
+-
+-    # Mode prévisualisation (par défaut = 1)
+-    preview = (request.form.get("preview") or "1").strip() in ("1", "true", "on", "yes")
+-
+-    # On limite au secteur de l'utilisateur (sauf rôles globaux)
+-    sec = _current_secteur()
+-    if not _is_global_role() and not sec:
+-        abort(403)
+-
+-    # Regex simple : commence par un des mots-clés (avec ou sans accents), + éventuellement " ?"
+-    # Exemple: "CAPACITE D'ACCUEIL ?" / "DUREE DE L'ACTIVITE ?"
+-    def is_fake(p: Participant) -> bool:
+-        nom = (p.nom or "").strip()
+-        prenom = (p.prenom or "").strip()
+-
+-        # Souvent les faux ont un prénom vide / bizarre
+-        # (si chez toi c'est toujours prenom rempli, on peut retirer ce critère)
+-        if prenom and len(prenom) > 1:
+-            return False
+-
+-        up = nom.upper()
+-
+-        # commence par un préfixe "métier"
+-        if any(up.startswith(pref) for pref in _FAKE_PREFIXES):
+-            return True
+-
+-        # ou contient un gros marqueur Excel foireux
+-        if "?" in nom or "??" in nom:
+-            # on évite de supprimer un vrai "?" improbable, mais c'est ultra rare
+-            return True
+-
+-        return False
+-
+-    # Base query (filtre secteur si non global)
+-    q = Participant.query
+-    if not _is_global_role():
+-        q = q.filter(Participant.created_secteur == sec)
+-
+-    # On charge un lot raisonnable
+-    candidates = q.order_by(Participant.id.desc()).limit(5000).all()
+-
+-    # On ne supprime jamais si le participant a des présences (sécurité)
+-    fake_ids = []
+-    fake_labels = []
+-    for p in candidates:
+-        if not is_fake(p):
+-            continue
+-
+-        has_presence = (
+-            db.session.query(PresenceActivite.id)
+-            .filter(PresenceActivite.participant_id == p.id)
+-            .first()
+-        )
+-        if has_presence:
+-            continue
+-
+-        fake_ids.append(p.id)
+-        fake_labels.append(f"{p.id} — {p.nom} {p.prenom}".strip())
+-
+-    if not fake_ids:
+-        flash("Nettoyage : aucun faux participant détecté ✅", "success")
+-        return redirect(url_for("participants.list_participants"))
+-
+-    if preview:
+-        # On montre juste un échantillon, sans supprimer
+-        sample = fake_labels[:20]
+-        flash(
+-            f"Prévisualisation : {len(fake_ids)} faux participant(s) détecté(s). "
+-            f"Exemples: {', '.join(sample)}",
+-            "warning"
+-        )
+-        flash("Relance en décochant 'Prévisualiser' pour supprimer réellement.", "info")
+-        return redirect(url_for("participants.list_participants"))
+-
+-    # Suppression réelle (sans présences, donc safe FK)
+-    try:
+-        db.session.query(Evaluation).filter(Evaluation.participant_id.in_(fake_ids)).delete(synchronize_session=False)
+-        # PresenceActivite devrait être vide par sécurité, mais on nettoie quand même
+-        db.session.query(PresenceActivite).filter(PresenceActivite.participant_id.in_(fake_ids)).delete(synchronize_session=False)
+-
+-        db.session.query(Participant).filter(Participant.id.in_(fake_ids)).delete(synchronize_session=False)
+-        db.session.commit()
+-        flash(f"Nettoyage OK 🧹 : {len(fake_ids)} faux participant(s) supprimé(s).", "success")
+-    except Exception as e:
+-        db.session.rollback()
+-        current_app.logger.exception("cleanup_fakes failed")
+-        flash(f"Erreur nettoyage : {e}", "danger")
+-
+-    return redirect(url_for("participants.list_participants"))
+-
+-
+-import re
+-from collections import defaultdict
+-from difflib import SequenceMatcher
+-
+-def _norm(s: str | None) -> str:
+-    s = (s or "").strip().lower()
+-    # enlève accents simples (sans dépendance)
+-    s = s.replace("é", "e").replace("è", "e").replace("ê", "e").replace("ë", "e")
+-    s = s.replace("à", "a").replace("â", "a")
+-    s = s.replace("î", "i").replace("ï", "i")
+-    s = s.replace("ô", "o")
+-    s = s.replace("ù", "u").replace("û", "u").replace("ü", "u")
+-    # garde lettres/chiffres/espace
+-    s = re.sub(r"[^a-z0-9\s\-']", " ", s)
+-    s = re.sub(r"\s+", " ", s).strip()
+-    return s
+-
+-def _phone_norm(s: str | None) -> str:
+-    s = re.sub(r"\D+", "", (s or ""))
+-    # garde les 10 derniers chiffres (pratique FR)
+-    return s[-10:] if len(s) >= 10 else s
+-
+-def _sim(a: str, b: str) -> float:
+-    return SequenceMatcher(None, a, b).ratio()
+-
+-@bp.route("/duplicates", methods=["GET"])
+-@login_required
+-def duplicates():
+-    if not _can_read_participant(None):  # simple garde-fou
+-        abort(403)
+-
+-    # réglages
+-    mode = (request.args.get("mode") or "certain").strip()  # certain / probable
+-    threshold = float(request.args.get("t") or "0.90")      # pour probable
+-    limit = int(request.args.get("limit") or "2000")
+-
+-    # scope secteur pour non-global
+-    sec = _current_secteur()
+-    q = Participant.query
+-    if not _is_global_role():
+-        if not sec:
+-            abort(403)
+-        q = q.filter(Participant.created_secteur == sec)
+-
+-    items = q.order_by(Participant.id.desc()).limit(limit).all()
+-
+-    # --- doublons certains ---
+-    by_name = defaultdict(list)
+-    by_email = defaultdict(list)
+-    by_phone = defaultdict(list)
+-
+-    for p in items:
+-        key_name = f"{_norm(p.nom)}|{_norm(p.prenom)}"
+-        if _norm(p.nom) and _norm(p.prenom):
+-            by_name[key_name].append(p)
+-
+-        em = _norm(getattr(p, "email", None))
+-        if em:
+-            by_email[em].append(p)
+-
+-        ph = _phone_norm(getattr(p, "telephone", None))
+-        if ph:
+-            by_phone[ph].append(p)
+-
+-    groups = []
+-    def push_groups(source: str, dct):
+-        for k, arr in dct.items():
+-            if len(arr) >= 2:
+-                groups.append({
+-                    "type": source,
+-                    "key": k,
+-                    "items": sorted(arr, key=lambda x: (x.nom or "", x.prenom or "", x.id))
+-                })
+-
+-    push_groups("nom_prenom", by_name)
+-    push_groups("email", by_email)
+-    push_groups("telephone", by_phone)
+-
+-    # --- doublons probables (approx) ---
+-    probable = []
+-    if mode == "probable":
+-        # on compare uniquement sur nom/prénom normalisés
+-        normed = [(p, _norm(p.nom), _norm(p.prenom)) for p in items if _norm(p.nom) and _norm(p.prenom)]
+-        # petit tri pour limiter comparaisons
+-        normed.sort(key=lambda x: (x[1][:3], x[2][:3], x[0].id))
+-
+-        # comparaison locale par “fenêtre” (évite O(n²) complet)
+-        for i in range(len(normed)):
+-            p1, n1, pr1 = normed[i]
+-            base1 = f"{n1} {pr1}"
+-            for j in range(i+1, min(i+15, len(normed))):
+-                p2, n2, pr2 = normed[j]
+-                # si les 3 premières lettres divergent trop, on stop
+-                if n2[:3] != n1[:3] and pr2[:3] != pr1[:3]:
+-                    continue
+-                base2 = f"{n2} {pr2}"
+-                s = _sim(base1, base2)
+-                if s >= threshold and p1.id != p2.id:
+-                    probable.append({
+-                        "score": round(s, 3),
+-                        "a": p1,
+-                        "b": p2
+-                    })
+-
+-        probable = sorted(probable, key=lambda x: x["score"], reverse=True)[:200]
+-
+-    # tri groupes certains : les plus gros d’abord
+-    groups.sort(key=lambda g: (-len(g["items"]), g["type"], g["key"]))
+-
+-    return render_template(
+-        "participants/duplicates.html",
+-        groups=groups,
+-        probable=probable,
+-        mode=mode,
+-        threshold=threshold,
+-        secteur=sec,
+-        is_global=_is_global_role(),
+-    )
+-
+-
+-@bp.route("/merge", methods=["POST"])
+-@login_required
+-def merge_participants():
+-    if not can("participants:delete"):
+-        abort(403)
+-
+-    keep_id = int(request.form.get("keep_id") or 0)
+-    merge_ids = request.form.getlist("merge_ids")
+-    merge_ids = [int(x) for x in merge_ids if str(x).isdigit() and int(x) != keep_id]
+-
+-    if not keep_id or not merge_ids:
+-        flash("Fusion impossible : sélection invalide.", "danger")
+-        return redirect(url_for("participants.duplicates"))
+-
+-    keep = Participant.query.get_or_404(keep_id)
+-    victims = Participant.query.filter(Participant.id.in_(merge_ids)).all()
+-
+-    try:
+-        # 1) Transférer Evaluations (safe)
+-        db.session.query(Evaluation).filter(Evaluation.participant_id.in_(merge_ids))\
+-            .update({Evaluation.participant_id: keep_id}, synchronize_session=False)
+-
+-        # 2) Présences: éviter les collisions AVANT l'update
+-        # sessions déjà présentes chez keep
+-        keep_session_ids = set(
+-            sid for (sid,) in db.session.query(PresenceActivite.session_id)
+-            .filter(PresenceActivite.participant_id == keep_id)
+-            .all()
+-        )
+-
+-        if keep_session_ids:
+-            # supprimer les présences des victims qui collent sur les mêmes sessions
+-            db.session.query(PresenceActivite)\
+-                .filter(PresenceActivite.participant_id.in_(merge_ids))\
+-                .filter(PresenceActivite.session_id.in_(keep_session_ids))\
+-                .delete(synchronize_session=False)
+-
+-        # maintenant, update sans risque
+-        db.session.query(PresenceActivite)\
+-            .filter(PresenceActivite.participant_id.in_(merge_ids))\
+-            .update({PresenceActivite.participant_id: keep_id}, synchronize_session=False)
+-
+-        # 3) Delete des participants doublons (ils n'ont plus de liens)
+-        for v in victims:
+-            db.session.delete(v)
+-
+-        db.session.commit()
+-        flash(f"Fusion OK ✅ Participant #{keep_id} a absorbé {len(merge_ids)} doublon(s).", "success")
+-        return redirect(url_for("participants.edit_participant", participant_id=keep_id))
+-
+-    except Exception as e:
+-        db.session.rollback()
+-        flash(f"Erreur fusion : {e}", "danger")
+-        return redirect(url_for("participants.duplicates"))
+diff --git a/app/rbac - Copie.py b/app/rbac - Copie.py
+deleted file mode 100644
+index d63d6e5..0000000
+--- a/app/rbac - Copie.py	
++++ /dev/null
+@@ -1,370 +0,0 @@
+-from __future__ import annotations
+-
+-from functools import wraps
+-from typing import Iterable
+-
+-from flask import abort, current_app
+-from flask_login import current_user
+-
+-from app.extensions import db
+-from app.models import User, Role, Permission
+-
+-
+-# Liste canonique des permissions de l'ERP.
+-# (On peut en rajouter sans casser l'existant.)
+-# Liste canonique des permissions de l'ERP (codes stables) + libellés humains.
+-# ⚠️ Les restrictions "par secteur" ne sont PAS dans le RBAC : elles doivent être appliquées
+-# dans les requêtes/contrôles des routes (ex: can_see_secteur, _can_edit_participant, etc.).
+-DEFAULT_PERMS: list[tuple[str, str]] = [
+-    # Dashboard
+-    ("dashboard:view", "Accéder au tableau de bord"),
+-    ("secteurs:view", "Voir / lister les secteurs"),
+-    ("secteurs:edit", "Créer / modifier / activer les secteurs"),
+-
+-    # Portée / secteurs
+-    ("scope:all_secteurs", "Accéder à tous les secteurs"),
+-
+-    # Projets
+-    ("projets:view", "Voir les projets"),
+-    ("projets:edit", "Créer / modifier un projet"),
+-    ("projets:delete", "Supprimer un projet"),
+-    ("projets:files", "Gérer les pièces jointes projet (CR, docs)"),
+-
+-    # AAP / Budget par projet
+-    ("aap:view", "Accéder au budget AAP (par projet)"),
+-    ("aap:charges_view", "Voir les charges AAP"),
+-    ("aap:charges_edit", "Ajouter / modifier / supprimer les charges AAP"),
+-    ("aap:produits_view", "Voir les produits / financeurs AAP"),
+-    ("aap:produits_edit", "Ajouter / modifier / supprimer les produits / financeurs AAP"),
+-    ("aap:ventilation_view", "Voir la ventilation AAP"),
+-    ("aap:ventilation_edit", "Saisir / modifier la ventilation AAP"),
+-    ("aap:synthese_view", "Voir la synthèse AAP"),
+-    ("aap:export", "Exporter le budget AAP (PDF/Excel/Doc)"),
+-
+-    # Subventions (catalogue)
+-    ("subventions:view", "Voir les subventions"),
+-    ("subventions:edit", "Créer / modifier une subvention"),
+-    ("subventions:delete", "Supprimer une subvention"),
+-    ("subventions:link", "Lier / délier une subvention à un projet"),
+-
+-    # Dépenses (engagement / réel)
+-    ("depenses:view", "Voir les dépenses"),
+-    ("depenses:create", "Créer une dépense"),
+-    ("depenses:edit", "Modifier une dépense"),
+-    ("depenses:delete", "Supprimer une dépense"),
+-    ("depenses:imputer_aap", "Imputer une dépense à une charge AAP"),
+-
+-    # Ateliers / sessions / émargement
+-    ("ateliers:view", "Voir les ateliers"),
+-    ("ateliers:edit", "Créer / modifier un atelier"),
+-    ("ateliers:delete", "Supprimer un atelier"),
+-    ("ateliers:sync", "Synchroniser / importer les ateliers (émargement)"),
+-    ("emargement:view", "Voir l’émargement"),
+-
+-    # Participants
+-    ("participants:view", "Voir les participants (secteur)"),
+-    ("participants:view_all", "Voir les participants (tous secteurs)"),
+-    ("participants:edit", "Créer / modifier un participant"),
+-    ("participants:delete", "Supprimer un participant"),
+-    ("participants:anonymize", "Anonymiser un participant"),
+-
+-    # Inventaire
+-    ("inventaire:view", "Voir l’inventaire"),
+-    ("inventaire:edit", "Créer / modifier inventaire"),
+-    ("inventaire:delete", "Supprimer inventaire"),
+-
+-    # Pédagogie / stats / bilans
+-    ("pedagogie:view", "Voir la pédagogie"),
+-    ("stats:view", "Voir les statistiques (secteur)"),
+-    ("stats:view_all", "Voir les statistiques (tous secteurs)"),
+-    ("statsimpact:view", "Voir les stats impact (secteur)"),
+-    ("statsimpact:view_all", "Voir les stats impact (tous secteurs)"),
+-    ("bilans:view", "Voir les bilans"),
+-
+-    # Contrôle / activité / admin
+-    ("controle:view", "Accéder au module contrôle"),
+-    ("activite:delete", "Supprimer une activité"),
+-    ("activite:purge", "Purger définitivement des activités"),
+-    ("admin:users", "Gérer les utilisateurs"),
+-    ("admin:rbac", "Gérer les droits (RBAC)"),
+-]
+-
+-
+-ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
+-    # Super-admin technique: gestion users + RBAC (pas besoin d'être finance)
+-    "admin_tech": {
+-        "perms": [
+-            "dashboard:view",
+-            "admin:users",
+-            "admin:rbac",
+-            "controle:view",
+-            "scope:all_secteurs",
+-            "secteurs:view",
+-            "secteurs:edit",
+-        
+-        ],
+-    },
+-
+-    # Direction/directrice: accès global total
+-    "direction": {
+-        "perms": [p for (p, _) in DEFAULT_PERMS],
+-    },
+-    "directrice": {
+-        "perms": [p for (p, _) in DEFAULT_PERMS],
+-    },
+-
+-    # Finance: accès global total (pilotage complet)
+-    "finance": {
+-        "perms": [p for (p, _) in DEFAULT_PERMS],
+-    },
+-
+-    # Responsable secteur: "presque direction" MAIS borné au secteur (contrôlé dans les routes)
+-    # Exception demandée: peut voir les participants de tous secteurs, mais ne peut modifier/supprimer
+-    # que ceux "de son secteur" (contrôle déjà géré via created_secteur / _can_edit_participant).
+-    "responsable_secteur": {
+-        "perms": [
+-            "dashboard:view",
+-
+-            # Projets (CRUD)
+-            "projets:view", "projets:edit", "projets:delete", "projets:files",
+-
+-            # Budget AAP (CRUD complet)
+-            "aap:view", "aap:charges_view", "aap:charges_edit",
+-            "aap:produits_view", "aap:produits_edit",
+-            "aap:ventilation_view", "aap:ventilation_edit",
+-            "aap:synthese_view",
+-
+-            # Subventions (CRUD + lien projet) MAIS uniquement sur son secteur (routes)
+-            "subventions:view", "subventions:edit", "subventions:delete", "subventions:link",
+-
+-            # Dépenses (CRUD) MAIS uniquement sur son secteur (routes)
+-            "depenses:view", "depenses:create", "depenses:edit", "depenses:delete", "depenses:imputer_aap",
+-
+-            # Inventaire (CRUD) MAIS uniquement sur son secteur (routes)
+-            "inventaire:view", "inventaire:edit", "inventaire:delete",
+-
+-            # Ateliers + sessions (CRUD via module activité) + synchro
+-            "ateliers:view", "ateliers:edit", "ateliers:delete", "ateliers:sync",
+-            "emargement:view",
+-
+-            # Participants: vue globale, mais edit/delete bornés au secteur via _can_edit_participant
+-            "participants:view_all", "participants:edit", "participants:delete", "participants:anonymize",
+-
+-            # Stats/bilans sur son secteur
+-            "stats:view", "statsimpact:view", "bilans:view",
+-
+-            # Activité : suppression OK, mais purge NON (réservée direction/tech)
+-            "activite:delete",
+-        ],
+-    },
+-}
+-
+-
+-def _category_from_code(code: str) -> str:
+-    """Retourne une catégorie lisible depuis un code 'module:action'."""
+-    module = (code.split(":", 1)[0] if ":" in code else code).strip()
+-    mapping = {
+-        "dashboard": "Dashboard",
+-        "subventions": "Subventions",
+-        "aap": "Budget AAP",
+-        "depenses": "Dépenses",
+-        "projets": "Projets",
+-        "participants": "Participants",
+-        "depenses": "Dépenses",
+-        "inventaire": "Inventaire",
+-        "ateliers": "Ateliers",
+-        "emargement": "Émargement",
+-        "pedagogie": "Pédagogie",
+-        "stats": "Stats",
+-        "bilans": "Bilans",
+-        "admin": "Admin",
+-    }
+-    return mapping.get(module, module.capitalize())
+-
+-
+-def bootstrap_rbac() -> None:
+-    """Initialise RBAC (création tables + permissions + rôles) de manière idempotente."""
+-
+-    try:
+-        db.create_all()
+-    except Exception:
+-        # En prod on évite d'exploser le démarrage juste pour RBAC.
+-        current_app.logger.exception("RBAC: db.create_all() a échoué")
+-        return
+-
+-    # --- Permissions ---
+-    existing = {p.code: p for p in Permission.query.all()}
+-    changed = False
+-
+-    for code, label in DEFAULT_PERMS:
+-        if code not in existing:
+-            db.session.add(Permission(code=code, label=label, category=_category_from_code(code)))
+-            changed = True
+-        else:
+-            p = existing[code]
+-            # Mise à jour label / catégorie si besoin
+-            new_cat = _category_from_code(code)
+-            if p.label != label:
+-                p.label = label
+-                changed = True
+-            if getattr(p, "category", None) != new_cat:
+-                p.category = new_cat
+-                changed = True
+-
+-    if changed:
+-        db.session.commit()
+-
+-    perms_by_code = {p.code: p for p in Permission.query.all()}
+-
+-    
+-        # --- Rôles ---
+-    import os
+-    apply_templates = os.getenv("RBAC_APPLY_TEMPLATES", "").lower() in ("1", "true", "yes")
+-
+-    for role_code, cfg in ROLE_TEMPLATES.items():
+-        role = Role.query.filter_by(code=role_code).first()
+-        created = False
+-        if not role:
+-            role = Role(code=role_code, label=role_code)
+-            db.session.add(role)
+-            db.session.flush()
+-            created = True
+-
+-        # ✅ IMPORTANT :
+-        # - Si le rôle vient d'être créé : on applique le template
+-        # - Si RBAC_APPLY_TEMPLATES=1 : on force l'écrasement (utile en dev / maintenance)
+-        # - Sinon : on ne touche pas aux permissions existantes (donc tes modifs via l'UI restent)
+-        if created or apply_templates:
+-            desired = set(cfg.get("perms", []))
+-            role.permissions = [perms_by_code[c] for c in desired if c in perms_by_code]
+-
+-    db.session.commit()
+-
+-
+-    # Rattrapage: si un utilisateur n'a aucun rôle RBAC, on l'aligne sur User.role (legacy)
+-    users = User.query.all()
+-    for u in users:
+-        if getattr(u, "roles", None) is None:
+-            continue
+-        if len(u.roles) == 0:
+-            legacy = (u.role or "responsable_secteur").strip()
+-            role = Role.query.filter_by(code=legacy).first()
+-            if role:
+-                u.roles.append(role)
+-
+-    db.session.commit()
+-
+-
+-
+-# ---------------------------------------------------------------------------
+-# RBAC helpers: équivalences / alias de permissions
+-# ---------------------------------------------------------------------------
+-
+-# Certaines routes historiques peuvent exiger des codes différents (ex: statsimpact:view)
+-# On tolère des équivalences pour éviter les 403 incompréhensibles.
+-# La sécurité reste côté serveur: on ne "donne" pas un droit, on accepte un alias.
+-# ---------------------------------------------------------------------------
+-# RBAC helpers: équivalences / alias de permissions
+-# ---------------------------------------------------------------------------
+-
+-# Tolérance progressive: on accepte des anciens codes encore présents dans les routes/templates
+-# le temps de migrer proprement vers les nouveaux codes.
+-PERM_EQUIVALENTS: dict[str, set[str]] = {
+-    # --- Legacy projets/budget AAP ---
+-    # Les routes Budget AAP utilisent parfois "projets_edit" (ancien). On accepte le nouveau.
+-    "projets_edit": {"projets_edit", "projets:edit", "aap:view"},
+-
+-    # --- Admin users (legacy) ---
+-    "users:edit": {"users:edit", "admin:users"},
+-
+-    # --- Budget (legacy) ---
+-    "budget:delete": {"budget:delete", "aap:charges_edit"},  # supprimer une ligne budget ≈ agir sur charges AAP
+-
+-    # --- Statsimpact ---
+-    "statsimpact:view": {"statsimpact:view", "stats:view", "statsimpact:view_all"},
+-    "statsimpact:view_all": {"statsimpact:view_all"},
+-
+-    # --- Stats ---
+-    "stats:view": {"stats:view", "stats:view_all"},
+-    "stats:view_all": {"stats:view_all"},
+-
+-    # --- Bilans ---
+-    "bilan:view": {"bilan:view", "bilans:view"},
+-    "bilans:lourds:view": {"bilans:lourds:view", "bilans:view"},
+-
+-    # --- Participants: variantes ---
+-    "participants:update": {"participants:update", "participants:edit"},
+-    "participants:write": {"participants:write", "participants:edit"},
+-    "participant:edit": {"participant:edit", "participants:edit"},
+-}
+-
+-def _expand_perm(code: str) -> set[str]:
+-    code = (code or "").strip()
+-    if not code:
+-        return set()
+-    # si on connaît une équivalence, on accepte n'importe lequel
+-    if code in PERM_EQUIVALENTS:
+-        return set(PERM_EQUIVALENTS[code])
+-    return {code}
+-
+-
+-def require_perm(code: str):
+-    """Décorateur: exige une permission RBAC (sinon 403).
+-    Supporte des alias/équivalences (voir PERM_EQUIVALENTS)."""
+-
+-    def decorator(fn):
+-        @wraps(fn)
+-        def wrapper(*args, **kwargs):
+-            if not current_user.is_authenticated:
+-                abort(401)
+-
+-            has_perm_fn = getattr(current_user, "has_perm", None)
+-            if not callable(has_perm_fn):
+-                abort(403)
+-
+-            wanted = _expand_perm(code)
+-            if not wanted:
+-                abort(403)
+-
+-            if not any(has_perm_fn(c) for c in wanted):
+-                abort(403)
+-
+-            return fn(*args, **kwargs)
+-
+-        return wrapper
+-
+-    return decorator
+-
+-
+-def can(code: str) -> bool:
+-    """Helper Jinja: can('perm:code'). Supporte les alias/équivalences."""
+-    if not current_user.is_authenticated:
+-        return False
+-
+-    has_perm_fn = getattr(current_user, "has_perm", None)
+-    if not callable(has_perm_fn):
+-        return False
+-
+-    wanted = _expand_perm(code)
+-    if not wanted:
+-        return False
+-
+-    return any(has_perm_fn(c) for c in wanted)
+-
+-
+-def can_access_secteur(secteur: str | None) -> bool:
+-    """Retourne True si l'utilisateur peut accéder à un secteur donné.
+-    - Les restrictions par secteur restent du côté routes/services.
+-    - Le RBAC décide de la portée via la permission 'scope:all_secteurs'."""
+-    if not current_user.is_authenticated:
+-        return False
+-
+-    has_perm_fn = getattr(current_user, "has_perm", None)
+-    if callable(has_perm_fn) and has_perm_fn("scope:all_secteurs"):
+-        return True
+-
+-    # Si on n'a pas de secteur à comparer (ex: item sans secteur), on autorise.
+-    if not secteur:
+-        return True
+-
+-    return getattr(current_user, "secteur_assigne", None) == secteur
+diff --git a/app/rbac.py b/app/rbac.py
+index 6578b36..41156b5 100644
+--- a/app/rbac.py
++++ b/app/rbac.py
+@@ -314,13 +314,22 @@ def bootstrap_rbac() -> None:
+     db.session.commit()
+ 
+ 
+-    # Rattrapage: si un utilisateur n'a aucun rôle RBAC, on l'aligne sur User.role (legacy)
++    # Rattrapage: si un utilisateur n'a aucun rôle RBAC, on l'aligne sur User.role (legacy).
++    # C'est l'unique pont avec la colonne legacy: ailleurs, seuls les rôles RBAC font foi.
++    legacy_aliases = {
++        "directrice": "direction",
++        "directeur": "direction",
++        "financiere": "finance",
++        "financière": "finance",
++        "responsable_secteurs": "responsable_secteur",
++    }
+     users = User.query.all()
+     for u in users:
+         if getattr(u, "roles", None) is None:
+             continue
+         if len(u.roles) == 0:
+-            legacy = (u.role or "responsable_secteur").strip()
++            legacy = (u.role or "responsable_secteur").strip().lower()
++            legacy = legacy_aliases.get(legacy, legacy)
+             role = Role.query.filter_by(code=legacy).first()
+             if role:
+                 u.roles.append(role)
+diff --git a/tests/test_rbac.py b/tests/test_rbac.py
+new file mode 100644
+index 0000000..14be767
+--- /dev/null
++++ b/tests/test_rbac.py
+@@ -0,0 +1,125 @@
++"""Tests RBAC : permissions, cloisonnement par secteur, migration legacy.
++
++Le système de droits repose sur les rôles/permissions RBAC en base.
++L'ancienne colonne texte ``user.role`` (legacy) n'est conservée que pour
++la compatibilité de schéma : elle est migrée vers un rôle RBAC au
++démarrage par ``bootstrap_rbac`` et ne donne aucun droit par elle-même.
++"""
++import pytest
++
++SECTEUR_EMAIL = "familles@example.org"
++SECTEUR_PASSWORD = "motdepasse-tests"
++
++
++@pytest.fixture(scope="module")
++def donnees_rbac(app):
++    """Un responsable de secteur (Familles) + une subvention par secteur."""
++    with app.app_context():
++        from app.extensions import db
++        from app.models import Role, Subvention, User
++
++        user = User.query.filter_by(email=SECTEUR_EMAIL).first()
++        if user is None:
++            user = User(email=SECTEUR_EMAIL, nom="Responsable Familles")
++            user.set_password(SECTEUR_PASSWORD)
++            user.secteur_assigne = "Familles"
++            user.roles.append(Role.query.filter_by(code="responsable_secteur").first())
++            db.session.add(user)
++
++        sub_familles = Subvention.query.filter_by(nom="Sub test Familles").first()
++        if sub_familles is None:
++            sub_familles = Subvention(nom="Sub test Familles", secteur="Familles", annee_exercice=2026)
++            db.session.add(sub_familles)
++        sub_numerique = Subvention.query.filter_by(nom="Sub test Numérique").first()
++        if sub_numerique is None:
++            sub_numerique = Subvention(nom="Sub test Numérique", secteur="Numérique", annee_exercice=2026)
++            db.session.add(sub_numerique)
++
++        db.session.commit()
++        return {"sub_familles_id": sub_familles.id, "sub_numerique_id": sub_numerique.id}
++
++
++@pytest.fixture()
++def secteur_client(app, donnees_rbac):
++    """Client HTTP connecté en responsable de secteur (Familles)."""
++    c = app.test_client()
++    r = c.post("/", data={"email": SECTEUR_EMAIL, "password": SECTEUR_PASSWORD})
++    assert r.status_code == 302, "la connexion du responsable secteur a échoué"
++    return c
++
++
++def test_responsable_secteur_acces_pages_metier(secteur_client):
++    assert secteur_client.get("/dashboard").status_code == 200
++    assert secteur_client.get("/subventions").status_code == 200
++
++
++@pytest.mark.parametrize("url", ["/admin/users", "/rbac-test"])
++def test_responsable_secteur_refuse_pages_admin(secteur_client, url):
++    r = secteur_client.get(url)
++    assert r.status_code == 403, f"GET {url} -> {r.status_code} (403 attendu)"
++
++
++def test_cloisonnement_secteur_sur_subvention(secteur_client, donnees_rbac):
++    # Sa propre subvention : accessible
++    r = secteur_client.get(f"/subvention/{donnees_rbac['sub_familles_id']}/pilotage")
++    assert r.status_code == 200
++
++    # Celle d'un autre secteur : refusée
++    r = secteur_client.get(f"/subvention/{donnees_rbac['sub_numerique_id']}/pilotage")
++    assert r.status_code == 403
++
++
++def test_has_role_via_rbac_et_alias(app):
++    with app.app_context():
++        from tests.conftest import ADMIN_EMAIL
++        from app.models import User
++
++        admin = User.query.filter_by(email=ADMIN_EMAIL).first()
++        assert admin.has_role("direction")
++        assert admin.has_role("directrice"), "l'alias directrice -> direction doit fonctionner"
++        assert not admin.has_role("admin_tech")
++        assert not admin.has_role(None)
++
++
++def test_colonne_legacy_seule_ne_donne_aucun_droit(app):
++    """Cible de la migration : sans rôle RBAC, la vieille colonne texte
++    ``user.role`` ne doit conférer ni rôle ni permission."""
++    with app.app_context():
++        from app.extensions import db
++        from app.models import User
++
++        user = User(email="legacy@example.org", nom="Legacy Seul", role="direction")
++        user.set_password("motdepasse-tests")
++        db.session.add(user)
++        db.session.commit()
++        try:
++            assert user.roles == []
++            assert not user.has_perm("admin:rbac")
++            assert not user.has_role("direction"), (
++                "le RBAC est la seule source de vérité : la colonne legacy ne doit plus donner de rôle"
++            )
++        finally:
++            db.session.delete(user)
++            db.session.commit()
++
++
++def test_rattrapage_legacy_au_demarrage(app):
++    """Filet de migration : au démarrage, un utilisateur sans rôle RBAC
++    reçoit le rôle correspondant à sa colonne legacy."""
++    with app.app_context():
++        from app.extensions import db
++        from app.models import User
++        from app.rbac import bootstrap_rbac
++
++        user = User(email="ancien@example.org", nom="Ancien Compte", role="direction")
++        user.set_password("motdepasse-tests")
++        db.session.add(user)
++        db.session.commit()
++        try:
++            assert user.roles == []
++            bootstrap_rbac()
++            assert [r.code for r in user.roles] == ["direction"]
++            assert user.has_perm("admin:rbac")
++        finally:
++            db.session.delete(user)
++            db.session.commit()
+-- 
+2.43.0
+

@@ -1,0 +1,258 @@
+{% extends "layout.html" %}
+{% block body %}
+<style>
+  .indicator-page { gap: 18px; }
+  .indicator-source-code { font-size: 12px; overflow-wrap: anywhere; }
+  @media (max-width: 980px) {
+    .indicator-record-grid { grid-template-columns:1fr; }
+    .indicator-record-actions { flex-direction:row; flex-wrap:wrap; }
+  }
+</style>
+
+<div class="ui-page ui-page--wide indicator-page">
+  <section class="ui-header">
+    <div class="ui-header__main">
+      <div class="ui-header__body">
+        <h1>Indicateurs</h1>
+        <p><strong>{{ projet.nom }}</strong> · {{ projet.secteur }}</p>
+      </div>
+      <div class="ui-actions">
+        <a class="btn" href="{{ url_for('projets.projets_edit', projet_id=projet.id) }}">Retour au projet</a>
+        <a class="btn" href="{{ url_for('main.stats', secteur=projet.secteur, projet_id=projet.id) }}">Voir dans Stats</a>
+        <a class="btn ok" href="{{ url_for('statsimpact.dashboard', secteur=projet.secteur) }}{% for atelier_id in linked_ateliers %}&atelier_ids={{ atelier_id }}{% endfor %}">Ouvrir Stats-impact</a>
+      </div>
+    </div>
+
+    <div class="ui-kpi-grid">
+      <div class="ui-kpi-card"><div class="ui-kpi-card__label">Indicateurs</div><div class="ui-kpi-card__value">{{ indicator_counts.total }}</div></div>
+      <div class="ui-kpi-card"><div class="ui-kpi-card__label">Actifs</div><div class="ui-kpi-card__value">{{ indicator_counts.active }}</div></div>
+      <div class="ui-kpi-card"><div class="ui-kpi-card__label">Manuels</div><div class="ui-kpi-card__value">{{ indicator_counts.manual }}</div></div>
+      <div class="ui-kpi-card"><div class="ui-kpi-card__label">Stats-impact</div><div class="ui-kpi-card__value">{{ indicator_counts.stats }}</div></div>
+    </div>
+  </section>
+
+  {% if can_edit_indicateurs %}
+    <div class="ui-card-grid">
+      <section class="ui-panel indicator-builder-card">
+        <h2>Nombre manuel</h2>
+        <p class="muted">Valeur saisie à la main, avec seuil à atteindre, dépasser ou ne pas dépasser.</p>
+        <form method="POST" class="ui-stack">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add_manual_number">
+          <div class="ui-form-grid">
+            <label class="field-stack wide">Libellé<input class="in" name="label" required></label>
+            <label class="field-stack">Valeur<input class="in" name="manual_value" inputmode="decimal" placeholder="Ex. 42"></label>
+            <label class="field-stack">Unité<input class="in" name="unit" placeholder="%, €, pers."></label>
+            <label class="field-stack">Règle
+              <select class="in" name="target_op">
+                {% for key,label in target_op_choices.items() %}
+                  <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field-stack">Objectif<input class="in" name="target" inputmode="decimal" placeholder="Ex. 80"></label>
+          </div>
+          <button class="btn ok" type="submit">Créer</button>
+        </form>
+      </section>
+
+      <section class="ui-panel indicator-builder-card">
+        <h2>Coche de validation</h2>
+        <p class="muted">Suivi simple validé / non validé pour les jalons qualitatifs.</p>
+        <form method="POST" class="ui-stack">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add_manual_check">
+          <label class="field-stack">Libellé<input class="in" name="label" required></label>
+          <label class="ui-checkline"><input type="checkbox" name="checked" value="1"> Déjà validé</label>
+          <button class="btn ok" type="submit">Créer</button>
+        </form>
+      </section>
+
+      <section class="ui-panel indicator-builder-card">
+        <h2>Statistique connectée</h2>
+        <p class="muted">Valeur calculée depuis les ateliers liés au projet et reprise dans Stats.</p>
+        <form method="POST" class="ui-stack">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add_stats_indicator">
+          <div class="ui-form-grid">
+            <label class="field-stack wide">Statistique
+              <select class="in" name="metric_code" required>
+                <option value="">Choisir une statistique...</option>
+                {% for group, metrics in indicator_metric_groups.items() %}
+                  <optgroup label="{{ group }}">
+                    {% for metric in metrics %}
+                      <option value="{{ metric.code }}">{{ metric.label }}</option>
+                    {% endfor %}
+                  </optgroup>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field-stack wide">Libellé personnalisé<input class="in" name="label" placeholder="Optionnel"></label>
+            <label class="field-stack">Règle
+              <select class="in" name="target_op">
+                {% for key,label in target_op_choices.items() %}
+                  <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field-stack">Objectif<input class="in" name="target" inputmode="decimal" placeholder="Ex. 80"></label>
+            <label class="field-stack">Période
+              <select class="in" name="period">
+                {% for key,label in period_choices.items() %}
+                  <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field-stack">Atelier
+              <select class="in" name="atelier_id">
+                <option value="">Tous les ateliers liés</option>
+                {% for a in ateliers %}
+                  {% if a.id in linked_ateliers %}
+                    <option value="{{ a.id }}">{{ a.nom }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field-stack">Début<input class="in" type="date" name="start"></label>
+            <label class="field-stack">Fin<input class="in" type="date" name="end"></label>
+          </div>
+          <button class="btn ok" type="submit">Créer</button>
+        </form>
+      </section>
+
+      <section class="ui-panel indicator-builder-card">
+        <h2>Packs</h2>
+        <p class="muted">Ajout rapide d’un groupe d’indicateurs automatiques.</p>
+        <form method="POST" class="ui-stack">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add_pack">
+          <label class="field-stack">Pack
+            <select class="in" name="pack" required>
+              <option value="">Choisir un pack...</option>
+              {% for key,pack in indicator_packs.items() %}
+                <option value="{{ key }}">{{ pack.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="btn ok" type="submit">Ajouter</button>
+        </form>
+      </section>
+    </div>
+  {% endif %}
+
+  <section class="ui-panel">
+    <div class="ui-section-head">
+      <div>
+        <h2 style="margin:0;">Indicateurs configurés</h2>
+        <div class="muted">Les indicateurs actifs remontent dans la page Stats quand ce projet est sélectionné.</div>
+      </div>
+    </div>
+
+    <div class="ui-list">
+      {% for row in indicator_rows %}
+        {% set ind = row.ind %}
+        {% set params = row.params %}
+        <article class="ui-record indicator-row">
+          <form method="POST" class="ui-record-grid indicator-record-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update_indicateur">
+            <input type="hidden" name="indicateur_id" value="{{ ind.id }}">
+
+            <div class="ui-field">
+              <label>Libellé</label>
+              <input class="in" name="label" value="{{ ind.label }}" {% if not can_edit_indicateurs %}disabled{% endif %}>
+              <span class="ui-badge">{{ row.source_label }}{% if row.metric_label %} · {{ row.metric_label }}{% endif %}</span>
+              <span class="muted indicator-source-code">{{ ind.code }}</span>
+            </div>
+
+            <div class="ui-field">
+              {% if row.value_type == 'check' %}
+                <label>Validation</label>
+                <label class="ui-checkline"><input type="checkbox" name="checked" value="1" {% if row.checked %}checked{% endif %} {% if not can_edit_indicateurs %}disabled{% endif %}> Validé</label>
+                <span class="ui-badge ui-badge--{{ row.status }}">{{ 'OK' if row.checked else 'Non validé' }}</span>
+              {% elif row.source == 'manual' %}
+                <label>Valeur</label>
+                <input class="in" name="manual_value" inputmode="decimal" value="{{ params.get('manual_value','') }}" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                <input class="in" name="unit" value="{{ params.get('unit','') }}" placeholder="Unité" {% if not can_edit_indicateurs %}disabled{% endif %}>
+              {% else %}
+                <label>Statistique</label>
+                <select class="in" name="metric_code" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                  {% for group, metrics in indicator_metric_groups.items() %}
+                    <optgroup label="{{ group }}">
+                      {% for metric in metrics %}
+                        <option value="{{ metric.code }}" {% if row.metric_code == metric.code %}selected{% endif %}>{{ metric.label }}</option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endfor %}
+                </select>
+              {% endif %}
+            </div>
+
+            <div class="ui-field">
+              {% if row.value_type == 'check' %}
+                <label>État</label>
+                <span class="muted">La coche validée est considérée comme atteinte.</span>
+              {% else %}
+                <label>Objectif</label>
+                <select class="in" name="target_op" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                  {% for key,label in target_op_choices.items() %}
+                    <option value="{{ key }}" {% if row.target_op == key %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <input class="in" name="target" inputmode="decimal" value="{{ params.get('target','') }}" placeholder="Objectif" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                {% if row.status %}
+                  <span class="ui-badge ui-badge--{{ row.status }}">
+                    {% if row.status == 'ok' %}Atteint{% elif row.status == 'warn' %}À surveiller{% else %}Non atteint{% endif %}
+                  </span>
+                {% endif %}
+              {% endif %}
+            </div>
+
+            <div class="ui-field">
+              {% if row.source == 'stats' %}
+                <label>Périmètre stats</label>
+                <select class="in" name="period" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                  {% set pval = params.get('period','context') %}
+                  {% for key,label in period_choices.items() %}
+                    <option value="{{ key }}" {% if pval == key %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <select class="in" name="atelier_id" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                  <option value="">Tous les ateliers liés</option>
+                  {% for a in ateliers %}
+                    {% if a.id in linked_ateliers %}
+                      <option value="{{ a.id }}" {% if params.get('atelier_id') and (params.get('atelier_id')|int) == a.id %}selected{% endif %}>{{ a.nom }}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+                <input class="in" type="date" name="start" value="{{ params.get('start','') or '' }}" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                <input class="in" type="date" name="end" value="{{ params.get('end','') or '' }}" {% if not can_edit_indicateurs %}disabled{% endif %}>
+              {% else %}
+                <label>Source</label>
+                <span class="muted">Saisie manuelle</span>
+              {% endif %}
+            </div>
+
+            <div class="ui-record-actions indicator-record-actions">
+              <label class="ui-checkline"><input type="checkbox" name="is_active" value="1" {% if ind.is_active %}checked{% endif %} {% if not can_edit_indicateurs %}disabled{% endif %}> Actif</label>
+              {% if can_edit_indicateurs %}
+                <button class="btn ok" type="submit">Enregistrer</button>
+              {% endif %}
+            </div>
+          </form>
+          {% if can_edit_indicateurs %}
+            <form method="POST" class="ui-delete-row" onsubmit="return confirm('Supprimer cet indicateur ?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="delete_indicateur">
+              <input type="hidden" name="indicateur_id" value="{{ ind.id }}">
+              <button class="btn danger" type="submit">Supprimer</button>
+            </form>
+          {% endif %}
+        </article>
+      {% else %}
+        <div class="ui-empty"><strong>Aucun indicateur n’est encore configuré.</strong>Crée un nombre manuel, une coche ou une statistique connectée pour commencer.</div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

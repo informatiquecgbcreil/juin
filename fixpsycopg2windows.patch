@@ -1,0 +1,31 @@
+From 430a9492cabf3dc8396c00629e54fb9d663f7c34 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 11 Jun 2026 14:51:45 +0000
+Subject: [PATCH] Fix: bump psycopg2-binary 2.9.9 -> 2.9.10 (wheel
+ Windows/Python 3.13)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+2.9.9 ne fournit pas de wheel précompilée pour Windows + Python 3.13
+(cp313), ce qui fait échouer pip install (compilation depuis les
+sources, pg_config introuvable). 2.9.10 fournit cette wheel.
+
+https://claude.ai/code/session_01WoDMN4woqLR14rpcrG9H4Y
+---
+ requirements.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/requirements.txt b/requirements.txt
+index 6a579cb..e1a7cc2 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -11,4 +11,4 @@ docxtpl==0.16.8
+ segno==1.6.1
+ Flask-Migrate==4.0.7
+ alembic==1.13.2
+-psycopg2-binary==2.9.9
++psycopg2-binary==2.9.10
+-- 
+2.43.0
+
