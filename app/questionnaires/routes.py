@@ -4,7 +4,7 @@ import csv
 import json
 from io import StringIO
 
-from flask import render_template, request, redirect, url_for, flash, abort, Response
+from flask import render_template, request, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
 
 from app.extensions import db

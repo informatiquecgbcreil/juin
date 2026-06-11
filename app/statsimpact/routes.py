@@ -1676,8 +1676,6 @@ def qualite_donnees():
     )
 
 
-import json
-from sqlalchemy import case
 
 def _dialect_name() -> str:
     try:
@@ -2047,7 +2045,6 @@ def dashboard():
             compare = {"enabled": False}
 
     csv_groups, csv_defaults, _ = _csv_fields_for_current_user()
-    export_qs = _export_query_string_from_filter(flt)
     consumption_stats = _consumption_stats_for_filter(flt)
     individual_consumption_stats = _individual_consumption_stats_for_filter(flt)
     return render_template(

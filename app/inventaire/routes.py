@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 
 from app.extensions import db
 from app.models import Subvention, LigneBudget, Depense, FactureAchat, FactureLigne
-from app.rbac import require_perm, can_access_secteur
+from app.rbac import require_perm
 from app.services.storage import ensure_upload_subdir, media_relpath, send_media_file
 
 
@@ -397,5 +397,5 @@ def facture_download(facture_id):
         abort(403)
     if not f.filename:
         abort(404)
-    folder = ensure_factures_folder()
+    ensure_factures_folder()
     return send_media_file(media_relpath("factures", f.filename), as_attachment=True, download_name=f.original_name or f.filename)

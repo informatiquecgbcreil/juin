@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import InventaireItem, FactureLigne, Depense
-from app.rbac import require_perm, can_access_secteur
+from app.rbac import require_perm
 from app.utils.delete_guard import commit_delete
 
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable
 
 from flask import current_app
 from app.extensions import db

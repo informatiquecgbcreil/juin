@@ -5,7 +5,6 @@ from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from ..rbac import require_perm, can
-from ..rbac import can_access_secteur
 
 from app.extensions import db
 from app.models import (
@@ -24,7 +23,7 @@ from app.models import (
 )
 from app.services.quartiers import normalize_quartier_for_ville
 from app.secteurs import get_secteur_labels
-from sqlalchemy import select, exists, and_
+from sqlalchemy import select, exists
 from app.utils.delete_guard import commit_delete
 from app.services.insertion import (
     can_edit_insertion as can_edit_insertion_module,
@@ -1126,7 +1125,6 @@ def delete_participant(participant_id: int):
     )
     return redirect(url_for("participants.list_participants"))
     
-    import re
 from flask import current_app
 
 _FAKE_PREFIXES = (
@@ -1373,7 +1371,7 @@ def merge_participants():
         flash("La fusion est impossible : la sélection est invalide.", "danger")
         return redirect(url_for("participants.duplicates"))
 
-    keep = db.get_or_404(Participant, keep_id)
+    db.get_or_404(Participant, keep_id)
     victims = Participant.query.filter(Participant.id.in_(merge_ids)).all()
 
     try:

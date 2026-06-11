@@ -1,11 +1,10 @@
 import os
 
-from flask import Flask, url_for, abort, request, redirect, session
+from flask import Flask, url_for, request, redirect, session
 from flask_login import current_user
 from werkzeug.routing import BuildError
 
 from sqlalchemy import text, inspect
-from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from config import Config, DEFAULT_SECRET_KEY
 from app.extensions import db, login_manager, csrf, migrate
@@ -51,7 +50,7 @@ def create_app():
 
     app.jinja_env.globals["safe_url_for"] = safe_url_for
 
-    from app.services.storage import send_media_file, media_url
+    from app.services.storage import send_media_file
 
     @app.route("/media/<path:filename>")
     def media_file(filename):

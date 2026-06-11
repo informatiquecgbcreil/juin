@@ -3,18 +3,16 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 
 from app.utils.dates import utcnow
-from typing import Any, Iterable
+from typing import Any
 
 from docx import Document  # fallback python-docx
 
 from app.models import SessionActivite, PresenceActivite, Participant, ParticipantInsertionParcours
 from app.services.consumption import (
     build_presence_consumption_maps,
-    session_consumption_period,
     resolve_consumption_period,
 )
 from .emargement_models import get_model, decode_storage_value

@@ -9,7 +9,6 @@ from app.models import Depense, FactureAchat, FactureLigne, LigneBudget, Subvent
 
 from datetime import date
 from sqlalchemy import extract
-from app.extensions import db
 from app.models import SessionActivite
 
 
@@ -662,7 +661,7 @@ _ETAT_LABELS = {
 
 def _compute_bilans_lourds_core(year: int, scope: BilansScope) -> dict:
     """Noyau d'agrégations bilans lourds pour une année donnée."""
-    from app.models import AtelierActivite, SessionActivite, PresenceActivite, Participant, Evaluation, Competence
+    from app.models import AtelierActivite, SessionActivite, PresenceActivite, Evaluation
 
     # --------- base filters ----------
     start = datetime.date(year, 1, 1)
