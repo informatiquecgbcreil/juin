@@ -11,3 +11,4 @@ static/uploads/
 app/static/uploads/
 
 backups/
+*.patch

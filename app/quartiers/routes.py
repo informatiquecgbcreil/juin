@@ -56,7 +56,7 @@ def create():
 @login_required
 @require_perm("quartiers:edit")
 def edit(quartier_id: int):
-    quartier = Quartier.query.get_or_404(quartier_id)
+    quartier = db.get_or_404(Quartier, quartier_id)
     if request.method == "POST":
         ville = (request.form.get("ville") or "").strip() or None
         nom = (request.form.get("nom") or "").strip() or None
@@ -91,7 +91,7 @@ def edit(quartier_id: int):
 @login_required
 @require_perm("quartiers:delete")
 def delete(quartier_id: int):
-    quartier = Quartier.query.get_or_404(quartier_id)
+    quartier = db.get_or_404(Quartier, quartier_id)
     linked = Participant.query.filter_by(quartier_id=quartier.id).first()
     if linked:
         flash("Suppression impossible : ce quartier est lié à des participants.", "warning")
@@ -151,7 +151,7 @@ def stats():
         except ValueError:
             quartier_id_int = None
         if quartier_id_int:
-            quartier = Quartier.query.get(quartier_id_int)
+            quartier = db.session.get(Quartier, quartier_id_int)
 
     secteur_choices = [
         value for (value,) in db.session.query(SessionActivite.secteur)

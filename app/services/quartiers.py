@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.extensions import db
 from app.models import Quartier
 
 
@@ -10,7 +11,7 @@ def normalize_quartier_for_ville(ville: str | None, quartier_id: str | int | Non
         qid = int(quartier_id)
     except (TypeError, ValueError):
         return None
-    quartier = Quartier.query.get(qid)
+    quartier = db.session.get(Quartier, qid)
     if not quartier:
         return None
     ville_norm = (ville or "").strip().lower()

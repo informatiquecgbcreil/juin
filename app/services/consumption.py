@@ -283,7 +283,7 @@ def upsert_presence_consumption(
 
     session = presence.session
     cfg = _config_for_session(session) or assign_session_config(session)
-    materiel = MaterielType.query.get(materiel_id)
+    materiel = db.session.get(MaterielType, materiel_id)
     duration_minutes = session_duration_minutes(session)
     watts = 0.0
     co2_factor = 0.06
@@ -385,7 +385,7 @@ def replace_presence_consumptions(
 
     rows: list[PresenceMaterielConsommation] = []
     for materiel_id in clean_ids:
-        materiel = MaterielType.query.get(materiel_id)
+        materiel = db.session.get(MaterielType, materiel_id)
         watts = float(watt_map.get(int(materiel_id), 0.0) or 0.0)
         kwh = (quantite * watts * duration_hours) / 1000.0
         co2 = kwh * co2_factor

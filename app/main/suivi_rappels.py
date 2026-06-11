@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
 
+from app.utils.dates import utcnow
+
 
 from app.services.indicators import compute_project_indicators
 from flask import (
@@ -332,14 +334,14 @@ def suivi_rappel_create():
 @login_required
 @require_perm("dashboard:view")
 def suivi_rappel_action(rappel_id: int):
-    rappel = SuiviRappel.query.get_or_404(rappel_id)
+    rappel = db.get_or_404(SuiviRappel, rappel_id)
     if not _suivi_can_edit_rappel(rappel):
         abort(403)
 
     action = (request.form.get("action") or "").strip()
     if action == "done":
         rappel.statut = "fait"
-        rappel.done_at = datetime.utcnow()
+        rappel.done_at = utcnow()
         flash("Rappel marqué comme fait.", "success")
     elif action == "postpone_7":
         base = rappel.echeance if rappel.echeance and rappel.echeance > date.today() else date.today()
@@ -349,12 +351,12 @@ def suivi_rappel_action(rappel_id: int):
         flash("Rappel reporté de 7 jours.", "success")
     elif action == "cancel":
         rappel.statut = "annule"
-        rappel.done_at = datetime.utcnow()
+        rappel.done_at = utcnow()
         flash("Rappel annulé.", "warning")
     else:
         abort(400)
 
-    rappel.updated_at = datetime.utcnow()
+    rappel.updated_at = utcnow()
     db.session.commit()
     return _suivi_redirect_back()
 

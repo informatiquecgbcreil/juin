@@ -201,7 +201,7 @@ def subvention_create():
 @login_required
 @require_perm("subventions:view")
 def subvention_pilotage(subvention_id):
-    sub = Subvention.query.get_or_404(subvention_id)
+    sub = db.get_or_404(Subvention, subvention_id)
     if not can_see_secteur(sub.secteur):
         abort(403)
 
@@ -225,7 +225,7 @@ def subvention_pilotage(subvention_id):
             cat_id = int(request.form.get("categorie_ref_id") or 0)
             cat = None
             if cat_id:
-                cat = BudgetCategorieReferentiel.query.get_or_404(cat_id)
+                cat = db.get_or_404(BudgetCategorieReferentiel, cat_id)
                 if not _budget_category_allowed(cat, sub.secteur):
                     abort(400)
                 nature = cat.nature
@@ -345,7 +345,7 @@ def subvention_pilotage(subvention_id):
 @login_required
 @require_perm('subventions:delete')
 def subvention_delete(subvention_id):
-    sub = Subvention.query.get_or_404(subvention_id)
+    sub = db.get_or_404(Subvention, subvention_id)
     if not can_see_secteur(sub.secteur):
         abort(403)
 
@@ -364,7 +364,7 @@ def subvention_delete(subvention_id):
 @login_required
 @require_perm("subventions:edit")
 def ligne_edit(ligne_id):
-    l = LigneBudget.query.get_or_404(ligne_id)
+    l = db.get_or_404(LigneBudget, ligne_id)
     sub = l.source_sub
     if not can_see_secteur(sub.secteur):
         abort(403)
@@ -372,7 +372,7 @@ def ligne_edit(ligne_id):
     cat_id = int(request.form.get("categorie_ref_id") or 0)
     cat = None
     if cat_id:
-        cat = BudgetCategorieReferentiel.query.get_or_404(cat_id)
+        cat = db.get_or_404(BudgetCategorieReferentiel, cat_id)
         if not _budget_category_allowed(cat, sub.secteur):
             abort(400)
 
@@ -391,7 +391,7 @@ def ligne_edit(ligne_id):
 @login_required
 @require_perm('budget:delete')
 def ligne_delete(ligne_id):
-    l = LigneBudget.query.get_or_404(ligne_id)
+    l = db.get_or_404(LigneBudget, ligne_id)
     sub = l.source_sub
     if not can_see_secteur(sub.secteur):
         abort(403)
@@ -411,12 +411,12 @@ def ligne_delete(ligne_id):
 @login_required
 @require_perm("subventions:link")
 def subvention_toggle_projet(subvention_id):
-    sub = Subvention.query.get_or_404(subvention_id)
+    sub = db.get_or_404(Subvention, subvention_id)
     if not can_see_secteur(sub.secteur):
         abort(403)
 
     projet_id = int(request.form.get("projet_id") or 0)
-    projet = Projet.query.get_or_404(projet_id)
+    projet = db.get_or_404(Projet, projet_id)
 
     if projet.secteur != sub.secteur:
         abort(400)
@@ -440,7 +440,7 @@ def subvention_toggle_projet(subvention_id):
 @login_required
 @require_perm("subventions:view")
 def api_comptes(subvention_id):
-    sub = Subvention.query.get_or_404(subvention_id)
+    sub = db.get_or_404(Subvention, subvention_id)
     if not can_see_secteur(sub.secteur):
         abort(403)
 
@@ -458,7 +458,7 @@ def api_comptes(subvention_id):
 @login_required
 @require_perm("subventions:view")
 def api_lignes(subvention_id):
-    sub = Subvention.query.get_or_404(subvention_id)
+    sub = db.get_or_404(Subvention, subvention_id)
     if not can_see_secteur(sub.secteur):
         abort(403)
 
@@ -529,7 +529,7 @@ def export_depenses_csv():
 @login_required
 @require_perm("subventions:view")
 def export_subvention_csv(subvention_id):
-    s = Subvention.query.get_or_404(subvention_id)
+    s = db.get_or_404(Subvention, subvention_id)
     if not can_see_secteur(s.secteur):
         abort(403)
 
@@ -567,7 +567,7 @@ def subvention_bilan(subvention_id: int):
     Affiche un récapitulatif des montants demandés/attribués/reçus et des lignes de budget,
     avec une représentation graphique proportionnelle par ligne (charges et produits).
     """
-    sub = Subvention.query.get_or_404(subvention_id)
+    sub = db.get_or_404(Subvention, subvention_id)
     # Vérification des droits : un responsable ne peut consulter que son secteur
     if not can_see_secteur(sub.secteur):
         abort(403)

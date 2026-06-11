@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+
+from app.utils.dates import utcnow
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
@@ -168,7 +170,7 @@ def _validate_rows_capacity(rows: list[dict]) -> tuple[bool, str]:
         amounts_by_line[line_id] = round(float(amounts_by_line.get(line_id, 0.0)) + float(row.get("montant") or 0), 2)
 
     for line_id, amount in amounts_by_line.items():
-        ligne = LigneBudget.query.get(line_id)
+        ligne = db.session.get(LigneBudget, line_id)
         if not ligne:
             return False, "Une ligne de financement est introuvable."
         available = _line_available_for_affectation(ligne)
@@ -237,7 +239,7 @@ def _parse_creation_affectations(initial_line: LigneBudget, dep_amount: float):
             line_id = int(line_ids[idx] if idx < len(line_ids) else 0)
         except Exception:
             line_id = 0
-        target_line = LigneBudget.query.get(line_id)
+        target_line = db.session.get(LigneBudget, line_id)
         if not target_line:
             return None, "Une ligne de répartition pointe vers une ligne budgétaire introuvable."
         if getattr(target_line, "nature", "charge") != "charge":
@@ -323,11 +325,11 @@ def depense_new():
         compte = (request.form.get("compte") or "").strip()
         ligne_id = int(request.form.get("ligne_budget_id") or 0)
 
-        sub = Subvention.query.get_or_404(sub_id)
+        sub = db.get_or_404(Subvention, sub_id)
         if not can_see_secteur(sub.secteur):
             abort(403)
 
-        ligne = LigneBudget.query.get_or_404(ligne_id)
+        ligne = db.get_or_404(LigneBudget, ligne_id)
         if ligne.subvention_id != sub.id:
             abort(400)
 
@@ -374,7 +376,7 @@ def depense_new():
                 from app.models import InventaireItem
                 from app.inventaire_materiel.routes import _next_id_interne
 
-                date_ref = date_p or datetime.utcnow().date()
+                date_ref = date_p or utcnow().date()
                 id_interne = _next_id_interne(sub.secteur, date_ref)
 
                 inv = InventaireItem(
@@ -409,7 +411,7 @@ def depense_new():
 @login_required
 @require_perm("depenses:create")
 def depense_edit(depense_id):
-    dep = Depense.query.get_or_404(depense_id)
+    dep = db.get_or_404(Depense, depense_id)
     if not depense_visible(dep):
         abort(403)
 
@@ -453,7 +455,7 @@ def depense_edit(depense_id):
                 )
             else:
                 ligne_id = int(request.form.get("ligne_budget_id") or 0)
-                target_line = LigneBudget.query.get_or_404(ligne_id)
+                target_line = db.get_or_404(LigneBudget, ligne_id)
                 if getattr(target_line, "nature", "charge") != "charge":
                     flash("Une affectation de dépense doit pointer vers une ligne de charge.", "danger")
                     return redirect(url_for("budget.depense_edit", depense_id=dep.id))
@@ -496,7 +498,7 @@ def depense_edit(depense_id):
 
         if action == "update_affectation":
             aff_id = int(request.form.get("affectation_id") or 0)
-            aff = DepenseAffectation.query.get_or_404(aff_id)
+            aff = db.get_or_404(DepenseAffectation, aff_id)
             if aff.depense_id != dep.id:
                 abort(400)
 
@@ -526,7 +528,7 @@ def depense_edit(depense_id):
 
         if action == "delete_affectation":
             aff_id = int(request.form.get("affectation_id") or 0)
-            aff = DepenseAffectation.query.get_or_404(aff_id)
+            aff = db.get_or_404(DepenseAffectation, aff_id)
             if aff.depense_id != dep.id:
                 abort(400)
             db.session.delete(aff)
@@ -547,7 +549,7 @@ def depense_edit(depense_id):
             folder = ensure_justifs_folder()
             safe_original = secure_filename(file.filename)
 
-            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            ts = utcnow().strftime("%Y%m%d_%H%M%S")
             stored = secure_filename(f"D{dep.id}_{ts}_{safe_original}")
             file.save(os.path.join(folder, stored))
 
@@ -590,7 +592,7 @@ def depense_edit(depense_id):
 @login_required
 @require_perm("depenses:delete")
 def depense_delete(depense_id):
-    dep = Depense.query.get_or_404(depense_id)
+    dep = db.get_or_404(Depense, depense_id)
     if not depense_visible(dep):
         abort(403)
 
@@ -626,7 +628,7 @@ def depense_delete(depense_id):
 @login_required
 @require_perm("depenses:view")
 def depense_doc_download(doc_id):
-    doc = DepenseDocument.query.get_or_404(doc_id)
+    doc = db.get_or_404(DepenseDocument, doc_id)
     dep = doc.depense
 
     if not depense_visible(dep):
@@ -639,7 +641,7 @@ def depense_doc_download(doc_id):
 @login_required
 @require_perm("depenses:delete")
 def depense_doc_delete(doc_id):
-    doc = DepenseDocument.query.get_or_404(doc_id)
+    doc = db.get_or_404(DepenseDocument, doc_id)
     dep = doc.depense
 
     if not depense_visible(dep):

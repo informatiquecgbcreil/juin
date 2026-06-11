@@ -3,6 +3,8 @@ import base64
 import secrets
 from datetime import datetime, date
 
+from app.utils.dates import utcnow
+
 from flask import (
     render_template,
     request,
@@ -756,7 +758,7 @@ def participant_attestation(participant_id: int):
 def participant_edit(participant_id: int):
     require_perm("participants:edit")(lambda: None)()
     secteur = _user_secteur()
-    p = Participant.query.get_or_404(participant_id)
+    p = db.get_or_404(Participant, participant_id)
 
     if not _is_admin_global():
         in_secteur = (
@@ -807,7 +809,7 @@ def participant_anonymize(participant_id: int):
     require_perm("participants:anonymize")(lambda: None)()
     """Anonymise un participant (conserve les stats mais supprime les identifiants)."""
     secteur = _user_secteur()
-    p = Participant.query.get_or_404(participant_id)
+    p = db.get_or_404(Participant, participant_id)
 
     if not _is_admin_global():
         in_secteur = (
@@ -850,7 +852,7 @@ def participant_delete(participant_id: int):
     (Admin global : bypass.)
     """
     secteur = _user_secteur()
-    p = Participant.query.get_or_404(participant_id)
+    p = db.get_or_404(Participant, participant_id)
 
     if not _is_admin_global():
         other = (
@@ -1102,7 +1104,7 @@ def atelier_new():
 def atelier_edit(atelier_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.is_deleted:
         flash("Cet atelier est dans la corbeille. Restaure-le pour le modifier.", "warning")
         return redirect(url_for("activite.index", corbeille=1))
@@ -1172,7 +1174,7 @@ def atelier_edit(atelier_id: int):
 def sessions(atelier_id: int):
     _require_any_perm("ateliers:view", "emargement:view")
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     corbeille = (request.args.get("corbeille") == "1")
     if atelier.is_deleted and not corbeille:
         flash("Cet atelier est dans la corbeille.", "warning")
@@ -1218,7 +1220,7 @@ def atelier_delete(atelier_id: int):
     require_perm("activite:delete")(lambda: None)()
     """Met un atelier (et ses sessions) en corbeille."""
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     if not _can_access_activity_secteur(atelier.secteur):
         return _deny_activity_access()
 
@@ -1227,11 +1229,11 @@ def atelier_delete(atelier_id: int):
         return redirect(url_for("activite.index", corbeille=1))
 
     atelier.is_deleted = True
-    atelier.deleted_at = datetime.utcnow()
+    atelier.deleted_at = utcnow()
 
     for s in SessionActivite.query.filter_by(atelier_id=atelier.id).all():
         s.is_deleted = True
-        s.deleted_at = datetime.utcnow()
+        s.deleted_at = utcnow()
         s.kiosk_open = False
         s.kiosk_pin = None
         s.kiosk_token = None
@@ -1247,7 +1249,7 @@ def atelier_restore(atelier_id: int):
     require_perm("activite:restore")(lambda: None)()
     """Restaure un atelier (et ses sessions)."""
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     if not _can_access_activity_secteur(atelier.secteur):
         return _deny_activity_access()
 
@@ -1272,8 +1274,8 @@ def session_delete(session_id: int):
     require_perm("activite:delete")(lambda: None)()
     """Met une session/RDV en corbeille."""
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
 
@@ -1282,7 +1284,7 @@ def session_delete(session_id: int):
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
 
     s.is_deleted = True
-    s.deleted_at = datetime.utcnow()
+    s.deleted_at = utcnow()
     s.kiosk_open = False
     s.kiosk_pin = None
     s.kiosk_token = None
@@ -1298,8 +1300,8 @@ def session_restore(session_id: int):
     require_perm("activite:restore")(lambda: None)()
     """Restaure une session/RDV."""
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
     if atelier.is_deleted:
@@ -1324,8 +1326,8 @@ def session_purge(session_id: int):
     require_perm("activite:purge")(lambda: None)()
     """Suppression définitive d'une session (nécessite qu'elle soit déjà en corbeille)."""
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -1364,7 +1366,7 @@ def session_purge(session_id: int):
 def session_new(atelier_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.is_deleted:
         flash("Cet atelier est dans la corbeille. Restaure-le pour créer une session.", "warning")
         return redirect(url_for("activite.index", corbeille=1))
@@ -1501,8 +1503,8 @@ def session_edit_schedule(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     """Autorise la correction de date/heure/capacité d'une session déjà émargée, avec traçabilité."""
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
         flash("Cette session/atelier est dans la corbeille.", "warning")
@@ -1593,8 +1595,8 @@ def session_skills(session_id: int):
     donc on se base sur SessionActivite.competences + SessionActivite.modules.
     """
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
         flash("Cette session/atelier est dans la corbeille.", "warning")
@@ -1665,8 +1667,8 @@ def session_skills(session_id: int):
 @login_required
 def session_skill_add(session_id: int):
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
         flash("Cette session/atelier est dans la corbeille.", "warning")
@@ -1679,7 +1681,7 @@ def session_skill_add(session_id: int):
         flash("Compétence manquante.", "warning")
         return redirect(url_for("activite.session_skills", session_id=s.id))
 
-    comp = Competence.query.get_or_404(competence_id)
+    comp = db.get_or_404(Competence, competence_id)
     existing_ids = {c.id for c in (getattr(s, "competences", []) or [])}
     if comp.id not in existing_ids:
         s.competences.append(comp)
@@ -1697,8 +1699,8 @@ def session_skill_add(session_id: int):
 @login_required
 def session_skill_remove(session_id: int):
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
         flash("Cette session/atelier est dans la corbeille.", "warning")
@@ -1734,8 +1736,8 @@ def evaluation_batch(session_id: int):
     if request.method == "POST":
         require_perm("pedagogie:edit")(lambda: None)()
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if s.is_deleted or atelier.is_deleted:
         flash("Cette session/atelier est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
@@ -1794,8 +1796,8 @@ def emargement(session_id: int):
     if request.method == "POST":
         require_perm("emargement:edit")(lambda: None)()
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
         flash("Cette session/atelier est dans la corbeille.", "warning")
@@ -1895,7 +1897,7 @@ def emargement(session_id: int):
             if not participant_id:
                 flash("Participant manquant.", "danger")
                 return _redirect_emargement_with_period(session_id)
-            participant = Participant.query.get(int(participant_id))
+            participant = db.session.get(Participant, int(participant_id))
             if not participant:
                 flash("Participant introuvable.", "danger")
                 return _redirect_emargement_with_period(session_id)
@@ -2023,7 +2025,7 @@ def emargement(session_id: int):
             if not participant_id:
                 flash("Choisis un participant.", "danger")
                 return _redirect_emargement_with_period(session_id)
-            participant = Participant.query.get(int(participant_id))
+            participant = db.session.get(Participant, int(participant_id))
             if not participant:
                 flash("Participant introuvable.", "danger")
                 return _redirect_emargement_with_period(session_id)
@@ -2035,7 +2037,7 @@ def emargement(session_id: int):
                     binary = base64.b64decode(b64data)
                     sig_dir = os.path.join(current_app.instance_path, "signatures_tmp")
                     os.makedirs(sig_dir, exist_ok=True)
-                    sig_filename = f"sig_s{session_id}_p{participant.id}_{int(datetime.utcnow().timestamp())}.png"
+                    sig_filename = f"sig_s{session_id}_p{participant.id}_{int(utcnow().timestamp())}.png"
                     sig_path = os.path.join(sig_dir, sig_filename)
                     with open(sig_path, "wb") as f:
                         f.write(binary)
@@ -2139,7 +2141,7 @@ def emargement(session_id: int):
 
         if action == "quick_passport_note":
             participant_id = request.form.get("participant_id", type=int)
-            participant = Participant.query.get(participant_id) if participant_id else None
+            participant = db.session.get(Participant, participant_id) if participant_id else None
             if not participant:
                 flash("Participant invalide.", "danger")
                 return _redirect_emargement_with_period(session_id)
@@ -2249,7 +2251,7 @@ def emargement(session_id: int):
 def kiosk_open(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
+    s = db.get_or_404(SessionActivite, session_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
 
@@ -2266,7 +2268,7 @@ def kiosk_open(session_id: int):
     s.kiosk_open = True
     s.kiosk_token = token
     s.kiosk_pin = pin
-    s.kiosk_opened_at = datetime.utcnow()
+    s.kiosk_opened_at = utcnow()
     db.session.commit()
 
     flash(f"Kiosque ouvert (code: {pin}).", "success")
@@ -2278,7 +2280,7 @@ def kiosk_open(session_id: int):
 def kiosk_close(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
+    s = db.get_or_404(SessionActivite, session_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
 
@@ -2299,8 +2301,8 @@ def kiosk_close(session_id: int):
 def generate_collectif(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if s.session_type != "COLLECTIF":
         flash("Uniquement pour les sessions collectives.", "warning")
         return _redirect_emargement_with_period(session_id)
@@ -2317,8 +2319,8 @@ def generate_collectif(session_id: int):
         period_end=conso_period_args["period_end"],
     )
 
-    annee = (s.date_session.year if s.date_session else datetime.utcnow().year)
-    mois = (s.date_session.month if s.date_session else datetime.utcnow().month)
+    annee = (s.date_session.year if s.date_session else utcnow().year)
+    mois = (s.date_session.month if s.date_session else utcnow().month)
     arch = ArchiveEmargement.query.filter_by(atelier_id=atelier.id, session_id=s.id, annee=annee, mois=mois).first()
     if not arch:
         arch = ArchiveEmargement(secteur=atelier.secteur, atelier_id=atelier.id, session_id=s.id, annee=annee, mois=mois)
@@ -2344,8 +2346,8 @@ def download_collectif_archive(session_id: int, kind: str):
         abort(404)
 
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -2371,8 +2373,8 @@ def download_collectif_archive(session_id: int, kind: str):
         flash("Document introuvable : génération impossible (LibreOffice ?).", "warning")
         return _redirect_emargement_with_period(session_id)
 
-    annee = (s.date_session.year if s.date_session else datetime.utcnow().year)
-    mois = (s.date_session.month if s.date_session else datetime.utcnow().month)
+    annee = (s.date_session.year if s.date_session else utcnow().year)
+    mois = (s.date_session.month if s.date_session else utcnow().month)
 
     arch = ArchiveEmargement.query.filter_by(atelier_id=atelier.id, session_id=s.id, annee=annee, mois=mois).first()
     if not arch:
@@ -2407,8 +2409,8 @@ def download_collectif_archive(session_id: int, kind: str):
 def upload_collectif_corrected(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
 
@@ -2422,8 +2424,8 @@ def upload_collectif_corrected(session_id: int):
         flash("Uniquement .docx ou .pdf", "warning")
         return _redirect_emargement_with_period(session_id)
 
-    annee = (s.date_session.year if s.date_session else datetime.utcnow().year)
-    mois = (s.date_session.month if s.date_session else datetime.utcnow().month)
+    annee = (s.date_session.year if s.date_session else utcnow().year)
+    mois = (s.date_session.month if s.date_session else utcnow().month)
     arch = ArchiveEmargement.query.filter_by(atelier_id=atelier.id, session_id=s.id, annee=annee, mois=mois).first()
     if not arch:
         arch = ArchiveEmargement(secteur=atelier.secteur, atelier_id=atelier.id, session_id=s.id, annee=annee, mois=mois)
@@ -2457,8 +2459,8 @@ def upload_collectif_corrected(session_id: int):
 def email_collectif_archive(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    s = SessionActivite.query.get_or_404(session_id)
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    s = db.get_or_404(SessionActivite, session_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
 
@@ -2474,8 +2476,8 @@ def email_collectif_archive(session_id: int):
         request.form.get("conso_period_end"),
     ])
 
-    annee = (s.date_session.year if s.date_session else datetime.utcnow().year)
-    mois = (s.date_session.month if s.date_session else datetime.utcnow().month)
+    annee = (s.date_session.year if s.date_session else utcnow().year)
+    mois = (s.date_session.month if s.date_session else utcnow().month)
     arch = ArchiveEmargement.query.filter_by(atelier_id=atelier.id, session_id=s.id, annee=annee, mois=mois).first()
 
     if period_requested:
@@ -2525,7 +2527,7 @@ def email_collectif_archive(session_id: int):
             attachment_path=attachment,
         )
         arch.last_emailed_to = to
-        arch.last_emailed_at = datetime.utcnow()
+        arch.last_emailed_at = utcnow()
         db.session.commit()
         flash("Email envoyé.", "success")
     except Exception as e:
@@ -2552,7 +2554,7 @@ def download_individuel_archive(atelier_id: int, annee: int, mois: int, kind: st
         abort(404)
 
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
 
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
         flash("Atelier non individuel mensuel.", "warning")
@@ -2591,7 +2593,7 @@ def download_individuel_archive(atelier_id: int, annee: int, mois: int, kind: st
 def upload_individuel_corrected(atelier_id: int, annee: int, mois: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
         flash("Atelier non individuel mensuel.", "warning")
         return redirect(url_for("activite.index"))
@@ -2639,7 +2641,7 @@ def upload_individuel_corrected(atelier_id: int, annee: int, mois: int):
 def email_individuel_archive(atelier_id: int, annee: int, mois: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
         flash("Atelier non individuel mensuel.", "warning")
         return redirect(url_for("activite.index"))
@@ -2689,7 +2691,7 @@ def email_individuel_archive(atelier_id: int, annee: int, mois: int):
             attachment_path=attachment,
         )
         arch.last_emailed_to = to
-        arch.last_emailed_at = datetime.utcnow()
+        arch.last_emailed_at = utcnow()
         db.session.commit()
         flash("Email envoyé.", "success")
     except Exception as e:
@@ -2703,7 +2705,7 @@ def email_individuel_archive(atelier_id: int, annee: int, mois: int):
 def finalize_individuel(atelier_id: int, annee: int, mois: int):
     require_perm("ateliers:edit")(lambda: None)()
     secteur = _user_secteur()
-    atelier = AtelierActivite.query.get_or_404(atelier_id)
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.type_atelier != "INDIVIDUEL_MENSUEL":
         flash("Atelier non individuel mensuel.", "warning")
         return redirect(url_for("activite.index"))

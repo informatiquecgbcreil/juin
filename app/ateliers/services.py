@@ -2,6 +2,8 @@ import hashlib
 import json
 import sqlite3
 from datetime import datetime
+
+from app.utils.dates import utcnow
 from typing import Dict, List, Tuple
 
 from flask import current_app
@@ -160,7 +162,7 @@ def sync_ateliers_from_presence_db(limit: int = 500) -> int:
     """
     items = read_presence_ateliers()[:limit]
     n = 0
-    now = datetime.utcnow()
+    now = utcnow()
 
     for it in items:
         uid = it["atelier_uid"]

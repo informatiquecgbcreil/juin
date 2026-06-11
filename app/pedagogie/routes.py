@@ -1,5 +1,7 @@
 import csv
 import datetime
+
+from app.utils.dates import utcnow
 import mimetypes
 import os
 from collections import defaultdict
@@ -235,7 +237,7 @@ def parcours_pedagogique():
 
     if request.method == 'POST':
         action = request.form.get('action') or ''
-        session = SessionActivite.query.get_or_404(session_id) if session_id else None
+        session = db.get_or_404(SessionActivite, session_id) if session_id else None
 
         if action == 'add_apprentissage' and session:
             titre = (request.form.get('titre') or '').strip()
@@ -260,7 +262,7 @@ def parcours_pedagogique():
 
         if action == 'attach_suggestion' and session:
             source_id = request.form.get('source_objectif_id', type=int)
-            source = Objectif.query.get_or_404(source_id)
+            source = db.get_or_404(Objectif, source_id)
             titre = (source.titre or '').strip()
             if Objectif.query.filter_by(session_id=session.id, titre=titre).first():
                 flash('Cet apprentissage est déjà rattaché à la séance.', 'info')
@@ -295,7 +297,7 @@ def parcours_pedagogique():
         sessions_q = sessions_q.filter(SessionActivite.atelier_id == atelier_id)
     sessions = sessions_q.limit(150).all()
 
-    selected_session = SessionActivite.query.get(session_id) if session_id else (sessions[0] if sessions else None)
+    selected_session = db.session.get(SessionActivite, session_id) if session_id else (sessions[0] if sessions else None)
 
     apprentissages = []
     modules = []
@@ -386,7 +388,7 @@ def referentiels_list():
 
         if action == "delete_referentiel":
             ref_id = int(request.form.get("referentiel_id") or 0)
-            ref = Referentiel.query.get_or_404(ref_id)
+            ref = db.get_or_404(Referentiel, ref_id)
             comp_ids = [c.id for c in Competence.query.filter_by(referentiel_id=ref.id).all()]
             usage = {}
             if comp_ids:
@@ -443,7 +445,7 @@ def referentiels_list():
 @login_required
 @require_perm("pedagogie:view")
 def referentiels_edit(referentiel_id: int):
-    referentiel = Referentiel.query.get_or_404(referentiel_id)
+    referentiel = db.get_or_404(Referentiel, referentiel_id)
 
     if request.method == "POST":
         action = request.form.get("action") or ""
@@ -478,7 +480,7 @@ def referentiels_edit(referentiel_id: int):
 
         if action == "delete_competence":
             comp_id = int(request.form.get("competence_id") or 0)
-            comp = Competence.query.get_or_404(comp_id)
+            comp = db.get_or_404(Competence, comp_id)
             if comp.referentiel_id != referentiel.id:
                 flash("Compétence invalide.", "danger")
                 return redirect(url_for("pedagogie.referentiels_edit", referentiel_id=referentiel.id))
@@ -551,7 +553,7 @@ def import_referentiel_csv(referentiel_id: int):
 
     Les colonnes supplémentaires (ex: domain_code, sort_order...) sont ignorées.
     """
-    referentiel = Referentiel.query.get_or_404(referentiel_id)
+    referentiel = db.get_or_404(Referentiel, referentiel_id)
 
     f = request.files.get("csv_file")
     if not f or not f.filename:
@@ -713,7 +715,7 @@ def objectifs():
         db.session.commit()
 
         if obj.type == "operationnel" and obj.module_id:
-            mod = PedagogieModule.query.get(obj.module_id)
+            mod = db.session.get(PedagogieModule, obj.module_id)
             if mod:
                 for comp in mod.competences:
                     existing = ObjectifCompetenceMap.query.filter_by(objectif_id=obj.id, competence_id=comp.id).first()
@@ -735,8 +737,8 @@ def objectifs():
                 flash("Parcours express incomplet: projet, atelier, module et intitulé sont obligatoires.", "danger")
                 return redirect(url_for("pedagogie.objectifs", projet_id=projet_id, atelier_id=atelier_id, session_id=session_id))
 
-            atelier_obj = AtelierActivite.query.get(selected_atelier_id)
-            module_obj = PedagogieModule.query.get(selected_module_id)
+            atelier_obj = db.session.get(AtelierActivite, selected_atelier_id)
+            module_obj = db.session.get(PedagogieModule, selected_module_id)
             if not atelier_obj or not module_obj:
                 flash("Atelier ou module introuvable.", "danger")
                 return redirect(url_for("pedagogie.objectifs", projet_id=projet_id, atelier_id=atelier_id, session_id=session_id))
@@ -808,7 +810,7 @@ def objectifs():
             selected_module_id = request.form.get("module_id", type=int)
             selected_session_id = request.form.get("session_id", type=int)
 
-            parent_obj = Objectif.query.get(parent_id) if parent_id else None
+            parent_obj = db.session.get(Objectif, parent_id) if parent_id else None
             if parent_id and not parent_obj:
                 flash("Objectif parent introuvable.", "danger")
                 return redirect(url_for("pedagogie.objectifs", projet_id=projet_id, atelier_id=atelier_id, session_id=session_id))
@@ -876,7 +878,7 @@ def objectifs():
 
         if action == "delete_objectif":
             obj_id = int(request.form.get("objectif_id") or 0)
-            obj = Objectif.query.get_or_404(obj_id)
+            obj = db.get_or_404(Objectif, obj_id)
             db.session.delete(obj)
             db.session.commit()
             flash("Objectif supprimé.", "warning")
@@ -959,7 +961,7 @@ def kiosk_pedagogique():
         .limit(200)
         .all()
     )
-    session = SessionActivite.query.get(session_id) if session_id else None
+    session = db.session.get(SessionActivite, session_id) if session_id else None
 
     participants = []
     if session:
@@ -1064,7 +1066,7 @@ def plan_projet():
 
         if action == "delete_link":
             row_id = request.form.get("row_id", type=int)
-            row = PlanProjetAtelierModule.query.get_or_404(row_id)
+            row = db.get_or_404(PlanProjetAtelierModule, row_id)
             db.session.delete(row)
             db.session.commit()
             flash("Lien supprimé.", "warning")
@@ -1343,7 +1345,7 @@ def participant_passeport_note(participant_id: int):
 @login_required
 @require_perm("pedagogie:view")
 def participant_passeport_note_update(participant_id: int, note_id: int):
-    note = PasseportNote.query.get_or_404(note_id)
+    note = db.get_or_404(PasseportNote, note_id)
     if note.participant_id != participant_id:
         flash("Note invalide.", "danger")
         return redirect(url_for("pedagogie.participant_passeport", participant_id=participant_id))
@@ -1365,7 +1367,7 @@ def participant_passeport_note_update(participant_id: int, note_id: int):
 @login_required
 @require_perm("pedagogie:view")
 def participant_passeport_note_delete(participant_id: int, note_id: int):
-    note = PasseportNote.query.get_or_404(note_id)
+    note = db.get_or_404(PasseportNote, note_id)
     if note.participant_id != participant_id:
         flash("Note invalide.", "danger")
         return redirect(url_for("pedagogie.participant_passeport", participant_id=participant_id))
@@ -1399,7 +1401,7 @@ def participant_passeport_file_upload(participant_id: int):
     root = os.path.join(current_app.instance_path, "passeport_uploads", str(participant_id))
     os.makedirs(root, exist_ok=True)
 
-    save_name = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+    save_name = f"{utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
     path = os.path.join(root, save_name)
     f.save(path)
 
@@ -1424,7 +1426,7 @@ def participant_passeport_file_upload(participant_id: int):
 @login_required
 @require_perm("pedagogie:view")
 def participant_passeport_file_download(participant_id: int, file_id: int):
-    row = PasseportPieceJointe.query.get_or_404(file_id)
+    row = db.get_or_404(PasseportPieceJointe, file_id)
     if row.participant_id != participant_id:
         flash("Pièce jointe invalide.", "danger")
         return redirect(url_for("pedagogie.participant_passeport", participant_id=participant_id))

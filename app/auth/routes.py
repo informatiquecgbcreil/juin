@@ -36,7 +36,7 @@ def _load_password_reset_user(token: str) -> User | None:
     except (BadSignature, SignatureExpired):
         return None
 
-    user = User.query.get(payload.get("uid"))
+    user = db.session.get(User, payload.get("uid"))
     if not user:
         return None
 

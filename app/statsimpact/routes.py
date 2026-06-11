@@ -798,15 +798,15 @@ def stats_pedagogie():
     participant_id = request.args.get("participant_id", type=int)
     participant_q = (request.args.get("participant_q") or "").strip()
 
-    projet = Projet.query.get(projet_id) if projet_id else None
+    projet = db.session.get(Projet, projet_id) if projet_id else None
     if projet and secteur and projet.secteur != secteur:
         abort(403)
 
-    atelier = AtelierActivite.query.get(atelier_id) if atelier_id else None
+    atelier = db.session.get(AtelierActivite, atelier_id) if atelier_id else None
     if atelier and secteur and atelier.secteur != secteur:
         abort(403)
 
-    participant = Participant.query.get(participant_id) if participant_id else None
+    participant = db.session.get(Participant, participant_id) if participant_id else None
 
     participants_for_passport_q = _scoped_participants_query_for_stats(flt)
     if participant_q:
@@ -865,7 +865,7 @@ def stats_pedagogie():
 def stats_pedagogie_bilan(participant_id: int):
     if not _can_view():
         abort(403)
-    participant = Participant.query.get_or_404(participant_id)
+    participant = db.get_or_404(Participant, participant_id)
     rows = _build_bilan_rows(participant)
     pdf_path = generate_participant_bilan_pdf(current_app, participant, rows)
     if pdf_path and os.path.exists(pdf_path):
@@ -963,7 +963,7 @@ def _consumption_by_atelier_for_filter(flt):
     out = {}
     for session_obj in _sessions_for_consumption_stats(flt):
         try:
-            atelier = getattr(session_obj, "atelier", None) or AtelierActivite.query.get(session_obj.atelier_id)
+            atelier = getattr(session_obj, "atelier", None) or db.session.get(AtelierActivite, session_obj.atelier_id)
             if not atelier:
                 continue
             key = _continuity_group_key(atelier)
@@ -1851,7 +1851,7 @@ def dashboard():
             if not participant_id or participant_id not in allowed_ids:
                 abort(403)
 
-            participant = Participant.query.get(participant_id)
+            participant = db.session.get(Participant, participant_id)
             if not participant:
                 abort(404)
 
@@ -1898,7 +1898,7 @@ def dashboard():
             if not participant_id or participant_id not in allowed_ids:
                 abort(403)
 
-            participant = Participant.query.get(participant_id)
+            participant = db.session.get(Participant, participant_id)
             if not participant:
                 abort(404)
 

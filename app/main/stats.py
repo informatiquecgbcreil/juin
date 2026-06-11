@@ -1,6 +1,7 @@
 from datetime import date
 
 
+from app.extensions import db
 from app.services.indicators import compute_project_indicators
 from flask import (
     render_template, request, current_app
@@ -113,7 +114,7 @@ def stats():
 
         # On blind le projet : seulement ceux de son secteur
         if selected_projet_id:
-            p_tmp = Projet.query.get(selected_projet_id)
+            p_tmp = db.session.get(Projet, selected_projet_id)
             if not p_tmp or p_tmp.secteur != current_user.secteur_assigne:
                 selected_projet_id = None
 
@@ -179,7 +180,7 @@ def stats():
     selected_projet = None
 
     if selected_projet_id:
-        selected_projet = Projet.query.get(selected_projet_id)
+        selected_projet = db.session.get(Projet, selected_projet_id)
 
     if selected_projet and can_see_secteur(selected_projet.secteur):
         project_indicators = compute_project_indicators(
@@ -258,7 +259,7 @@ def stats_bilans():
         sub_q = sub_q.filter(Subvention.secteur == selected_secteur)
         proj_q = proj_q.filter(Projet.secteur == selected_secteur)
         if selected_projet_id:
-            pjt = Projet.query.get(selected_projet_id)
+            pjt = db.session.get(Projet, selected_projet_id)
             if not pjt or pjt.secteur != selected_secteur:
                 selected_projet_id = None
                 proj_q = Projet.query.filter(Projet.secteur == selected_secteur)

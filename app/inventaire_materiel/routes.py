@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from app.utils.dates import utcnow
 import re
 import unicodedata
 
@@ -56,7 +58,7 @@ def _next_id_interne(secteur: str, date_ref) -> str:
     """
     code = _secteur_code(secteur)
     mm = int(getattr(date_ref, "month", 0) or 1)
-    yyyy = int(getattr(date_ref, "year", 0) or datetime.utcnow().year)
+    yyyy = int(getattr(date_ref, "year", 0) or utcnow().year)
     prefix = f"{code}-{mm:02d}-{yyyy}-"
 
     last = (
@@ -193,7 +195,7 @@ def new_item():
                 date_entree = None
 
         # ID interne auto (aide terrain) : basé sur la date d'entrée si fournie, sinon aujourd'hui
-        date_ref = date_entree or datetime.utcnow().date()
+        date_ref = date_entree or utcnow().date()
         id_interne = _next_id_interne(secteur, date_ref)
 
         item = InventaireItem(
@@ -228,7 +230,7 @@ def edit_item(item_id: int):
     if False:
         abort(403)
 
-    item = InventaireItem.query.get_or_404(item_id)
+    item = db.get_or_404(InventaireItem, item_id)
     _require_can_see_item(item)
 
     if request.method == "POST":
@@ -286,7 +288,7 @@ def delete_item(item_id: int):
     if False:
         abort(403)
 
-    item = InventaireItem.query.get_or_404(item_id)
+    item = db.get_or_404(InventaireItem, item_id)
     _require_can_see_item(item)
 
     # On ne supprime pas la dépense : on détache juste les liens si besoin.
@@ -308,7 +310,7 @@ def create_from_facture_ligne(ligne_id: int):
     if False:
         abort(403)
 
-    fl = FactureLigne.query.get_or_404(ligne_id)
+    fl = db.get_or_404(FactureLigne, ligne_id)
     if not can_see_secteur(fl.secteur):
         abort(403)
 
@@ -316,7 +318,7 @@ def create_from_facture_ligne(ligne_id: int):
     dep = Depense.query.filter_by(facture_ligne_id=fl.id).first()
 
     # Date de référence = date de facture (si dispo), sinon aujourd'hui
-    date_ref = (fl.facture.date_facture if fl.facture and fl.facture.date_facture else datetime.utcnow().date())
+    date_ref = (fl.facture.date_facture if fl.facture and fl.facture.date_facture else utcnow().date())
     id_interne = _next_id_interne(fl.secteur, date_ref)
 
     item = InventaireItem(
@@ -347,7 +349,7 @@ def create_bulk_from_facture_ligne(ligne_id: int):
     if False:
         abort(403)
 
-    fl = FactureLigne.query.get_or_404(ligne_id)
+    fl = db.get_or_404(FactureLigne, ligne_id)
     if not can_see_secteur(fl.secteur):
         abort(403)
 
@@ -359,7 +361,7 @@ def create_bulk_from_facture_ligne(ligne_id: int):
         n = 1
 
     dep = Depense.query.filter_by(facture_ligne_id=fl.id).first()
-    date_ref = (fl.facture.date_facture if fl.facture and fl.facture.date_facture else datetime.utcnow().date())
+    date_ref = (fl.facture.date_facture if fl.facture and fl.facture.date_facture else utcnow().date())
 
     created_ids = []
     for _ in range(n):
@@ -394,7 +396,7 @@ def create_from_depense(depense_id: int):
     if False:
         abort(403)
 
-    dep = Depense.query.get_or_404(depense_id)
+    dep = db.get_or_404(Depense, depense_id)
     ligne = dep.budget_source
     sub = ligne.source_sub if ligne else None
     secteur_dep = getattr(sub, "secteur", None)
@@ -441,7 +443,7 @@ def create_from_depense(depense_id: int):
         except Exception:
             date_entree = None
     if not date_entree:
-        date_entree = dep.date_paiement or datetime.utcnow().date()
+        date_entree = dep.date_paiement or utcnow().date()
 
     id_interne = _next_id_interne(secteur, date_entree)
 

@@ -587,7 +587,7 @@ def referentiel_edit(ref_type: str, ref_id: int):
     _ensure_refs_admin()
     meta = _get_reference_meta(ref_type)
     model = meta["model"]
-    row = model.query.get_or_404(ref_id)
+    row = db.get_or_404(model, ref_id)
 
     if request.method == "POST":
         label = _normalize_label(request.form.get("label"))
@@ -626,7 +626,7 @@ def referentiel_delete(ref_type: str, ref_id: int):
     _ensure_refs_admin()
     meta = _get_reference_meta(ref_type)
     model = meta["model"]
-    row = model.query.get_or_404(ref_id)
+    row = db.get_or_404(model, ref_id)
     label = row.label
     db.session.delete(row)
     commit_delete(

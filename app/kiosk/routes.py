@@ -4,6 +4,8 @@ import secrets
 import json
 from datetime import datetime, date
 
+from app.utils.dates import utcnow
+
 from flask import (
     render_template,
     request,
@@ -78,7 +80,7 @@ def _get_open_session_by_token(token: str):
 
 
 def _session_label(s: SessionActivite):
-    atelier = AtelierActivite.query.get(s.atelier_id)
+    atelier = db.session.get(AtelierActivite, s.atelier_id)
     secteur = s.secteur
     nom = atelier.nom if atelier else "Atelier"
     if s.session_type == "COLLECTIF":
@@ -146,7 +148,7 @@ def kiosk_home():
 
     entries = []
     for s in filtered:
-        atelier = AtelierActivite.query.get(s.atelier_id)
+        atelier = db.session.get(AtelierActivite, s.atelier_id)
         entries.append({
             "token": s.kiosk_token,
             "pin": s.kiosk_pin,
@@ -201,7 +203,7 @@ def kiosk_session(token: str):
     if not s:
         abort(404)
 
-    atelier = AtelierActivite.query.get_or_404(s.atelier_id)
+    atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     motifs = atelier.motifs() or []
     quartiers = Quartier.query.order_by(Quartier.ville.asc(), Quartier.nom.asc()).all()
 
@@ -260,7 +262,7 @@ def kiosk_session(token: str):
                 flash("Choisis ton nom dans la liste.", "danger")
                 return redirect(url_for("kiosk.kiosk_session", token=token))
 
-            participant = Participant.query.get(int(participant_id))
+            participant = db.session.get(Participant, int(participant_id))
             if not participant:
                 flash("Participant introuvable.", "danger")
                 return redirect(url_for("kiosk.kiosk_session", token=token))
@@ -272,7 +274,7 @@ def kiosk_session(token: str):
                     binary = base64.b64decode(b64data)
                     sig_dir = os.path.join(current_app.instance_path, "signatures_tmp")
                     os.makedirs(sig_dir, exist_ok=True)
-                    sig_filename = f"sig_kiosk_s{s.id}_p{participant.id}_{int(datetime.utcnow().timestamp())}.png"
+                    sig_filename = f"sig_kiosk_s{s.id}_p{participant.id}_{int(utcnow().timestamp())}.png"
                     sig_path = os.path.join(sig_dir, sig_filename)
                     with open(sig_path, "wb") as f:
                         f.write(binary)
@@ -305,7 +307,7 @@ def kiosk_session(token: str):
     highlight_label = None
     if highlight:
         try:
-            hp = Participant.query.get(int(highlight))
+            hp = db.session.get(Participant, int(highlight))
             if hp:
                 highlight_label = f"{hp.nom} {hp.prenom}" + (f" · {hp.ville}" if hp.ville else "")
         except Exception:
@@ -336,7 +338,7 @@ def kiosk_feedback(token: str):
     if not s:
         abort(404)
 
-    atelier = AtelierActivite.query.get(s.atelier_id)
+    atelier = db.session.get(AtelierActivite, s.atelier_id)
     questionnaires = _questionnaires_for_session(s)
 
     presences = (

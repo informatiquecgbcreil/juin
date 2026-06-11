@@ -1,6 +1,8 @@
 import os
 from datetime import datetime
 
+from app.utils.dates import utcnow
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -80,7 +82,7 @@ def get_or_create_hors_subvention(secteur: str, financement_type: str = "fonds_p
     if ft == "subvention":
         ft = "fonds_propres"
 
-    annee = datetime.utcnow().year
+    annee = utcnow().year
     nom = f"Hors subvention — {_financement_label(ft)} — {secteur}"
 
     s = Subvention.query.filter_by(secteur=secteur, annee_exercice=annee, nom=nom, est_archive=False).first()
@@ -171,7 +173,7 @@ def facture_new():
                 return redirect(url_for("inventaire.facture_new"))
             folder = ensure_factures_folder()
             safe_original = secure_filename(file.filename)
-            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            ts = utcnow().strftime("%Y%m%d_%H%M%S")
             stored = secure_filename(f"F_{ts}_{safe_original}")
             file.save(os.path.join(folder, stored))
             f.filename = stored
@@ -206,7 +208,7 @@ def facture_detail(facture_id):
     if False:
         abort(403)
 
-    f = FactureAchat.query.get_or_404(facture_id)
+    f = db.get_or_404(FactureAchat, facture_id)
     if not facture_visible(f):
         abort(403)
 
@@ -240,7 +242,7 @@ def facture_detail(facture_id):
                     flash("Choisis une subvention OU passe en Fonds propres/Autre (aide terrain).", "danger")
                     return redirect(url_for("inventaire.facture_detail", facture_id=f.id))
 
-                sub = Subvention.query.get_or_404(sub_id)
+                sub = db.get_or_404(Subvention, sub_id)
                 if not can_see_secteur(sub.secteur):
                     abort(403)
                 if sub.secteur != f.secteur_principal:
@@ -262,7 +264,7 @@ def facture_detail(facture_id):
                 if not ligne_id:
                     flash("Choisis une ligne budgétaire (ou coche 'À ventiler').", "danger")
                     return redirect(url_for("inventaire.facture_detail", facture_id=f.id))
-                ligne = LigneBudget.query.get_or_404(ligne_id)
+                ligne = db.get_or_404(LigneBudget, ligne_id)
                 if ligne.subvention_id != sub.id:
                     abort(400)
                 if getattr(ligne, "nature", "charge") != "charge":
@@ -301,7 +303,7 @@ def facture_detail(facture_id):
 
         if action == "delete_line":
             line_id = int(request.form.get("line_id") or 0)
-            fl = FactureLigne.query.get_or_404(line_id)
+            fl = db.get_or_404(FactureLigne, line_id)
             if fl.facture_id != f.id:
                 abort(400)
             if not can_see_secteur(fl.secteur):
@@ -330,7 +332,7 @@ def facture_validate(facture_id):
     if False:
         abort(403)
 
-    f = FactureAchat.query.get_or_404(facture_id)
+    f = db.get_or_404(FactureAchat, facture_id)
     if not facture_visible(f):
         abort(403)
     if f.statut != "brouillon":
@@ -353,8 +355,8 @@ def facture_validate(facture_id):
     created = 0
     for fl in f.lignes:
         # sécurité : on vérifie aussi la cohérence ligne budget/subvention
-        sub = Subvention.query.get(fl.subvention_id)
-        ligne = LigneBudget.query.get(fl.ligne_budget_id)
+        sub = db.session.get(Subvention, fl.subvention_id)
+        ligne = db.session.get(LigneBudget, fl.ligne_budget_id)
         if not sub or not ligne or ligne.subvention_id != sub.id:
             flash("Incohérence détectée (ligne budget/subvention). Validation stoppée.", "danger")
             return redirect(url_for("inventaire.facture_detail", facture_id=f.id))
@@ -390,7 +392,7 @@ def facture_download(facture_id):
     if False:
         abort(403)
 
-    f = FactureAchat.query.get_or_404(facture_id)
+    f = db.get_or_404(FactureAchat, facture_id)
     if not facture_visible(f):
         abort(403)
     if not f.filename:

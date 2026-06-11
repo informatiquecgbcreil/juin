@@ -460,7 +460,7 @@ def orientations():
 @login_required
 @require_perm("partenaires:edit")
 def update_orientation_status(orientation_id: int):
-    item = OrientationAccesDroit.query.get_or_404(orientation_id)
+    item = db.get_or_404(OrientationAccesDroit, orientation_id)
     if not _can_scope_all() and item.secteur and item.secteur != _current_scope_secteur():
         abort(403)
     item.statut = _clean_choice(request.form.get("statut"), ORIENTATION_STATUTS, item.statut or "oriente")
@@ -477,7 +477,7 @@ def update_orientation_status(orientation_id: int):
 @login_required
 @require_perm("partenaires:edit")
 def delete_orientation(orientation_id: int):
-    item = OrientationAccesDroit.query.get_or_404(orientation_id)
+    item = db.get_or_404(OrientationAccesDroit, orientation_id)
     if not _can_scope_all() and item.secteur and item.secteur != _current_scope_secteur():
         abort(403)
     year = (item.date_orientation or date.today()).year
@@ -630,7 +630,7 @@ def create():
 @login_required
 @require_perm("partenaires:edit")
 def edit(partenaire_id: int):
-    partenaire = Partenaire.query.get_or_404(partenaire_id)
+    partenaire = db.get_or_404(Partenaire, partenaire_id)
 
     if request.method == "POST":
         nom = (request.form.get("nom") or "").strip()
@@ -676,7 +676,7 @@ def edit(partenaire_id: int):
 @login_required
 @require_perm("partenaires:delete")
 def delete(partenaire_id: int):
-    partenaire = Partenaire.query.get_or_404(partenaire_id)
+    partenaire = db.get_or_404(Partenaire, partenaire_id)
     db.session.delete(partenaire)
     db.session.commit()
     flash("Partenaire supprimé.", "success")
@@ -687,7 +687,7 @@ def delete(partenaire_id: int):
 @login_required
 @require_perm("partenaires:edit")
 def add_intervention(partenaire_id: int):
-    partenaire = Partenaire.query.get_or_404(partenaire_id)
+    partenaire = db.get_or_404(Partenaire, partenaire_id)
     date_value = _parse_date(request.form.get("date_intervention"))
     if not date_value:
         flash("La date d'intervention est obligatoire.", "danger")
@@ -710,7 +710,7 @@ def add_intervention(partenaire_id: int):
 @login_required
 @require_perm("partenaires:edit")
 def delete_intervention(partenaire_id: int, intervention_id: int):
-    partenaire = Partenaire.query.get_or_404(partenaire_id)
+    partenaire = db.get_or_404(Partenaire, partenaire_id)
     intervention = PartenaireIntervention.query.filter_by(id=intervention_id, partenaire_id=partenaire.id).first()
     if not intervention:
         abort(404)

@@ -5,6 +5,8 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import date, datetime
+
+from app.utils.dates import utcnow
 from typing import Any, Iterable
 
 from docx import Document  # fallback python-docx
@@ -327,7 +329,7 @@ def _resolve_builtin_model(atelier, family: str):
 
 
 def _resolve_dispositif_label(participant: Participant, session_date: date | None) -> str:
-    target = session_date or datetime.utcnow().date()
+    target = session_date or utcnow().date()
     rows = (
         ParticipantInsertionParcours.query
         .filter_by(participant_id=participant.id, is_active=True)
@@ -416,7 +418,7 @@ def generate_collectif_docx_pdf(
     Generate a DOCX and (if possible) a PDF for a collective session.
     Uses docxtpl if template exists, else python-docx fallback.
     """
-    dt = session.date_session or datetime.utcnow().date()
+    dt = session.date_session or utcnow().date()
     y, m = dt.year, dt.month
 
     root = _archives_root(app)
