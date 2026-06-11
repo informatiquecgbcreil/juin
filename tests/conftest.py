@@ -21,6 +21,7 @@ import pytest
 _TMP = tempfile.mkdtemp(prefix="juin-tests-")
 os.environ["APP_DATA_DIR"] = os.path.join(_TMP, "data")
 os.environ["APP_UPLOAD_DIR"] = os.path.join(_TMP, "uploads")
+os.environ["ERP_LOG_DIR"] = os.path.join(_TMP, "logs")
 # On neutralise une éventuelle base configurée dans l'environnement :
 # les tests ne doivent JAMAIS toucher une vraie base.
 os.environ.pop("DATABASE_URL", None)

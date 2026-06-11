@@ -1,4 +1,6 @@
+import logging
 import os
+from logging.handlers import RotatingFileHandler
 
 from flask import Flask, url_for, request, redirect, session
 from flask_login import current_user
@@ -12,12 +14,41 @@ from app.models import User
 from app.services.dashboard_customization import load_dashboard_pref
 
 
+def _configure_error_logging(app):
+    """Journalise avertissements et erreurs dans un fichier avec rotation.
+
+    En production (waitress sous Windows Server), les erreurs 500 sont
+    invisibles sans cela : ce fichier est la boîte noire de l'application.
+    Flask y écrit automatiquement la trace complète de chaque exception
+    non gérée, avec l'URL concernée.
+
+    Emplacement : ERP_LOG_DIR (variable d'environnement) ou, à défaut,
+    le dossier instance/logs/. Rotation : 2 Mo x 10 fichiers.
+    """
+    log_dir = os.environ.get("ERP_LOG_DIR") or os.path.join(app.instance_path, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    handler = RotatingFileHandler(
+        os.path.join(log_dir, "erreurs.log"),
+        maxBytes=2_000_000,
+        backupCount=10,
+        encoding="utf-8",
+    )
+    handler.setLevel(logging.WARNING)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+    )
+    app.logger.addHandler(handler)
+
+
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
 
     # Instance folder (sqlite db, uploads, etc.)
     os.makedirs(app.instance_path, exist_ok=True)
+
+    _configure_error_logging(app)
 
     default_secret = app.config.get("SECRET_KEY") == DEFAULT_SECRET_KEY
     is_prod_env = app.config.get("ERP_ENV") == "production"
