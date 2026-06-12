@@ -1233,6 +1233,13 @@ class Participant(db.Model):
     quartier_id = db.Column(db.Integer, db.ForeignKey("quartier.id"), nullable=True)
     quartier = db.relationship("Quartier")
 
+    # --- Droit à l'image (consentement RGPD dématérialisé) ---
+    # Statuts: non_renseigne / accepte / refuse.
+    # Preuve dématérialisée = statut + date + agent qui l'a recueilli.
+    droit_image_statut = db.Column(db.String(20), nullable=False, default="non_renseigne")
+    droit_image_date = db.Column(db.Date, nullable=True)
+    droit_image_recueilli_par = db.Column(db.String(180), nullable=True)
+
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
