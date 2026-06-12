@@ -128,14 +128,40 @@ def _send_password_reset_email(to_email: str, reset_link: str) -> bool:
 @bp.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        from app.services.connexion_securite import (
+            enregistrer_echec,
+            enregistrer_succes,
+            minutes_avant_deverrouillage,
+        )
+
         email = (request.form.get("email") or "").strip().lower()
         password = (request.form.get("password") or "").strip()
+        adresse_ip = request.remote_addr
+
+        minutes = minutes_avant_deverrouillage(email)
+        if minutes > 0:
+            flash(
+                "Trop de tentatives échouées. Par sécurité, la connexion est "
+                f"bloquée pour ce compte : réessayez dans {minutes} minute(s).",
+                "danger",
+            )
+            current_app.logger.warning(
+                "Connexion refusée (compte verrouillé) pour %s depuis %s", email, adresse_ip
+            )
+            return render_template("login.html")
 
         u = User.query.filter_by(email=email).first()
         if not u or not u.check_password(password):
+            minutes = enregistrer_echec(email, adresse_ip)
+            if minutes > 0:
+                current_app.logger.warning(
+                    "Verrouillage déclenché pour %s depuis %s (%s min)",
+                    email, adresse_ip, minutes,
+                )
             flash("Identifiants invalides.", "danger")
             return render_template("login.html")
 
+        enregistrer_succes(email, adresse_ip)
         login_user(u)
         return redirect(url_for("main.dashboard"))
 
