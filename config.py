@@ -3,6 +3,32 @@ import os
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DEFAULT_SECRET_KEY = "Uneapplicationdesuivibudgétairequisimplifielaviedetoutlemondenormalement"
 
+
+def _charger_dotenv(chemin: str) -> None:
+    """Charge le fichier .env (clé=valeur) dans os.environ.
+
+    - Les variables déjà présentes dans l'environnement restent prioritaires.
+    - Format supporté: lignes 'CLE=valeur', commentaires '#', lignes vides.
+    Permet au service Windows (NSSM/waitress) et aux scripts d'hériter de
+    la même configuration sans dépendance externe.
+    """
+    try:
+        with open(chemin, encoding="utf-8") as fh:
+            for ligne in fh:
+                ligne = ligne.strip()
+                if not ligne or ligne.startswith("#") or "=" not in ligne:
+                    continue
+                cle, _, valeur = ligne.partition("=")
+                cle = cle.strip()
+                valeur = valeur.strip().strip('"').strip("'")
+                if cle and cle not in os.environ:
+                    os.environ[cle] = valeur
+    except OSError:
+        pass
+
+
+_charger_dotenv(os.path.join(BASE_DIR, ".env"))
+
 # Dossier "data" optionnel (utile si tu pack en exe ou si tu veux stocker ailleurs)
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")  # ex: si ton exe est dans C:\AppGestion\app\
 DATA_DIR = os.environ.get("APP_DATA_DIR", DEFAULT_DATA_DIR)
