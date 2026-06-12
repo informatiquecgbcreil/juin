@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>Purge RGPD — participants inactifs</h1>
+    <p class="muted">
+      Le règlement européen (RGPD) interdit de conserver indéfiniment les données
+      d'une personne qui ne fréquente plus la structure. Les fiches sans aucune
+      activité depuis <strong>{{ annees }} ans</strong> sont anonymisées :
+      le nom, les coordonnées et les informations personnelles sont effacés,
+      mais les chiffres de fréquentation restent comptés dans vos statistiques.
+    </p>
+    <p class="muted">
+      {% if purge_auto %}
+        ✅ La purge automatique est <strong>active</strong> : elle s'exécute une fois par jour, toute seule.
+      {% else %}
+        ⚠️ La purge automatique est <strong>désactivée</strong> (variable PURGE_INACTIFS_AUTO).
+      {% endif %}
+      {% if derniere_purge %}
+        Dernière vérification : {{ derniere_purge.strftime('%d/%m/%Y à %H:%M') }}.
+      {% else %}
+        Aucune purge n'a encore été exécutée.
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>{{ en_attente|length }} fiche(s) en attente d'anonymisation</h2>
+    {% if en_attente %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Prénom</th>
+            <th>Secteur</th>
+            <th>Dernière activité</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in en_attente %}
+            <tr>
+              <td><a href="{{ url_for('participants.edit_participant', participant_id=item.participant.id) }}">{{ item.participant.nom }}</a></td>
+              <td>{{ item.participant.prenom }}</td>
+              <td>{{ item.participant.created_secteur or '—' }}</td>
+              <td>{{ item.derniere_activite.strftime('%d/%m/%Y') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="muted">
+        Si une personne de cette liste fréquente encore la structure, ouvrez sa
+        fiche et enregistrez-la : cela met à jour sa date d'activité et la
+        retire de la liste.
+      </p>
+      {% if can('participants:anonymize') %}
+        <form method="post" action="{{ url_for('main.purge_rgpd_lancer') }}"
+              onsubmit="return confirm('Anonymiser définitivement {{ en_attente|length }} fiche(s) ? Cette action est irréversible.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn danger" type="submit">Anonymiser maintenant ({{ en_attente|length }})</button>
+        </form>
+      {% endif %}
+    {% else %}
+      <p class="muted">Aucune fiche inactive depuis plus de {{ annees }} ans. Tout est en règle ✅</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -154,6 +154,33 @@ def create_app():
         return None
 
     # ------------------------------------------------------------------
+    # Purge RGPD quotidienne (anonymisation des participants inactifs).
+    # Déclenchement paresseux: à la première requête du jour, sans
+    # planificateur externe à configurer. Marqueur en mémoire pour que
+    # le coût des autres requêtes soit nul.
+    # ------------------------------------------------------------------
+    _purge_marqueur = {"jour": None}
+
+    @app.before_request
+    def _purge_rgpd_quotidienne():
+        from datetime import date as _date
+
+        endpoint = (request.endpoint or "")
+        if endpoint.startswith("static") or endpoint.startswith("setup.") or endpoint in {"media_file", "healthz"}:
+            return None
+
+        from app.services.purge_rgpd import purge_auto_active, purge_quotidienne_si_necessaire
+
+        if not purge_auto_active():
+            return None
+        aujourd_hui = _date.today()
+        if _purge_marqueur["jour"] == aujourd_hui:
+            return None
+        _purge_marqueur["jour"] = aujourd_hui
+        purge_quotidienne_si_necessaire()
+        return None
+
+    # ------------------------------------------------------------------
     # RBAC helpers
     # ------------------------------------------------------------------
     from app.rbac import bootstrap_rbac, can

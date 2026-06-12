@@ -1144,22 +1144,9 @@ def anonymize_participant(participant_id: int):
     if not _can_edit_participant(p):
         abort(403)
 
-    p.nom = "ANONYME"
-    p.prenom = f"P{p.id}"
-    p.adresse = None
-    p.ville = None
-    p.email = None
-    p.telephone = None
-    p.pays_origine = None
-    p.titre_sejour_type = None
-    p.diplome_obtenu = None
-    p.cir_obtenu = None
-    p.date_entree_dispositif = None
-    p.date_sortie_dispositif = None
-    p.droit_image_statut = "non_renseigne"
-    p.droit_image_date = None
-    p.droit_image_recueilli_par = None
-    sync_legacy_insertion_fields(p, actor_id=getattr(current_user, "id", None))
+    from app.services.purge_rgpd import anonymiser_participant
+
+    anonymiser_participant(p, actor_id=getattr(current_user, "id", None))
 
     strict = (request.form.get("strict") or "").strip() == "1"
     if strict and _is_global_role():
