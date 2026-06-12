@@ -415,3 +415,43 @@ def rbac_test():
         granted_perms=granted,
     )
 
+
+
+# ---------------------------------------------------------------------
+# Purge RGPD — anonymisation des participants inactifs
+# ---------------------------------------------------------------------
+
+@bp.route("/controle/purge-rgpd")
+@login_required
+@require_perm("controle:view")
+def purge_rgpd():
+    from app.services.purge_rgpd import (
+        annees_inactivite,
+        derniere_purge,
+        participants_inactifs,
+        purge_auto_active,
+    )
+
+    return render_template(
+        "controle_purge_rgpd.html",
+        en_attente=participants_inactifs(),
+        annees=annees_inactivite(),
+        derniere_purge=derniere_purge(),
+        purge_auto=purge_auto_active(),
+    )
+
+
+@bp.post("/controle/purge-rgpd/lancer")
+@login_required
+@require_perm("participants:anonymize")
+def purge_rgpd_lancer():
+    from app.services.purge_rgpd import purger_participants_inactifs
+
+    nombre = purger_participants_inactifs(
+        declenchement=f"manuel par {getattr(current_user, 'email', '?')}"
+    )
+    if nombre:
+        flash(f"{nombre} participant(s) inactif(s) anonymisé(s).", "success")
+    else:
+        flash("Aucun participant inactif à anonymiser.", "info")
+    return redirect(url_for("main.purge_rgpd"))

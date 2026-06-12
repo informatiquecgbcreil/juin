@@ -2135,3 +2135,17 @@ class JournalConnexion(db.Model):
     adresse_ip = db.Column(db.String(45), nullable=True)
     succes = db.Column(db.Boolean, nullable=False, default=False)
     cree_le = db.Column(db.DateTime, nullable=False, default=utcnow, index=True)
+
+
+# ---------- TÂCHES PLANIFIÉES INTERNES ----------
+
+class TachePlanifiee(db.Model):
+    """Mémorise la dernière exécution des tâches automatiques internes
+    (ex: purge RGPD quotidienne), pour ne les lancer qu'une fois par jour
+    sans dépendre d'un planificateur externe."""
+
+    __tablename__ = "tache_planifiee"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(80), unique=True, nullable=False)
+    derniere_execution = db.Column(db.DateTime, nullable=True)
