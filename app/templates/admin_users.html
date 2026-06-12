@@ -54,7 +54,7 @@
 
         <div class="form-grid-2">
           <div>
-            <label>Rôle {{ ux.tooltip("Le rôle définit les droits généraux du compte dans l'application.") }}</label>
+            <label>Rôle {{ ux.tooltip("Le rôle définit TOUT ce que le compte peut voir et faire. responsable_secteur : limité à son secteur. direction : accès global complet. admin_tech : gestion technique (comptes, réglages) sans les données métier.") }}</label>
             <select name="role" id="roleSelect" required>
               <option value="">— choisir —</option>
               {% for r in roles %}
