@@ -584,3 +584,61 @@ def inventaire():
 
     data = compute_stats_inventaire(year, scope)
     return render_template("bilans_inventaire.html", year=year, years=years, data=data, scope=scope)
+
+
+# ---------------------------------------------------------------------
+# Bilan SENACS (bilan structure annuel CAF)
+# ---------------------------------------------------------------------
+
+@bp.route("/bilans/senacs")
+@login_required
+@require_perm("bilans:view")
+def bilan_senacs():
+    from app.services.senacs import (
+        NON_RENSEIGNE,
+        TRANCHES_AGE,
+        annees_disponibles,
+        partenaires_recenses,
+        publics_annee,
+        tableau_actions,
+    )
+
+    annees = annees_disponibles()
+    try:
+        annee = int(request.args.get("annee") or annees[0])
+    except (TypeError, ValueError):
+        annee = annees[0]
+
+    return render_template(
+        "bilans/senacs.html",
+        annee=annee,
+        annees=annees,
+        publics=publics_annee(annee),
+        actions=tableau_actions(annee),
+        partenaires=partenaires_recenses(),
+        tranches=[t[0] for t in TRANCHES_AGE] + [NON_RENSEIGNE],
+    )
+
+
+@bp.route("/bilans/senacs/export.xlsx")
+@login_required
+@require_perm("bilans:view")
+def bilan_senacs_export():
+    from app.services.senacs import annees_disponibles, construire_export_senacs
+
+    annees = annees_disponibles()
+    try:
+        annee = int(request.args.get("annee") or annees[0])
+    except (TypeError, ValueError):
+        annee = annees[0]
+
+    wb = construire_export_senacs(annee)
+    sortie = BytesIO()
+    wb.save(sortie)
+    sortie.seek(0)
+    return send_file(
+        sortie,
+        as_attachment=True,
+        download_name=f"bilan-senacs-{annee}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )

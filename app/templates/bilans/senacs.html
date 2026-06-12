@@ -1,0 +1,104 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>Bilan SENACS — données {{ annee }}</h1>
+    <p class="muted">
+      Cette page pré-calcule les indicateurs du bilan structure SENACS à partir
+      des données de l'application. Les <strong>participants uniques sont
+      dédoublonnés entre secteurs</strong> : une personne inscrite au numérique,
+      au FLE et présente à un temps fort compte <strong>une seule fois</strong>
+      (c'est le piège n°1 de l'enquête).
+    </p>
+    <form method="get" class="inline-form">
+      <label>Année des données :</label>
+      <select class="in" name="annee" onchange="this.form.submit()">
+        {% for a in annees %}
+          <option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+      <a class="btn" href="{{ url_for('bilans.bilan_senacs_export', annee=annee) }}">📥 Exporter les tableaux de consolidation (Excel)</a>
+    </form>
+  </div>
+
+  <div class="grid two">
+    <div class="card">
+      <h2>Publics — tableau global</h2>
+      <table class="table">
+        <tr><th>Participants uniques (sans double comptage)</th><td><strong>{{ publics.participants_uniques }}</strong></td></tr>
+        <tr><th>Participations cumulées (présences)</th><td>{{ publics.participations }}</td></tr>
+      </table>
+      <h3>Répartition par âge (au 31/12/{{ annee }})</h3>
+      <table class="table">
+        {% for tranche in tranches %}
+          <tr><th>{{ tranche }}</th><td>{{ publics.ages.get(tranche, 0) }}</td></tr>
+        {% endfor %}
+      </table>
+      {% if publics.ages.get('Non renseigné', 0) > 0 %}
+        <p class="muted">⚠️ {{ publics.ages['Non renseigné'] }} fiche(s) sans date de naissance : complétez-les pour fiabiliser la répartition (la somme doit rester cohérente avec le total).</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Genre et quartiers</h2>
+      <h3>Genre</h3>
+      <table class="table">
+        {% for genre, nombre in publics.genres.items() %}
+          <tr><th>{{ genre }}</th><td>{{ nombre }}</td></tr>
+        {% endfor %}
+      </table>
+      <h3>Quartiers</h3>
+      <table class="table">
+        {% for quartier, nombre in publics.quartiers.items() %}
+          <tr><th>{{ quartier }}</th><td>{{ nombre }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Actions / séances ({{ actions|length }} ateliers avec activité en {{ annee }})</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Action / atelier</th><th>Secteur</th><th>Séances</th>
+          <th>Heures face public</th><th>Participants uniques</th><th>Participations</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in actions %}
+          <tr>
+            <td>{{ l.atelier }}</td>
+            <td>{{ l.secteur }}</td>
+            <td>{{ l.seances }}</td>
+            <td>{{ l.heures_face_public }}{% if l.heures_inconnues %} <span class="muted">(+{{ l.heures_inconnues }} séance(s) sans durée)</span>{% endif %}</td>
+            <td>{{ l.participants_uniques }}</td>
+            <td>{{ l.participations }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted">Rappel : 2 h d'atelier avec 10 personnes = 2 h d'animation (et non 20). Les heures s'appuient sur la durée des séances : renseignez les horaires pour fiabiliser ce chiffre.</p>
+  </div>
+
+  <div class="card">
+    <h2>Partenaires recensés ({{ partenaires|length }})</h2>
+    <p class="muted">L'export Excel liste vos partenaires : il restera à qualifier la nature (formalisé / non formalisé) et le rôle de chacun, comme demandé par l'onglet Territoire.</p>
+  </div>
+
+  <div class="card">
+    <h2>À renseigner à la main dans SENACS</h2>
+    <p class="muted">
+      Ces volets ne sont pas suivis dans l'application :
+      <strong>bénévolat</strong> (onglet Vitalité démocratique),
+      <strong>emplois / ETP</strong>, <strong>finances</strong>,
+      <strong>événementiel</strong> et <strong>publics des partenaires hébergés</strong>
+      (à estimer séparément, sans les mélanger aux publics réguliers),
+      <strong>hors les murs / aller-vers</strong> et <strong>liens à distance</strong>.
+      La saisie officielle se fait sur senacs.fr.
+    </p>
+  </div>
+</div>
+
+{% endblock %}

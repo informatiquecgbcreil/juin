@@ -151,6 +151,7 @@ def hub_bilans():
             "primary_label": "Ouvrir stats & bilans",
             "primary_url": url_for("main.stats_bilans"),
             "secondary": [
+                {"label": "Bilan SENACS", "url": url_for("bilans.bilan_senacs")},
                 {"label": "Bilan global", "url": url_for("main.bilan_global")},
                 {"label": "Export bilan XLSX", "url": url_for("main.bilan_global_export_xlsx")},
                 {"label": "Qualité transverse", "url": url_for("main.qualite_donnees_transverse")},
