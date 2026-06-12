@@ -119,6 +119,34 @@
       </div>
     </section>
 
+    <section class="section-card">
+      <h2 class="section-card__title">Droit à l'image (RGPD)</h2>
+      <p class="section-card__subtitle">Demandez à la personne si elle accepte d'apparaître sur des photos ou vidéos (bilans, communication). Sa réponse est enregistrée avec la date et votre nom : c'est la preuve du recueil.</p>
+      <div class="form-grid-2 stretch-input">
+        <div class="field-stack">
+          <label>Réponse de la personne</label>
+          {% set di = (item.droit_image_statut if item and item.droit_image_statut else 'non_renseigne') %}
+          <select class="in" name="droit_image_statut" {% if item and not is_editable %}disabled{% endif %}>
+            <option value="non_renseigne" {% if di == 'non_renseigne' %}selected{% endif %}>Non renseigné</option>
+            <option value="accepte" {% if di == 'accepte' %}selected{% endif %}>Accepte (photos/vidéos autorisées)</option>
+            <option value="refuse" {% if di == 'refuse' %}selected{% endif %}>Refuse (aucune photo/vidéo)</option>
+          </select>
+          {% if item and item.droit_image_date %}
+            <div class="field-help">Recueilli le {{ item.droit_image_date.strftime('%d/%m/%Y') }} par {{ item.droit_image_recueilli_par or '—' }}.</div>
+          {% else %}
+            <div class="field-help">La date et votre nom seront enregistrés automatiquement.</div>
+          {% endif %}
+        </div>
+        {% if item %}
+        <div class="field-stack">
+          <label>Droit d'accès (RGPD)</label>
+          <a class="btn" href="{{ url_for('participants.export_rgpd', participant_id=item.id) }}">Exporter toutes les données de la personne</a>
+          <div class="field-help">À remettre à la personne si elle demande une copie de ses données (obligation légale, délai d'un mois).</div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
     <details class="details-soft" {% if item %}open{% endif %}>
       <summary>Informations complémentaires</summary>
       <div class="spacer"></div>

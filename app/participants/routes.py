@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, date, timedelta
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from io import BytesIO
+
+from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, abort, send_file
 from flask_login import login_required, current_user
 from ..rbac import require_perm, can
 
@@ -34,6 +36,28 @@ from app.services.insertion import (
 
 
 bp = Blueprint("participants", __name__, url_prefix="/participants")
+
+DROIT_IMAGE_STATUTS = {"non_renseigne", "accepte", "refuse"}
+
+
+def _appliquer_droit_image(p: Participant) -> None:
+    """Enregistre le consentement « droit à l'image » saisi dans le formulaire.
+
+    Preuve dématérialisée : quand le statut change, on trace la date du
+    jour et l'agent connecté qui a recueilli la réponse.
+    """
+    statut = (request.form.get("droit_image_statut") or "").strip()
+    if statut not in DROIT_IMAGE_STATUTS:
+        return
+    if statut == (p.droit_image_statut or "non_renseigne"):
+        return
+    p.droit_image_statut = statut
+    if statut == "non_renseigne":
+        p.droit_image_date = None
+        p.droit_image_recueilli_par = None
+    else:
+        p.droit_image_date = date.today()
+        p.droit_image_recueilli_par = f"{current_user.nom} ({current_user.email})"
 
 
 def _current_secteur() -> str:
@@ -956,6 +980,7 @@ def new_participant():
             p.date_entree_dispositif = _parse_iso_date(request.form.get("date_entree_dispositif"))
             p.date_sortie_dispositif = _parse_iso_date(request.form.get("date_sortie_dispositif"))
 
+        _appliquer_droit_image(p)
         db.session.add(p)
         db.session.flush()
         sync_legacy_insertion_fields(p, actor_id=getattr(current_user, "id", None))
@@ -1030,6 +1055,7 @@ def edit_participant(participant_id: int):
         if _is_global_role():
             p.created_secteur = (request.form.get("created_secteur") or "").strip() or None
 
+        _appliquer_droit_image(p)
         sync_legacy_insertion_fields(p, actor_id=getattr(current_user, "id", None))
         db.session.commit()
         flash("Le participant a bien été mis à jour.", "ok")
@@ -1049,6 +1075,62 @@ def edit_participant(participant_id: int):
         titre_sejour_options=titre_sejour_options,
         diplome_options=diplome_options,
         secteurs_creation=get_secteur_labels(active_only=True),
+    )
+
+
+def _peut_exporter_rgpd(p: Participant) -> bool:
+    """Garde dédiée à l'export intégral des données (plus stricte que l'édition).
+
+    L'annuaire des participants est partagé entre secteurs, mais la copie
+    intégrale des données d'une personne est réservée aux agents de son
+    secteur (rattachement ou présence à une activité du secteur) et aux
+    comptes à portée globale.
+    """
+    if not can("participants:edit"):
+        return False
+    if can("scope:all_secteurs"):
+        return True
+    secteur = (getattr(current_user, "secteur_assigne", None) or "").strip()
+    if not secteur:
+        return False
+    if (p.created_secteur or "").strip() == secteur:
+        return True
+    from app.services.participant_privacy import participant_has_presence_in_secteur
+
+    return participant_has_presence_in_secteur(p.id, secteur)
+
+
+@bp.route("/<int:participant_id>/export-rgpd.xlsx")
+@login_required
+def export_rgpd(participant_id: int):
+    """Export « droit d'accès » (RGPD art. 15) : toutes les données de la personne.
+
+    Réservé aux agents habilités à gérer ce participant (cloisonnement
+    secteur). Chaque export laisse une trace dans le journal de
+    l'application : qui a exporté les données de qui, et quand.
+    """
+    p = db.get_or_404(Participant, participant_id)
+    if not _peut_exporter_rgpd(p):
+        abort(403)
+
+    from app.services.rgpd_export import construire_export_rgpd
+
+    wb = construire_export_rgpd(p)
+    sortie = BytesIO()
+    wb.save(sortie)
+    sortie.seek(0)
+
+    current_app.logger.warning(
+        "Export RGPD (droit d'accès) du participant #%s par %s",
+        p.id,
+        getattr(current_user, "email", "?"),
+    )
+    nom = "".join(c if c.isalnum() else "-" for c in f"{p.nom}-{p.prenom}".lower()).strip("-")
+    return send_file(
+        sortie,
+        as_attachment=True,
+        download_name=f"droit-acces-{nom or 'participant'}-{p.id}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 
@@ -1074,6 +1156,9 @@ def anonymize_participant(participant_id: int):
     p.cir_obtenu = None
     p.date_entree_dispositif = None
     p.date_sortie_dispositif = None
+    p.droit_image_statut = "non_renseigne"
+    p.droit_image_date = None
+    p.droit_image_recueilli_par = None
     sync_legacy_insertion_fields(p, actor_id=getattr(current_user, "id", None))
 
     strict = (request.form.get("strict") or "").strip() == "1"
