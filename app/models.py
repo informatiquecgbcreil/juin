@@ -2107,3 +2107,24 @@ class SessionAssessmentSkill(db.Model):
         backref=db.backref("results", lazy=True, cascade="all, delete-orphan"),
     )
     skill = db.relationship("Skill")
+
+
+# ---------- JOURNAL DES CONNEXIONS (sécurité + audit) ----------
+
+class JournalConnexion(db.Model):
+    """Trace chaque tentative de connexion (réussie ou non).
+
+    Sert à la fois :
+    - au verrouillage temporaire après échecs répétés (anti force brute),
+    - à l'audit « qui s'est connecté quand » (recommandation CNIL/ANSSI).
+    Les entrées anciennes sont purgées automatiquement (voir
+    app.services.connexion_securite).
+    """
+
+    __tablename__ = "journal_connexion"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(180), nullable=False, index=True)
+    adresse_ip = db.Column(db.String(45), nullable=True)
+    succes = db.Column(db.Boolean, nullable=False, default=False)
+    cree_le = db.Column(db.DateTime, nullable=False, default=utcnow, index=True)
