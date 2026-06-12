@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_ux_helpers.html" as ux %}
 
 {% block body %}
 <div class="monster-shell budget-pilotage-shell wide-shell finance-shell finance-shell--single">
@@ -39,10 +40,10 @@
 
     <div style="padding: 0 16px 16px 16px;">
       <div class="finance-kpis">
-        <div class="finance-kpi"><div class="finance-kpi__label">Demandé</div><div class="finance-kpi__value">{{ (sub.montant_demande or 0)|float|round(2) }}€</div></div>
-        <div class="finance-kpi"><div class="finance-kpi__label">Attribué</div><div class="finance-kpi__value">{{ (sub.montant_attribue or 0)|float|round(2) }}€</div></div>
-        <div class="finance-kpi"><div class="finance-kpi__label">Reçu</div><div class="finance-kpi__value">{{ (sub.montant_recu or 0)|float|round(2) }}€</div></div>
-        <div class="finance-kpi"><div class="finance-kpi__label">Base lignes</div><div class="finance-kpi__value">{{ (total_base or 0)|float|round(2) }}€</div></div>
+        <div class="finance-kpi"><div class="finance-kpi__label">Demandé {{ ux.tooltip("Le montant sollicité auprès du financeur dans votre dossier de demande.") }}</div><div class="finance-kpi__value">{{ (sub.montant_demande or 0)|float|round(2) }}€</div></div>
+        <div class="finance-kpi"><div class="finance-kpi__label">Attribué {{ ux.tooltip("Le montant accordé par le financeur (notification ou convention). Peut être inférieur au demandé.") }}</div><div class="finance-kpi__value">{{ (sub.montant_attribue or 0)|float|round(2) }}€</div></div>
+        <div class="finance-kpi"><div class="finance-kpi__label">Reçu {{ ux.tooltip("Le montant réellement arrivé sur le compte bancaire à ce jour (les versements arrivent souvent en plusieurs fois).") }}</div><div class="finance-kpi__value">{{ (sub.montant_recu or 0)|float|round(2) }}€</div></div>
+        <div class="finance-kpi"><div class="finance-kpi__label">Base lignes {{ ux.tooltip("La somme des lignes de budget créées ci-dessous. Elle doit normalement correspondre au montant attribué.") }}</div><div class="finance-kpi__value">{{ (total_base or 0)|float|round(2) }}€</div></div>
       </div>
     </div>
 

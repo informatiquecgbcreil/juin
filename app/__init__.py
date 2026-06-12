@@ -118,8 +118,10 @@ def create_app():
     from app.questionnaires import bp as questionnaires_bp
     from app.insertion.routes import bp as insertion_bp
     from app.setup import bp as setup_bp
+    from app.aide import bp as aide_bp
 
     app.register_blueprint(setup_bp)
+    app.register_blueprint(aide_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(budget_bp)
@@ -188,6 +190,14 @@ def create_app():
     @app.context_processor
     def _inject_rbac_helpers():
         return {"can": can}
+
+    @app.context_processor
+    def _inject_aide_contextuelle():
+        # Aide « Comprendre cette page » : pilotée par le registre central
+        # app/aide/contenu.py, affichée automatiquement par layout.html.
+        from app.aide.contenu import AIDE_PAGES
+
+        return {"AIDE_PAGE": AIDE_PAGES.get(request.endpoint or "")}
 
     @app.context_processor
     def inject_app_identity():

@@ -464,6 +464,16 @@
       opacity:.75;
     }
 
+
+    /* Aide contextuelle « Comprendre cette page » */
+    .aide-page{border:1px solid var(--border-soft);border-radius:14px;margin:0 0 14px;background:color-mix(in srgb, var(--surface-soft) 88%, transparent)}
+    .aide-page > summary{cursor:pointer;list-style:none;padding:10px 14px;font-weight:700;user-select:none}
+    .aide-page > summary::-webkit-details-marker{display:none}
+    .aide-page[open] > summary{border-bottom:1px solid var(--border-soft)}
+    .aide-page__corps{padding:10px 16px 14px}
+    .aide-page__corps p{margin:6px 0;line-height:1.5;max-width:80ch}
+    .aide-page__corps ol{margin:6px 0 6px 20px;line-height:1.6}
+    .aide-page__astuce{opacity:.85}
 </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ux-final.css', v='20260610-ui-kit-v3') }}">
   {% block head_extra %}{% endblock %}
@@ -734,6 +744,7 @@
               <button class="pill {% if not ui_simplified %}active{% endif %}" type="submit" name="mode" value="expert">Expert</button>
             </form>
             <button class="pill theme-toggle" id="themeToggle" type="button" title="Changer de thème" aria-label="Changer de thème">🌙</button>
+            <a class="pill" href="{{ url_for('aide.notice') }}" title="Ouvrir la notice d'utilisation" aria-label="Aide et notice d'utilisation">❓ Aide</a>
 
             <div class="tag">
               {{ current_user.nom }}
@@ -855,6 +866,23 @@
       </section>
     {% endif %}
 
+    {% if AIDE_PAGE %}
+      <details class="aide-page no-print">
+        <summary>❓ Comprendre cette page — {{ AIDE_PAGE.titre }}</summary>
+        <div class="aide-page__corps">
+          <p class="aide-page__resume">{{ AIDE_PAGE.resume }}</p>
+          {% if AIDE_PAGE.etapes %}
+            <ol>
+              {% for etape in AIDE_PAGE.etapes %}<li>{{ etape }}</li>{% endfor %}
+            </ol>
+          {% endif %}
+          {% if AIDE_PAGE.astuce %}
+            <p class="aide-page__astuce">💡 {{ AIDE_PAGE.astuce }}</p>
+          {% endif %}
+          <p><a href="{{ url_for('aide.notice') }}">Ouvrir la notice complète →</a></p>
+        </div>
+      </details>
+    {% endif %}
     {% block body %}{% endblock %}
   </main>
 
