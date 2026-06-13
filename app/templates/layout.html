@@ -1418,5 +1418,62 @@
 })();
 </script>
 
+<script>
+  /* ------------------------------------------------------------------
+     Maintien de la position de défilement après une action.
+     Beaucoup de formulaires suivent le motif POST -> redirection -> GET :
+     la page se recharge et revient tout en haut, obligeant à re-défiler.
+     Ici, avant chaque envoi de formulaire on mémorise la position ; après
+     le rechargement de la MÊME page, on la restaure. Global, sans toucher
+     aux routes. Échappatoire : ajouter data-no-scroll-restore sur un form.
+     ------------------------------------------------------------------ */
+  (function(){
+    if(!('sessionStorage' in window)) return;
+    var CLE = 'scrollpos:' + location.pathname;
+    var FRAICHEUR_MS = 10000;
+
+    function memoriser(){
+      try {
+        sessionStorage.setItem(CLE, JSON.stringify({
+          y: window.scrollY || window.pageYOffset || 0,
+          t: Date.now()
+        }));
+      } catch (e) { /* quota / mode privé : on ignore */ }
+    }
+
+    // Capture à l'envoi de n'importe quel formulaire (sauf opt-out / nouvel onglet).
+    document.addEventListener('submit', function(ev){
+      var f = ev.target;
+      if(!f || f.tagName !== 'FORM') return;
+      if(f.hasAttribute('data-no-scroll-restore')) return;
+      if((f.getAttribute('target') || '') === '_blank') return;
+      memoriser();
+    }, true);
+
+    // Restauration après le rechargement de la même page.
+    function restaurer(){
+      var brut = null;
+      try { brut = sessionStorage.getItem(CLE); } catch (e) { return; }
+      if(!brut) return;
+      try { sessionStorage.removeItem(CLE); } catch (e) {}
+      var data;
+      try { data = JSON.parse(brut); } catch (e) { return; }
+      if(!data || typeof data.y !== 'number') return;
+      if(Date.now() - (data.t || 0) > FRAICHEUR_MS) return; // trop ancien
+      if(data.y <= 0) return;
+      // Après le rendu : on se replace là où on était (sans animation).
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){ window.scrollTo(0, data.y); });
+      });
+    }
+
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', restaurer);
+    } else {
+      restaurer();
+    }
+  })();
+</script>
+
 </body>
 </html>
