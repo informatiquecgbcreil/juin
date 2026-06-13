@@ -20,6 +20,9 @@
         <summary class="btn">Outils avancés</summary>
         <div class="nav-more-panel" style="right:0; left:auto; min-width:260px;">
           <a class="pill" href="{{ url_for('participants.duplicates') }}">Vérifier les doublons</a>
+          {% if can('participants:edit') and can('scope:all_secteurs') %}
+          <a class="pill" href="{{ url_for('participants.import_annuaire') }}">Importer depuis un tableur</a>
+          {% endif %}
           {% if can('participants:delete') or can('ateliers:sync') %}
           <a class="pill" href="#nettoyage-imports">Nettoyage des imports</a>
           {% endif %}
