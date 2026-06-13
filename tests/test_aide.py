@@ -28,6 +28,40 @@ def test_contenu_aide_complet(app):
             assert titre and paragraphes, f"section vide dans {chapitre['titre']}"
 
 
+def test_couverture_phase2(app):
+    """La phase 2 couvre largement les modules secondaires et ajoute des chapitres."""
+    from app.aide.contenu import AIDE_PAGES, NOTICE
+
+    assert len(AIDE_PAGES) >= 60, "le registre doit couvrir l'essentiel des pages métier"
+
+    # Quelques modules secondaires clés doivent être documentés
+    for endpoint in [
+        "pedagogie.index", "partenaires.orientations", "quartiers.index",
+        "questionnaires.index", "insertion.index", "previsionnel.index",
+        "bilans.bilan_secteur", "admin.droits", "admin.instance_settings",
+    ]:
+        assert endpoint in AIDE_PAGES, f"page secondaire non documentée : {endpoint}"
+
+    ids = {c["id"] for c in NOTICE}
+    assert {"pedagogie", "partenaires", "configuration"} <= ids
+
+
+def test_pas_de_doublon_dans_le_registre():
+    """Le fichier source ne doit pas redéfinir deux fois la même clé."""
+    import ast
+
+    from app.aide import contenu
+
+    arbre = ast.parse(open(contenu.__file__, encoding="utf-8").read())
+    for noeud in ast.walk(arbre):
+        if isinstance(noeud, ast.Assign) and any(
+            getattr(t, "id", None) == "AIDE_PAGES" for t in noeud.targets
+        ):
+            cles = [k.value for k in noeud.value.keys if isinstance(k, ast.Constant)]
+            doublons = {c for c in cles if cles.count(c) > 1}
+            assert not doublons, f"clés en double dans AIDE_PAGES : {doublons}"
+
+
 def test_notice_accessible_et_complete(admin_client):
     r = admin_client.get("/aide/")
     assert r.status_code == 200
@@ -77,3 +111,6 @@ def test_infobulles_sur_pages_cles(app, admin_client):
 
     page = admin_client.get("/participants/new").get_data(as_text=True)
     assert "statistiques CAF/SENACS" in page, "info-bulle du type de public attendue"
+
+    page = admin_client.get("/quartiers/").get_data(as_text=True)
+    assert "Quartier Prioritaire" in page, "info-bulle QPV attendue"
