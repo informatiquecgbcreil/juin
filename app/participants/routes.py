@@ -1483,3 +1483,142 @@ def merge_participants():
         db.session.rollback()
         flash(f"La fusion a échoué : {e}", "danger")
         return redirect(url_for("participants.duplicates"))
+
+
+# ---------------------------------------------------------------------
+# Import d'un annuaire de participants depuis un tableur (Excel)
+# ---------------------------------------------------------------------
+import os
+import uuid
+
+from app.services.import_participants import (
+    analyser as _import_analyser,
+    charger_classeur as _import_charger,
+    dedup_ambigus as _import_dedup_ambigus,
+    normaliser as _import_normaliser,
+)
+
+
+def _import_cles_base():
+    """Clés des participants déjà en base : fortes (nom+prénom+année) et faibles (nom+prénom)."""
+    fortes, faibles = set(), set()
+    for nom, prenom, dn in db.session.query(
+        Participant.nom, Participant.prenom, Participant.date_naissance
+    ):
+        faible = (_import_normaliser(nom), _import_normaliser(prenom))
+        faibles.add(faible)
+        if dn:
+            fortes.add((_import_normaliser(nom), _import_normaliser(prenom), dn.year))
+    return fortes, faibles
+
+
+def _import_dossier():
+    chemin = os.path.join(current_app.instance_path, "imports")
+    os.makedirs(chemin, exist_ok=True)
+    return chemin
+
+
+def _import_acces_autorise() -> bool:
+    # L'import en masse est une opération globale : réservé aux comptes à portée globale.
+    return bool(can("participants:edit")) and bool(can("scope:all_secteurs"))
+
+
+@bp.route("/import", methods=["GET", "POST"])
+@login_required
+def import_annuaire():
+    if not _import_acces_autorise():
+        abort(403)
+
+    if request.method == "POST":
+        fichier = request.files.get("fichier")
+        if not fichier or not fichier.filename:
+            flash("Veuillez choisir un fichier .xlsx.", "danger")
+            return render_template("participants/import.html", rapport=None)
+        if not fichier.filename.lower().endswith(".xlsx"):
+            flash("Format non reconnu : fournissez un fichier Excel .xlsx.", "danger")
+            return render_template("participants/import.html", rapport=None)
+
+        token = uuid.uuid4().hex
+        chemin = os.path.join(_import_dossier(), f"{token}.xlsx")
+        fichier.save(chemin)
+
+        try:
+            feuilles = _import_charger(chemin)
+        except Exception:
+            current_app.logger.exception("Import participants : lecture du classeur impossible")
+            try:
+                os.remove(chemin)
+            except OSError:
+                pass
+            flash("Impossible de lire ce fichier Excel. Vérifiez qu'il n'est pas corrompu.", "danger")
+            return render_template("participants/import.html", rapport=None)
+
+        fortes, faibles = _import_cles_base()
+        rapport = _import_analyser(feuilles, cles_existantes=fortes, cles_faibles_existantes=faibles)
+        return render_template(
+            "participants/import.html",
+            rapport=rapport,
+            token=token,
+            apercu_nouveaux=rapport.nouveaux[:15],
+            apercu_ambigus=rapport.ambigus[:15],
+        )
+
+    return render_template("participants/import.html", rapport=None)
+
+
+@bp.route("/import/confirmer", methods=["POST"])
+@login_required
+def import_annuaire_confirmer():
+    if not _import_acces_autorise():
+        abort(403)
+
+    token = (request.form.get("token") or "").strip()
+    inclure_ambigus = request.form.get("inclure_ambigus") in {"1", "true", "on", "yes"}
+
+    # Sécurité : un token est un hex de 32 caractères, rien d'autre (anti-traversée de chemin).
+    if not token or len(token) != 32 or not all(c in "0123456789abcdef" for c in token):
+        flash("Session d'import expirée. Recommencez l'analyse.", "danger")
+        return redirect(url_for("participants.import_annuaire"))
+
+    chemin = os.path.join(_import_dossier(), f"{token}.xlsx")
+    if not os.path.exists(chemin):
+        flash("Fichier d'import introuvable (peut-être déjà traité). Recommencez l'analyse.", "danger")
+        return redirect(url_for("participants.import_annuaire"))
+
+    feuilles = _import_charger(chemin)
+    fortes, faibles = _import_cles_base()
+    rapport = _import_analyser(feuilles, cles_existantes=fortes, cles_faibles_existantes=faibles)
+
+    crees = 0
+    faibles_courantes = set(faibles)
+    for p in rapport.nouveaux:
+        db.session.add(Participant(
+            nom=p.nom, prenom=p.prenom, genre=p.sexe,
+            date_naissance=date(p.annee, 1, 1),  # jour/mois inconnus : 1er janvier de l'année connue
+            type_public="H",
+        ))
+        faibles_courantes.add(p.cle_faible)
+        crees += 1
+
+    crees_ambigus = 0
+    if inclure_ambigus:
+        for p in _import_dedup_ambigus(rapport.ambigus, faibles_courantes):
+            db.session.add(Participant(nom=p.nom, prenom=p.prenom, genre=p.sexe, type_public="H"))
+            faibles_courantes.add(p.cle_faible)
+            crees_ambigus += 1
+
+    db.session.commit()
+    try:
+        os.remove(chemin)
+    except OSError:
+        pass
+
+    current_app.logger.warning(
+        "Import participants par %s : %s fiche(s) créée(s) (dont %s ambiguës).",
+        getattr(current_user, "email", "?"), crees + crees_ambigus, crees_ambigus,
+    )
+    if crees + crees_ambigus:
+        flash(f"{crees + crees_ambigus} fiche(s) créée(s) ({crees} fiables, {crees_ambigus} sans date de naissance).", "success")
+    else:
+        flash("Aucune nouvelle fiche à créer (tout existait déjà).", "info")
+    return redirect(url_for("participants.list_participants"))

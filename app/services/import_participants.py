@@ -206,3 +206,49 @@ def analyser(feuilles: dict[str, list], cles_existantes: set | None = None,
                 vues_fortes.add(cle)
                 rapport.nouveaux.append(p)
     return rapport
+
+
+def charger_classeur(chemin: str, max_col: int = 12) -> dict[str, list]:
+    """Charge un .xlsx en {nom_feuille: lignes}.
+
+    Ne lit que les premières colonnes (identité) : les colonnes de dates de
+    présence ne servent pas à l'import de l'annuaire et leur nombre peut
+    être énorme (centaines de colonnes). On borne donc à `max_col` pour
+    rester rapide même sur des feuilles à dizaines de milliers de lignes.
+    """
+    import openpyxl
+
+    wb = openpyxl.load_workbook(chemin, read_only=True, data_only=True)
+    feuilles: dict[str, list] = {}
+    try:
+        for nom in wb.sheetnames:
+            ws = wb[nom]
+            lignes = [
+                list(row) if row else []
+                for row in ws.iter_rows(max_col=max_col, values_only=True)
+            ]
+            feuilles[nom] = lignes
+    finally:
+        wb.close()
+    return feuilles
+
+
+def dedup_ambigus(ambigus: list[PersonneImportee],
+                  cles_faibles_existantes: set | None = None) -> list[PersonneImportee]:
+    """Réduit les cas ambigus (sans année) à une fiche par nom+prénom distinct,
+    en écartant ceux dont le nom+prénom existe déjà en base.
+
+    ATTENTION : faute d'année, deux homonymes réels seraient ici fusionnés.
+    À n'utiliser que si l'utilisateur a explicitement choisi d'inclure les
+    ambigus, en connaissance de cause.
+    """
+    cles_faibles_existantes = set(cles_faibles_existantes or set())
+    vus: set = set()
+    retenus: list[PersonneImportee] = []
+    for p in ambigus:
+        cle = p.cle_faible
+        if cle in cles_faibles_existantes or cle in vus:
+            continue
+        vus.add(cle)
+        retenus.append(p)
+    return retenus
