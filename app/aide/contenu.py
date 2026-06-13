@@ -365,6 +365,295 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "L'anonymisation conserve les chiffres (les présences passées comptent toujours dans les statistiques) mais efface définitivement l'identité.",
     },
+
+    # ==================================================================
+    # PHASE 2 — modules secondaires
+    # ==================================================================
+
+    # ---------------------- Projets (compléments) ----------------------
+    "projets.projets_new": {
+        "titre": "Créer un projet",
+        "resume": "Donnez un nom et un secteur à votre projet ; vous compléterez ensuite ses actions, son budget et ses indicateurs.",
+        "etapes": [
+            "Renseignez le nom et le secteur porteur.",
+            "Validez : vous arrivez sur le dossier du projet, à enrichir au fil de l'eau.",
+        ],
+    },
+    "projets.finance_simple": {
+        "titre": "Finance — vue simple",
+        "resume": "Une vue allégée des finances de votre secteur, à l'essentiel : ce qui rentre, ce qui sort, ce qui reste.",
+        "etapes": ["Choisissez l'année ; passez à la vue détaillée si vous avez besoin du détail ligne par ligne."],
+    },
+
+    # ---------------------- Pédagogie -----------------------------------
+    "pedagogie.index": {
+        "titre": "Suivi des apprentissages",
+        "resume": "Le module pédagogique part d'une séance réelle : qu'est-ce qu'on travaille aujourd'hui, qui est là, et est-ce que les personnes progressent ?",
+        "etapes": [
+            "« Observer une séance » pour pointer les savoir-faire travaillés et la progression de chacun.",
+            "Le passeport de compétences de chaque participant garde la trace de son parcours.",
+        ],
+        "astuce": "Inutile de tout remplir : choisissez 2 ou 3 savoir-faire par séance, c'est suffisant pour suivre une progression.",
+    },
+    "pedagogie.parcours_pedagogique": {
+        "titre": "Observer une séance",
+        "resume": "Pour une séance donnée, choisissez les savoir-faire travaillés puis notez où en est chaque participant.",
+        "etapes": [
+            "Sélectionnez la séance.",
+            "Cochez les compétences travaillées ce jour-là.",
+            "Pour chaque présent, indiquez le résultat (acquis, en cours, à revoir).",
+        ],
+    },
+    "pedagogie.modules_pedagogiques": {
+        "titre": "Les modules pédagogiques",
+        "resume": "Un module regroupe des compétences qui vont ensemble (ex : « bases du numérique », « FLE niveau A1 »), pour les réutiliser facilement.",
+        "etapes": ["Créez un module, puis rattachez-y les compétences des référentiels."],
+    },
+    "pedagogie.objectifs": {
+        "titre": "Compétences et objectifs",
+        "resume": "Définissez et suivez les objectifs de compétences, en lien avec les référentiels.",
+        "etapes": ["Parcourez les compétences ; suivez leur progression à partir des observations de séances."],
+    },
+    "pedagogie.suivi_pedagogique": {
+        "titre": "Le suivi pédagogique",
+        "resume": "La vue d'ensemble de la progression des participants sur les compétences travaillées.",
+        "etapes": ["Repérez qui progresse et qui a besoin d'un appui particulier."],
+    },
+    "pedagogie.pilotage_objectifs": {
+        "titre": "Pilotage des objectifs (RA / PAG)",
+        "resume": "La synthèse des objectifs pour vos documents officiels : Rapport d'Activité et Projet d'Animation Globale.",
+        "etapes": ["Consultez les indicateurs agrégés ; exportez pour vos bilans."],
+    },
+    "pedagogie.plan_projet": {
+        "titre": "Le plan de projet pédagogique",
+        "resume": "Structurez les objectifs pédagogiques d'un projet et reliez-les aux compétences travaillées.",
+        "etapes": ["Décrivez les objectifs ; rattachez-les aux modules et compétences."],
+    },
+    "pedagogie.referentiels_list": {
+        "titre": "Les référentiels de compétences",
+        "resume": "Les bibliothèques de compétences (numérique, FLE…) dans lesquelles vous piochez pour vos séances.",
+        "etapes": [
+            "Ouvrez un référentiel pour voir ses compétences.",
+            "Vous pouvez importer des compétences en masse via un fichier CSV.",
+        ],
+    },
+    "pedagogie.kiosk_pedagogique": {
+        "titre": "Observation en mode kiosque",
+        "resume": "Une saisie simplifiée des observations de séance, pensée pour une tablette en atelier.",
+        "etapes": ["Sélectionnez la séance et notez les progrès au fil de l'atelier."],
+    },
+
+    # ---------------------- Partenaires & orientations ------------------
+    "partenaires.index": {
+        "titre": "L'annuaire des partenaires",
+        "resume": "Tous vos partenaires (institutions, associations, écoles, bailleurs…) avec leurs domaines d'intervention.",
+        "etapes": [
+            "Cliquez sur un partenaire pour voir ou modifier sa fiche.",
+            "« Nouveau partenaire » pour en ajouter un.",
+            "Les domaines d'orientation servent à proposer le bon partenaire lors d'une orientation.",
+        ],
+    },
+    "partenaires.create": {
+        "titre": "Ajouter un partenaire",
+        "resume": "Enregistrez un nouveau partenaire et ses domaines d'intervention.",
+        "etapes": [
+            "Renseignez le nom et les coordonnées.",
+            "Cochez les domaines pour lesquels ce partenaire peut accueillir vos orientations.",
+        ],
+    },
+    "partenaires.orientations": {
+        "titre": "Les orientations (accès aux droits)",
+        "resume": "Le suivi des personnes que vous orientez vers un partenaire ou un dispositif (logement, santé, emploi, administratif…).",
+        "etapes": [
+            "Filtrez par année, domaine ou statut.",
+            "Mettez à jour le statut d'une orientation au fil de son avancement.",
+            "Le tableau de bord en haut résume l'activité d'accès aux droits — utile pour le bilan SENACS.",
+        ],
+        "astuce": "L'accès aux droits est un indicateur valorisé par la CAF : tracez vos orientations, même informelles.",
+    },
+
+    # ---------------------- Quartiers -----------------------------------
+    "quartiers.index": {
+        "titre": "Les quartiers",
+        "resume": "La liste des quartiers utilisés pour rattacher les participants et produire les statistiques de territoire.",
+        "etapes": [
+            "Ajoutez vos quartiers d'intervention.",
+            "Marquez ceux classés en politique de la ville (QPV) : c'est un indicateur clé pour la CAF et la Ville.",
+        ],
+        "astuce": "Un quartier bien renseigné (avec son statut QPV) alimente automatiquement le bilan SENACS.",
+    },
+    "quartiers.stats": {
+        "titre": "Statistiques par quartier",
+        "resume": "La répartition de vos publics par quartier, avec le focus politique de la ville (QPV).",
+        "etapes": ["Consultez les chiffres ; ils dépendent du quartier renseigné sur les fiches participants."],
+    },
+
+    # ---------------------- Questionnaires ------------------------------
+    "questionnaires.index": {
+        "titre": "Les questionnaires",
+        "resume": "Créez des questionnaires (satisfaction, besoins, évaluation) à faire remplir lors des séances.",
+        "etapes": [
+            "Cliquez sur un questionnaire pour le modifier ou voir ses réponses.",
+            "« Nouveau questionnaire » pour en créer un.",
+        ],
+    },
+    "questionnaires.create": {
+        "titre": "Créer un questionnaire",
+        "resume": "Donnez un titre à votre questionnaire ; vous ajouterez ensuite ses questions.",
+        "etapes": ["Renseignez le titre et le secteur, puis ajoutez les questions une à une."],
+    },
+
+    # ---------------------- Insertion -----------------------------------
+    "insertion.index": {
+        "titre": "Le module Insertion",
+        "resume": "Le suivi du parcours d'insertion socio-professionnelle : titres de séjour, parcours, positionnements, certifications. Ces données sont sensibles et réservées aux agents habilités.",
+        "etapes": [
+            "Recherchez une personne pour ouvrir son dossier d'insertion.",
+            "Renseignez son parcours au fil des étapes.",
+        ],
+        "astuce": "Ces informations sont protégées : seuls les comptes autorisés y accèdent. Ne les renseignez que si elles sont utiles à l'accompagnement.",
+    },
+    "insertion.referentiels_overview": {
+        "titre": "Les référentiels Insertion",
+        "resume": "Les listes de choix du module insertion (titres de séjour, niveaux, dispositifs, prescripteurs…), à tenir à jour.",
+        "etapes": ["Ouvrez un référentiel pour ajouter, modifier ou retirer ses valeurs."],
+    },
+
+    # ---------------------- Budgets prévisionnels -----------------------
+    "previsionnel.index": {
+        "titre": "Les budgets prévisionnels",
+        "resume": "Préparez les budgets prévisionnels par secteur et par année, avant de solliciter vos financeurs.",
+        "etapes": [
+            "Créez un budget : secteur, année, et postes de dépenses/recettes (à partir du référentiel).",
+            "Comparez ensuite le prévu au réalisé pour piloter en cours d'année.",
+        ],
+        "astuce": "Un budget prévisionnel sert de base à vos demandes de subvention : il se transforme en lignes réelles une fois le financement obtenu.",
+    },
+    "previsionnel.referentiel": {
+        "titre": "Le référentiel budgétaire",
+        "resume": "Les comptes, catégories et modèles de budget réutilisables pour construire vos prévisionnels rapidement.",
+        "etapes": ["Maintenez vos comptes et catégories ; créez des modèles pour les budgets récurrents."],
+    },
+
+    # ---------------------- Factures & inventaire -----------------------
+    "inventaire.factures_list": {
+        "titre": "Les factures d'achat",
+        "resume": "Enregistrez vos factures d'achat ; elles alimentent l'inventaire et le suivi des dépenses.",
+        "etapes": [
+            "« Nouvelle facture » pour en saisir une.",
+            "Rattachez les articles achetés pour suivre votre matériel.",
+        ],
+    },
+    "inventaire.facture_new": {
+        "titre": "Saisir une facture d'achat",
+        "resume": "Enregistrez une facture (fournisseur, montant, date) et le matériel acquis.",
+        "etapes": ["Renseignez l'en-tête de la facture, puis ajoutez les lignes d'articles."],
+    },
+    "inventaire_materiel.list_items": {
+        "titre": "L'inventaire du matériel",
+        "resume": "Le parc de matériel de la structure : équipements, état, secteur de rattachement.",
+        "etapes": [
+            "Filtrez par secteur ou par état.",
+            "« Ajouter » pour enregistrer un nouvel équipement.",
+        ],
+    },
+    "inventaire_materiel.new_item": {
+        "titre": "Ajouter du matériel",
+        "resume": "Enregistrez un équipement dans l'inventaire.",
+        "etapes": ["Renseignez le nom, l'état, le secteur et les informations utiles (valeur, date d'achat)."],
+    },
+
+    # ---------------------- Bilans (détail) -----------------------------
+    "bilans.bilan_secteur": {
+        "titre": "Le bilan par secteur",
+        "resume": "La synthèse de l'activité et des finances d'un secteur sur une année.",
+        "etapes": ["Choisissez l'année et le secteur ; exportez pour vos comptes-rendus."],
+    },
+    "bilans.bilan_subvention": {
+        "titre": "Le bilan par subvention",
+        "resume": "Le bilan détaillé d'un financement, prêt à justifier auprès du financeur.",
+        "etapes": ["Sélectionnez la subvention et l'année ; vérifiez la cohérence avant export."],
+    },
+    "bilans.bilans_lourds": {
+        "titre": "Les bilans narratifs",
+        "resume": "Les bilans « lourds » : le récit de l'année par secteur (faits marquants, photos, frise), au-delà des chiffres.",
+        "etapes": [
+            "Rédigez le récit de l'année ; ajoutez photos et temps forts.",
+            "Exportez en Word pour vos rapports d'activité.",
+        ],
+        "astuce": "Alimentez-les au fil de l'eau depuis le journal de bord des projets : vous gagnerez un temps précieux en fin d'année.",
+    },
+    "bilans.inventaire": {
+        "titre": "Le bilan d'inventaire",
+        "resume": "La synthèse du matériel et des achats sur l'année.",
+        "etapes": ["Choisissez l'année pour voir l'état du parc et les acquisitions."],
+    },
+    "bilans.qualite": {
+        "titre": "La qualité des données (bilans)",
+        "resume": "Le contrôle de cohérence des données avant de produire vos bilans officiels.",
+        "etapes": ["Corrigez les anomalies signalées pour fiabiliser vos chiffres."],
+    },
+
+    # ---------------------- Stats-impact (détail) -----------------------
+    "statsimpact.stats_pedagogie": {
+        "titre": "Stats-impact : pédagogie",
+        "resume": "Les statistiques de progression pédagogique : compétences travaillées, acquis, par public.",
+        "etapes": ["Réglez les filtres ; analysez les progressions."],
+    },
+    "statsimpact.qualite_donnees": {
+        "titre": "Stats-impact : qualité des données",
+        "resume": "Le détecteur d'anomalies propre au module stats-impact (séances, présences, durées).",
+        "etapes": ["Corrigez les points signalés pour des statistiques fiables."],
+    },
+
+    # ---------------------- Administration (détail) ---------------------
+    "admin.droits": {
+        "titre": "Rôles et permissions (RBAC)",
+        "resume": "L'écran avancé des droits : quels rôles existent, quelles permissions chacun donne, et qui possède quel rôle.",
+        "etapes": [
+            "Attribuez un ou plusieurs rôles à un utilisateur.",
+            "Modifiez finement les permissions d'un rôle si besoin.",
+        ],
+        "astuce": "Pour la gestion courante, l'écran « Utilisateurs » suffit. Ne touchez aux permissions des rôles que si vous savez ce que vous faites.",
+    },
+    "admin.secteurs": {
+        "titre": "Les secteurs",
+        "resume": "La liste des secteurs/pôles de la structure (Famille, Numérique, Santé…) utilisés partout dans l'application.",
+        "etapes": ["Activez, renommez ou ajoutez vos secteurs selon votre organisation."],
+        "astuce": "Modifier un secteur impacte toute l'application : faites-le avec précaution et de préférence en début d'année.",
+    },
+    "admin.instance_settings": {
+        "titre": "Identité de la structure",
+        "resume": "Le nom, les logos, l'adresse publique et la messagerie (SMTP) de votre structure.",
+        "etapes": [
+            "Renseignez le nom et les logos : ils apparaissent dans l'application et sur les documents.",
+            "Configurez la messagerie (SMTP) pour activer l'envoi des emails (réinitialisation de mot de passe).",
+        ],
+    },
+    "admin.referentiels": {
+        "titre": "Référentiels de compétences",
+        "resume": "Les bibliothèques de compétences (frameworks) utilisées par le module pédagogique.",
+        "etapes": ["Consultez les référentiels et le nombre de compétences ; importez-en de nouveaux si besoin."],
+    },
+    "admin.import_excel": {
+        "titre": "Import Excel des présences",
+        "resume": "Importez en masse des présences depuis un fichier Excel, utile pour reprendre un historique existant.",
+        "etapes": [
+            "Choisissez le secteur et le fichier.",
+            "Lancez d'abord un test (« simulation ») pour vérifier avant d'importer pour de bon.",
+        ],
+        "astuce": "Faites toujours une simulation d'abord : elle montre ce qui sera importé sans rien modifier.",
+    },
+
+    # ---------------------- Accès tablette / kiosque --------------------
+    "launcher.index": {
+        "titre": "Accès tablette & QR codes",
+        "resume": "Les liens et QR codes pour ouvrir l'application ou le mode kiosque depuis une tablette d'atelier.",
+        "etapes": [
+            "Scannez le QR code « kiosque » depuis une tablette pour ouvrir l'émargement public.",
+            "Le mode kiosque permet aux participants de pointer leur présence eux-mêmes, sans accéder au reste de l'application.",
+        ],
+    },
 }
 
 
@@ -507,6 +796,60 @@ NOTICE: list[dict] = [
             ("La page « À traiter »", [
                 "Elle rassemble vos rappels, les orientations en attente, les échéances de projets et de budgets. Consultez-la chaque matin.",
                 "Créez un rappel sur n'importe quel sujet avec une échéance : il remontera au bon moment, classé par urgence.",
+            ]),
+        ],
+    },
+    {
+        "id": "pedagogie",
+        "icone": "🎓",
+        "titre": "Pédagogie et passeport de compétences",
+        "intro": "Suivre ce que les personnes apprennent, séance après séance.",
+        "sections": [
+            ("La logique du module", [
+                "Le module pédagogique part d'une séance réelle : on choisit les quelques savoir-faire travaillés ce jour-là, puis on note où en est chaque participant (acquis, en cours, à revoir).",
+                "Pas besoin de tout remplir : deux ou trois compétences par séance suffisent pour suivre une progression dans le temps.",
+            ]),
+            ("Référentiels, modules et objectifs", [
+                "Les référentiels sont des bibliothèques de compétences (numérique, FLE…). Vous pouvez en importer par fichier CSV.",
+                "Un module regroupe des compétences qui vont ensemble, pour les réutiliser. Les objectifs et le plan de projet relient ces compétences à vos projets.",
+            ]),
+            ("Le passeport et le pilotage", [
+                "Chaque participant a un passeport de compétences qui garde la trace de son parcours, avec notes et pièces jointes.",
+                "Le pilotage des objectifs (RA / PAG) agrège tout cela pour vos documents officiels : Rapport d'Activité et Projet d'Animation Globale.",
+            ]),
+        ],
+    },
+    {
+        "id": "partenaires",
+        "icone": "🤝",
+        "titre": "Partenaires et orientations",
+        "intro": "Votre réseau et le suivi de l'accès aux droits.",
+        "sections": [
+            ("L'annuaire des partenaires", [
+                "Espace Ressources → Partenaires : institutions, associations, écoles, bailleurs… Renseignez pour chacun ses domaines d'intervention (logement, santé, emploi…).",
+                "Ces domaines servent à proposer le bon partenaire au moment d'orienter une personne.",
+            ]),
+            ("Les orientations (accès aux droits)", [
+                "Quand vous orientez une personne vers un partenaire ou un dispositif, enregistrez-le : domaine, demande, urgence, et suivez le statut jusqu'à la résolution.",
+                "Le tableau de bord des orientations résume cette activité d'accès aux droits — un indicateur valorisé par la CAF dans le bilan SENACS. Tracez vos orientations, même informelles.",
+            ]),
+        ],
+    },
+    {
+        "id": "configuration",
+        "icone": "⚙️",
+        "titre": "Configuration de l'application",
+        "intro": "Les réglages de structure, à faire surtout en début d'année (réservé aux administrateurs).",
+        "sections": [
+            ("Identité de la structure", [
+                "Administration → Instance : nom, logos, adresse publique et messagerie (SMTP). La messagerie est nécessaire pour l'envoi des emails de réinitialisation de mot de passe.",
+            ]),
+            ("Secteurs et référentiels", [
+                "Les secteurs (Famille, Numérique, Santé…) structurent toute l'application : modifiez-les avec précaution, de préférence en début d'année.",
+                "Les référentiels (compétences pédagogiques, listes de choix insertion, comptes budgétaires) sont les bibliothèques de valeurs réutilisées dans les formulaires.",
+            ]),
+            ("Reprise de données", [
+                "Administration → Import Excel : pour reprendre un historique de présences existant. Lancez toujours une simulation d'abord : elle montre ce qui sera importé sans rien modifier.",
             ]),
         ],
     },
