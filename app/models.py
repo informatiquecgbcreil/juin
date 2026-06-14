@@ -682,6 +682,9 @@ class ProjetAction(db.Model):
     description = db.Column(db.Text, nullable=True)
     partenaires_text = db.Column(db.Text, nullable=True)
     bilan_qualitatif = db.Column(db.Text, nullable=True)
+    # Contenu narratif de la « fiche action » au format imposé (JSON par section).
+    # Permet de générer le document officiel pré-rempli avec les chiffres réels.
+    fiche_json = db.Column(db.Text, nullable=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
