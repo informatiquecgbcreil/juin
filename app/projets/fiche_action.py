@@ -114,8 +114,12 @@ def indicateurs_quantitatifs(stats: dict) -> list[tuple[str, str]]:
     ]
 
 
-def generer_docx(projet, action, fiche: dict, stats: dict, annee: int):
-    """Construit le document Word de la fiche action au format imposé."""
+def generer_docx(projet, action, fiche: dict, stats: dict, annee: int, objectifs: list | None = None):
+    """Construit le document Word de la fiche action au format imposé.
+
+    ``objectifs`` : contributions structurées [{objectif, contribution}] ;
+    si fournies, elles alimentent la section 2 (sinon repli sur le texte libre).
+    """
     from docx import Document
     from docx.shared import Pt, RGBColor
 
@@ -146,6 +150,21 @@ def generer_docx(projet, action, fiche: dict, stats: dict, annee: int):
     for s in SECTIONS:
         doc.add_heading(f"{s.numero}. {s.titre}", level=1)
         brut = sections.get(s.cle, "")
+
+        # Section 2 : priorité aux objectifs sectoriels structurés (référentiel).
+        if s.cle == "objectifs_specifiques" and objectifs:
+            tab = doc.add_table(rows=1, cols=2)
+            tab.style = "Light Grid Accent 1"
+            for j, col in enumerate(("Objectif", "Contribution de l'action")):
+                cell = tab.rows[0].cells[j]
+                cell.text = col
+                cell.paragraphs[0].runs[0].bold = True
+            for item in objectifs:
+                obj = item["objectif"]
+                cells = tab.add_row().cells
+                cells[0].text = f"{obj.code} — {obj.libelle}"
+                cells[1].text = item.get("contribution") or ""
+            continue
 
         if s.format == "liste":
             items = _lignes(brut)

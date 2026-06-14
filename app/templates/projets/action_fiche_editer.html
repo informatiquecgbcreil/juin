@@ -35,7 +35,28 @@
       </div>
     </div>
 
+    <div class="card">
+      <h2>Objectifs sectoriels rattachés</h2>
+      {% if objectifs_secteur %}
+        <p class="muted">Cochez les objectifs auxquels cette action contribue et décrivez la contribution. Ils alimentent la section 2 de la fiche et la consolidation du projet social.</p>
+        {% for obj in objectifs_secteur %}
+        <div style="border-top:1px solid var(--border-soft); padding:10px 0;">
+          <label class="inline" style="gap:8px; font-weight:700;">
+            <input type="checkbox" name="os_{{ obj.id }}" value="1" {% if obj.id in contributions %}checked{% endif %}>
+            {{ obj.code }} — {{ obj.libelle }}{% if obj.axe %} <span class="muted">· {{ obj.axe }}</span>{% endif %}
+          </label>
+          <textarea class="in" name="contrib_{{ obj.id }}" rows="2" placeholder="Contribution de l'action à cet objectif…" style="margin-top:6px;">{{ contributions.get(obj.id, '') }}</textarea>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="muted">Aucun objectif n'est défini pour le secteur « {{ projet.secteur }} ».
+          <a href="{{ url_for('projets.objectifs_referentiel', secteur=projet.secteur) }}">Définir les objectifs sectoriels →</a>
+        </p>
+      {% endif %}
+    </div>
+
     {% for s in sections %}
+    {% if s.cle != 'objectifs_specifiques' or not objectifs_secteur %}
     <div class="card">
       <h2>{{ s.numero }}. {{ s.titre }}</h2>
       {% if s.format == 'liste' %}
@@ -55,6 +76,7 @@
         </p>
       {% endif %}
     </div>
+    {% endif %}
     {% endfor %}
 
     <div class="card">
