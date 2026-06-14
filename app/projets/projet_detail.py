@@ -1,7 +1,8 @@
 import json
 from datetime import datetime, date
+from io import BytesIO
 
-from flask import render_template, request, redirect, url_for, flash, abort
+from flask import render_template, request, redirect, url_for, flash, abort, send_file
 from flask_login import login_required, current_user
 from app.rbac import require_perm, can
 
@@ -694,3 +695,62 @@ def projet_action_fiche_document(projet_id, action_id):
     )
 
 
+
+
+# ---------------------------------------------------------------------
+# Fiche action au format imposé : édition du narratif + génération .docx
+# ---------------------------------------------------------------------
+from app.projets import fiche_action as _fiche
+
+
+@bp.route("/projets/<int:projet_id>/actions/<int:action_id>/fiche/editer", methods=["GET", "POST"])
+@login_required
+def projet_action_fiche_editer(projet_id, action_id):
+    p = db.get_or_404(Projet, projet_id)
+    if not can_see_secteur(p.secteur):
+        abort(403)
+    action = ProjetAction.query.filter_by(id=action_id, projet_id=p.id).first_or_404()
+
+    if request.method == "POST":
+        if not can("projets:edit"):
+            abort(403)
+        data = _fiche.depuis_formulaire(request.form)
+        action.fiche_json = _fiche.vers_json(data)
+        db.session.commit()
+        flash("Fiche action enregistrée.", "success")
+        return redirect(url_for("projets.projet_action_fiche_editer", projet_id=p.id, action_id=action.id))
+
+    fiche = _fiche.charger(action.fiche_json)
+    return render_template(
+        "projets/action_fiche_editer.html",
+        projet=p, action=action,
+        entete=fiche.get("entete", {}),
+        contenu=fiche.get("sections", {}),
+        sections=_fiche.SECTIONS,
+        champs_entete=_fiche.CHAMPS_ENTETE,
+    )
+
+
+@bp.route("/projets/<int:projet_id>/actions/<int:action_id>/fiche.docx")
+@login_required
+def projet_action_fiche_docx(projet_id, action_id):
+    p = db.get_or_404(Projet, projet_id)
+    if not can_see_secteur(p.secteur):
+        abort(403)
+    action = ProjetAction.query.filter_by(id=action_id, projet_id=p.id).first_or_404()
+
+    year = _projet_selected_year(p)
+    fiche = _fiche.charger(action.fiche_json)
+    stats = _compute_action_stats(p, action, year)
+    doc = _fiche.generer_docx(p, action, fiche, stats, year)
+
+    sortie = BytesIO()
+    doc.save(sortie)
+    sortie.seek(0)
+    nom = "".join(c if c.isalnum() else "-" for c in action.titre.lower()).strip("-") or "action"
+    return send_file(
+        sortie,
+        as_attachment=True,
+        download_name=f"fiche-action-{nom}-{year}.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
