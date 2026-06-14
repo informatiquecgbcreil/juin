@@ -2152,3 +2152,45 @@ class TachePlanifiee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(80), unique=True, nullable=False)
     derniere_execution = db.Column(db.DateTime, nullable=True)
+
+
+# ---------- OBJECTIFS SECTORIELS (cadre stratégique du projet social) ----------
+
+class ObjectifSectoriel(db.Model):
+    """Objectif sectoriel configurable, propre à chaque secteur.
+
+    Ex. pour le secteur Transitions : OS1 « Comprendre », OS2 « Expérimenter »,
+    OS3 « Coopérer ». Chaque secteur définit les siens. Les actions s'y
+    rattachent (ActionObjectifSectoriel) pour produire les tableaux de
+    contribution et consolider au niveau du projet social.
+    """
+
+    __tablename__ = "objectif_sectoriel"
+
+    id = db.Column(db.Integer, primary_key=True)
+    secteur = db.Column(db.String(80), nullable=False, index=True)
+    code = db.Column(db.String(20), nullable=False)        # ex. OS1
+    libelle = db.Column(db.String(255), nullable=False)    # ex. Comprendre
+    axe = db.Column(db.String(160), nullable=True)         # regroupement optionnel
+    ordre = db.Column(db.Integer, nullable=False, default=0)
+    actif = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
+class ActionObjectifSectoriel(db.Model):
+    """Rattachement d'une action à un objectif sectoriel, avec sa contribution."""
+
+    __tablename__ = "action_objectif_sectoriel"
+
+    id = db.Column(db.Integer, primary_key=True)
+    action_id = db.Column(db.Integer, db.ForeignKey("projet_action.id", ondelete="CASCADE"), nullable=False, index=True)
+    objectif_id = db.Column(db.Integer, db.ForeignKey("objectif_sectoriel.id", ondelete="CASCADE"), nullable=False, index=True)
+    contribution = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    action = db.relationship("ProjetAction", backref=db.backref("objectif_links", cascade="all, delete-orphan", lazy="selectin"))
+    objectif = db.relationship("ObjectifSectoriel")
+
+    __table_args__ = (
+        db.UniqueConstraint("action_id", "objectif_id", name="uq_action_objectif"),
+    )

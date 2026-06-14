@@ -701,6 +701,7 @@ def projet_action_fiche_document(projet_id, action_id):
 # Fiche action au format imposé : édition du narratif + génération .docx
 # ---------------------------------------------------------------------
 from app.projets import fiche_action as _fiche
+from app.projets import objectifs as _objectifs
 
 
 @bp.route("/projets/<int:projet_id>/actions/<int:action_id>/fiche/editer", methods=["GET", "POST"])
@@ -716,11 +717,13 @@ def projet_action_fiche_editer(projet_id, action_id):
             abort(403)
         data = _fiche.depuis_formulaire(request.form)
         action.fiche_json = _fiche.vers_json(data)
+        _objectifs.enregistrer_contributions(action, request.form)
         db.session.commit()
         flash("Fiche action enregistrée.", "success")
         return redirect(url_for("projets.projet_action_fiche_editer", projet_id=p.id, action_id=action.id))
 
     fiche = _fiche.charger(action.fiche_json)
+    contributions = {c["objectif"].id: c["contribution"] for c in _objectifs.contributions_de_action(action)}
     return render_template(
         "projets/action_fiche_editer.html",
         projet=p, action=action,
@@ -728,6 +731,8 @@ def projet_action_fiche_editer(projet_id, action_id):
         contenu=fiche.get("sections", {}),
         sections=_fiche.SECTIONS,
         champs_entete=_fiche.CHAMPS_ENTETE,
+        objectifs_secteur=_objectifs.objectifs_du_secteur(p.secteur, actif_only=True),
+        contributions=contributions,
     )
 
 
@@ -742,7 +747,8 @@ def projet_action_fiche_docx(projet_id, action_id):
     year = _projet_selected_year(p)
     fiche = _fiche.charger(action.fiche_json)
     stats = _compute_action_stats(p, action, year)
-    doc = _fiche.generer_docx(p, action, fiche, stats, year)
+    objectifs = _objectifs.contributions_de_action(action)
+    doc = _fiche.generer_docx(p, action, fiche, stats, year, objectifs=objectifs)
 
     sortie = BytesIO()
     doc.save(sortie)

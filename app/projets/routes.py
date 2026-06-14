@@ -11,6 +11,7 @@ from app.projets import (  # noqa: F401
     finance_exports,
     finance_secteur,
     helpers_projet,
+    objectifs_routes,
     projet_detail,
     projets_crud,
 )
