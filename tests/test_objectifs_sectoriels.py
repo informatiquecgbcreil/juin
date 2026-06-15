@@ -119,3 +119,54 @@ def test_responsable_secteur_ne_gere_que_le_sien(app):
     r = c.post("/projets/objectifs-sectoriels",
                data={"action": "ajouter", "secteur": "Numérique", "code": "OSZ", "libelle": "Pirate"})
     assert r.status_code == 403
+
+
+def test_section2_texte_libre_preserve_quand_masquee(app, admin_client, secteur_os):
+    """P1 — Régression : le texte libre de la section 2 ne doit pas être perdu
+    au ré-enregistrement lorsque le secteur a des objectifs (champ masqué)."""
+    pid, aid = secteur_os["projet_id"], secteur_os["action_id"]
+
+    # 1) On force d'abord un contenu libre en section 2 directement en base
+    with app.app_context():
+        from app.extensions import db
+        from app.models import ProjetAction
+        from app.projets.fiche_action import charger, vers_json
+        a = db.session.get(ProjetAction, aid)
+        fiche = charger(a.fiche_json)
+        fiche.setdefault("sections", {})["objectifs_specifiques"] = "OS historique en texte libre"
+        a.fiche_json = vers_json(fiche)
+        db.session.commit()
+
+    # 2) Ré-enregistrement via l'éditeur SANS le champ section_objectifs_specifiques
+    #    (masqué car le secteur a des objectifs) : il doit être préservé.
+    r = admin_client.post(
+        f"/projets/{pid}/actions/{aid}/fiche/editer",
+        data={"section_objectif_general": "Mise à jour"},
+    )
+    assert r.status_code == 302
+
+    with app.app_context():
+        from app.extensions import db
+        from app.models import ProjetAction
+        from app.projets.fiche_action import charger
+        a = db.session.get(ProjetAction, aid)
+        fiche = charger(a.fiche_json)
+        assert fiche["sections"]["objectifs_specifiques"] == "OS historique en texte libre"
+        assert fiche["sections"]["objectif_general"] == "Mise à jour"
+
+
+def test_created_at_a_un_server_default(app):
+    """P2 — Régression : une insertion SQL directe (sans created_at) doit réussir
+    grâce au server_default de la migration."""
+    from sqlalchemy import text
+    with app.app_context():
+        from app.extensions import db
+        db.session.execute(text(
+            "INSERT INTO objectif_sectoriel (secteur, code, libelle) "
+            "VALUES ('Familles', 'OSX', 'Insertion directe')"
+        ))
+        db.session.commit()
+        row = db.session.execute(text(
+            "SELECT created_at FROM objectif_sectoriel WHERE code='OSX' AND libelle='Insertion directe'"
+        )).first()
+        assert row is not None and row[0] is not None, "created_at doit être renseigné par le server_default"

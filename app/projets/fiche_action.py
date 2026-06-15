@@ -72,13 +72,30 @@ def charger(fiche_json: str | None) -> dict:
         return {}
 
 
-def depuis_formulaire(form) -> dict:
-    """Construit le dict de fiche depuis les champs du formulaire d'édition."""
+def depuis_formulaire(form, existant: dict | None = None) -> dict:
+    """Construit le dict de fiche depuis les champs du formulaire d'édition.
+
+    Les champs NON rendus par l'éditeur (ex. la section 2 quand des objectifs
+    sectoriels structurés la remplacent) sont ABSENTS du formulaire : on
+    conserve alors leur valeur existante au lieu de l'écraser à vide.
+    """
+    existant = existant or {}
+    ex_entete = existant.get("entete", {}) or {}
+    ex_sections = existant.get("sections", {}) or {}
+
     data: dict = {"entete": {}, "sections": {}}
     for cle, _ in CHAMPS_ENTETE:
-        data["entete"][cle] = (form.get(f"entete_{cle}") or "").strip()
+        champ = f"entete_{cle}"
+        if champ in form:
+            data["entete"][cle] = (form.get(champ) or "").strip()
+        else:
+            data["entete"][cle] = (ex_entete.get(cle) or "").strip()
     for s in SECTIONS:
-        data["sections"][s.cle] = (form.get(f"section_{s.cle}") or "").strip()
+        champ = f"section_{s.cle}"
+        if champ in form:
+            data["sections"][s.cle] = (form.get(champ) or "").strip()
+        else:
+            data["sections"][s.cle] = (ex_sections.get(s.cle) or "").strip()
     return data
 
 
