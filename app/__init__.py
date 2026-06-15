@@ -367,8 +367,9 @@ def create_app():
             from app.secteurs import bootstrap_secteurs_from_config
             bootstrap_secteurs_from_config()
 
-        print("DB URI =", db.engine.url)
-        print("DB DIALECT =", db.engine.dialect.name)
+        # str(url) masque déjà le mot de passe (***), mais on évite stdout :
+        # une trace de log propre plutôt qu'un print non maîtrisé.
+        app.logger.info("Base de données : %s (dialecte %s)", db.engine.url, db.engine.dialect.name)
 
         @app.context_processor
         def inject_secteurs():
