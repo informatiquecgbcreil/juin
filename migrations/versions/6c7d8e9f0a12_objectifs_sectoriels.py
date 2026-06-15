@@ -31,7 +31,7 @@ def upgrade():
             sa.Column("axe", sa.String(length=160), nullable=True),
             sa.Column("ordre", sa.Integer(), nullable=False, server_default="0"),
             sa.Column("actif", sa.Boolean(), nullable=False, server_default=sa.true()),
-            sa.Column("created_at", sa.DateTime(), nullable=False),
+            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         )
         op.create_index("ix_objectif_sectoriel_secteur", "objectif_sectoriel", ["secteur"])
 
@@ -44,7 +44,7 @@ def upgrade():
             sa.Column("objectif_id", sa.Integer(),
                       sa.ForeignKey("objectif_sectoriel.id", ondelete="CASCADE"), nullable=False),
             sa.Column("contribution", sa.Text(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), nullable=False),
+            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
             sa.UniqueConstraint("action_id", "objectif_id", name="uq_action_objectif"),
         )
         op.create_index("ix_action_objectif_sectoriel_action_id", "action_objectif_sectoriel", ["action_id"])

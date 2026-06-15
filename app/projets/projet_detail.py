@@ -715,7 +715,8 @@ def projet_action_fiche_editer(projet_id, action_id):
     if request.method == "POST":
         if not can("projets:edit"):
             abort(403)
-        data = _fiche.depuis_formulaire(request.form)
+        existant = _fiche.charger(action.fiche_json)
+        data = _fiche.depuis_formulaire(request.form, existant)
         action.fiche_json = _fiche.vers_json(data)
         _objectifs.enregistrer_contributions(action, request.form)
         db.session.commit()
