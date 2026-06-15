@@ -59,6 +59,7 @@
 
   <div class="card">
     <h2>Actions / séances ({{ actions|length }} ateliers avec activité en {{ annee }})</h2>
+    <div class="tablewrap">
     <table class="table">
       <thead>
         <tr>
@@ -79,6 +80,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     <p class="muted">Rappel : 2 h d'atelier avec 10 personnes = 2 h d'animation (et non 20). Les heures s'appuient sur la durée des séances : renseignez les horaires pour fiabiliser ce chiffre.</p>
   </div>
 

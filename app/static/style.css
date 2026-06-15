@@ -188,7 +188,28 @@ button:focus-visible, .btn:focus-visible, a:focus-visible, .pill:focus-visible{
 table{
   width:100%;
   border-collapse:collapse;
+  max-width:100%;
+}
+
+/* Les gros tableaux de données restent larges MAIS doivent être enveloppés
+   dans .tablewrap (qui apporte le défilement horizontal). Les petits tableaux
+   clé/valeur, eux, s'adaptent désormais à la largeur de leur carte au lieu
+   d'être forcés à 760px (ce qui faisait déborder/couper la colonne valeurs). */
+.tablewrap table{
   min-width:760px;
+}
+
+/* Filet de sécurité responsive : un tableau de DONNÉES (avec en-tête)
+   posé directement dans une carte sans .tablewrap devient défilable
+   horizontalement, au lieu d'être comprimé ou coupé sur mobile. Les
+   petits tableaux clé/valeur (sans <thead>) ne sont pas concernés et
+   gardent leur mise en forme. Sur un très vieux navigateur sans :has(),
+   la règle est ignorée : le tableau s'adapte simplement (données visibles). */
+.card > table:has(thead),
+.section-card > table:has(thead){
+  display:block;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
 }
 
 th, td{

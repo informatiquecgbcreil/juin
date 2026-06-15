@@ -28,6 +28,7 @@
   <div class="card">
     <h2>{{ en_attente|length }} fiche(s) en attente d'anonymisation</h2>
     {% if en_attente %}
+      <div class="tablewrap">
       <table class="table">
         <thead>
           <tr>
@@ -48,6 +49,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       <p class="muted">
         Si une personne de cette liste fréquente encore la structure, ouvrez sa
         fiche et enregistrez-la : cela met à jour sa date d'activité et la
