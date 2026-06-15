@@ -116,8 +116,10 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
 ]
 
 # Alias historiques tolérés dans le code / la base, mais à masquer dans l'UI RBAC
-# pour éviter les doublons de cases à cocher.
-PERM_EQUIVALENTS: dict[str, str] = {
+# pour éviter les doublons de cases à cocher. Seules les CLÉS servent
+# (via HIDDEN_LEGACY_PERMS). Nom distinct de PERM_EQUIVALENTS (plus bas) pour
+# éviter toute collision de noms au niveau module.
+PERM_ALIAS_MASQUES_UI: dict[str, str] = {
     "users:edit": "admin:users",
     "budget:delete": "aap:charges_edit",
     "projets_edit": "projets:edit",
@@ -128,7 +130,7 @@ PERM_EQUIVALENTS: dict[str, str] = {
     "bilans:lourds:view": "bilans:view",
 }
 
-HIDDEN_LEGACY_PERMS = set(PERM_EQUIVALENTS.keys())
+HIDDEN_LEGACY_PERMS = set(PERM_ALIAS_MASQUES_UI.keys())
 
 
 ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
