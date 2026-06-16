@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>Sauvegardes</h1>
+    <p class="muted">
+      Une sauvegarde copie <strong>la base de données</strong> (moteur : {{ moteur }}) et
+      <strong>les pièces jointes</strong> dans le dossier <code>backups/</code> du serveur.
+      C'est votre filet de sécurité en cas de panne, de fausse manipulation ou de
+      changement de machine.
+    </p>
+    <form method="post" action="{{ url_for('admin.sauvegarde_creer') }}" data-no-scroll-restore>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit" data-pending-text="Sauvegarde en cours…">💾 Sauvegarder maintenant</button>
+    </form>
+    <p class="ux-helper">
+      La sauvegarde reste <strong>sur le serveur</strong> : aucune donnée personnelle n'est
+      téléchargée par le navigateur. Pour être vraiment protégé, copiez régulièrement le
+      dossier <code>backups/</code> sur un support externe (disque, clé, espace réseau).
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>{{ sauvegardes|length }} fichier(s) de sauvegarde</h2>
+    {% if sauvegardes %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fichier</th>
+            <th>Contenu</th>
+            <th>Date</th>
+            <th>Taille</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sauvegardes %}
+            <tr>
+              <td>{{ s.nom }}</td>
+              <td>{{ s.type }}</td>
+              <td>{{ s.modifie.strftime('%d/%m/%Y à %H:%M') }}</td>
+              <td>{{ s.taille_lisible }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <p class="muted">
+        Chaque sauvegarde est composée de deux fichiers : la base de données et l'archive
+        des pièces jointes (suffixe <code>_uploads.zip</code>). Conservez les deux ensemble.
+      </p>
+    {% else %}
+      <p class="muted">
+        Aucune sauvegarde pour le moment. Cliquez sur « Sauvegarder maintenant » pour en créer une.
+      </p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
