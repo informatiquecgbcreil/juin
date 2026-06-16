@@ -905,18 +905,43 @@
         {% set endpoint_action = ep.split('.', 1)[1] if '.' in ep else '' %}
         {% set action_redondante = endpoint_action in ['', 'index', 'home', 'dashboard'] or endpoint_action.startswith('hub_') or endpoint_action.endswith('_home') or endpoint_action.endswith('_index') %}
         {% set verbes_crumb = {'edit': 'Modifier', 'new': 'Créer', 'create': 'Créer', 'add': 'Ajouter', 'list': 'Liste', 'detail': 'Détail', 'view': 'Consulter', 'import': 'Import', 'export': 'Export', 'print': 'Impression'} %}
+        {% set module_hubs = {
+          'main': 'main.dashboard',
+          'participants': 'main.hub_publics',
+          'insertion': 'insertion.index',
+          'quartiers': 'quartiers.index',
+          'activite': 'activite.index',
+          'kiosk': 'activite.index',
+          'statsimpact': 'main.hub_activites',
+          'pedagogie': 'pedagogie.index',
+          'projets': 'projets.finance_home',
+          'budget': 'projets.finance_home',
+          'previsionnel': 'previsionnel.index',
+          'bilans': 'main.hub_bilans',
+          'questionnaires': 'main.hub_bilans',
+          'inventaire': 'inventaire_materiel.list_items',
+          'inventaire_materiel': 'inventaire_materiel.list_items',
+          'partenaires': 'partenaires.index',
+          'admin': 'admin.users'
+        } %}
+        {% set module_hub = safe_url_for(module_hubs.get(endpoint_module, 'invalide.endpoint'), fallback='') %}
+        {% set module_label = module_labels.get(endpoint_module, endpoint_module|capitalize) %}
         <nav class="breadcrumb" aria-label="Fil d’Ariane">
           <a class="breadcrumb__item breadcrumb__home" href="{{ url_for('main.dashboard') }}">Accueil</a>
           <span class="breadcrumb__sep">›</span>
-          <span class="breadcrumb__item">{{ module_labels.get(endpoint_module, endpoint_module|capitalize) }}</span>
+          {% if module_hub %}
+            <a class="breadcrumb__item" href="{{ module_hub }}">{{ module_label }}</a>
+          {% else %}
+            <span class="breadcrumb__item">{{ module_label }}</span>
+          {% endif %}
           {% if AIDE_PAGE and AIDE_PAGE.titre %}
             <span class="breadcrumb__sep">›</span>
-            <span class="breadcrumb__item breadcrumb__current" aria-current="page">{{ AIDE_PAGE.titre }}</span>
+            <a class="breadcrumb__item breadcrumb__current" aria-current="page" href="{{ request.path }}">{{ AIDE_PAGE.titre }}</a>
           {% elif endpoint_action and not action_redondante %}
             {% set premier = endpoint_action.split('_')[0] %}
             {% set reste = endpoint_action.split('_')[1:] | join(' ') %}
             <span class="breadcrumb__sep">›</span>
-            <span class="breadcrumb__item breadcrumb__current" aria-current="page">{{ (verbes_crumb.get(premier, premier) ~ (' ' ~ reste if reste else '')) | trim | capitalize }}</span>
+            <a class="breadcrumb__item breadcrumb__current" aria-current="page" href="{{ request.path }}">{{ (verbes_crumb.get(premier, premier) ~ (' ' ~ reste if reste else '')) | trim | capitalize }}</a>
           {% endif %}
         </nav>
       {% endif %}
