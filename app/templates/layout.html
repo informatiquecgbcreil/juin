@@ -474,8 +474,50 @@
     .aide-page__corps p{margin:6px 0;line-height:1.5;max-width:80ch}
     .aide-page__corps ol{margin:6px 0 6px 20px;line-height:1.6}
     .aide-page__astuce{opacity:.85}
+
+    /* Fil d'Ariane : page courante mise en valeur, niveaux cliquables soulignés au survol */
+    .breadcrumb__current{ color:var(--text); font-weight:700; }
+    .breadcrumb a.breadcrumb__item:hover{ text-decoration:underline; }
+
+    /* Confort de lecture (accessibilité).
+       Taille : on agrandit le contenu principal via 'zoom' (robuste sur Edge/Chrome,
+       les navigateurs internes ; n'affecte pas la barre de navigation).
+       Contraste : on renforce les variables de couleur (texte secondaire, bordures). */
+    html[data-text-size="large"]  #main-content{ zoom:1.12; }
+    html[data-text-size="xlarge"] #main-content{ zoom:1.25; }
+    html[data-contrast="more"]{
+      --muted:#1f2937;
+      --border:rgba(15,23,42,.34);
+      --border-soft:rgba(15,23,42,.40);
+      --border-hard:rgba(15,23,42,.52);
+      --focus:rgba(29,78,216,.42);
+    }
+    html[data-contrast="more"][data-theme="dark"]{
+      --muted:#e1e7ff;
+      --border:rgba(255,255,255,.34);
+      --border-soft:rgba(255,255,255,.42);
+      --border-hard:rgba(255,255,255,.58);
+    }
+    html[data-contrast="more"] main a:not(.pill):not(.btn):not(.icon-btn):not(.quick-link-card){ text-decoration:underline; }
+    .a11y-panel{ min-width:230px; }
+    .a11y-panel .nav-more-heading{ font-weight:900; }
+    .a11y-row{ display:flex; gap:6px; flex-wrap:wrap; width:100%; }
+    .a11y-row .pill{ flex:1 1 auto; text-align:center; }
 </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ux-final.css', v='20260610-ui-kit-v3') }}">
+  <script>
+    /* Applique tôt les préférences d'accessibilité (taille du texte, contraste)
+       afin d'éviter tout clignotement au chargement de la page. */
+    (function(){
+      try{
+        var r = document.documentElement;
+        var ts = localStorage.getItem('a11y-text-size');
+        if(ts && ts !== 'normal'){ r.setAttribute('data-text-size', ts); }
+        var ct = localStorage.getItem('a11y-contrast');
+        if(ct && ct !== 'normal'){ r.setAttribute('data-contrast', ct); }
+      }catch(e){}
+    })();
+  </script>
   {% block head_extra %}{% endblock %}
 </head>
 
@@ -743,6 +785,22 @@
               <button class="pill {% if ui_simplified %}active{% endif %}" type="submit" name="mode" value="simple">Simple</button>
               <button class="pill {% if not ui_simplified %}active{% endif %}" type="submit" name="mode" value="expert">Expert</button>
             </form>
+            <details class="nav-more a11y-menu" id="a11yMenu">
+              <summary class="pill" title="Confort de lecture : taille du texte et contraste" aria-label="Confort de lecture">Aa</summary>
+              <div class="nav-more-panel a11y-panel">
+                <div class="nav-more-heading">Taille du texte</div>
+                <div class="a11y-row">
+                  <button type="button" class="pill" data-text-size="normal">Normal</button>
+                  <button type="button" class="pill" data-text-size="large">Grand</button>
+                  <button type="button" class="pill" data-text-size="xlarge">Très grand</button>
+                </div>
+                <div class="nav-more-heading">Contraste</div>
+                <div class="a11y-row">
+                  <button type="button" class="pill" data-contrast="normal">Standard</button>
+                  <button type="button" class="pill" data-contrast="more">Renforcé</button>
+                </div>
+              </div>
+            </details>
             <button class="pill theme-toggle" id="themeToggle" type="button" title="Changer de thème" aria-label="Changer de thème">🌙</button>
             <a class="pill" href="{{ url_for('aide.notice') }}" title="Ouvrir la notice d'utilisation" aria-label="Aide et notice d'utilisation">❓ Aide</a>
 
@@ -843,18 +901,25 @@
         'responsable_secteur': 'Responsable secteur'
       } %}
 
-      <nav class="breadcrumb" aria-label="Fil d’Ariane">
-        <span class="breadcrumb__item">Accueil</span>
-        <span class="breadcrumb__sep">›</span>
-        <span class="breadcrumb__item">{{ module_labels.get(endpoint_module, endpoint_module|capitalize) }}</span>
-        {% if '.' in ep %}
-          {% set endpoint_action = ep.split('.', 1)[1] %}
-          {% if endpoint_action %}
+      {% if ep != 'main.dashboard' %}
+        {% set endpoint_action = ep.split('.', 1)[1] if '.' in ep else '' %}
+        {% set action_redondante = endpoint_action in ['', 'index', 'home', 'dashboard'] or endpoint_action.startswith('hub_') or endpoint_action.endswith('_home') or endpoint_action.endswith('_index') %}
+        {% set verbes_crumb = {'edit': 'Modifier', 'new': 'Créer', 'create': 'Créer', 'add': 'Ajouter', 'list': 'Liste', 'detail': 'Détail', 'view': 'Consulter', 'import': 'Import', 'export': 'Export', 'print': 'Impression'} %}
+        <nav class="breadcrumb" aria-label="Fil d’Ariane">
+          <a class="breadcrumb__item breadcrumb__home" href="{{ url_for('main.dashboard') }}">Accueil</a>
+          <span class="breadcrumb__sep">›</span>
+          <span class="breadcrumb__item">{{ module_labels.get(endpoint_module, endpoint_module|capitalize) }}</span>
+          {% if AIDE_PAGE and AIDE_PAGE.titre %}
             <span class="breadcrumb__sep">›</span>
-            <span class="breadcrumb__item">{{ endpoint_action.replace('_', ' ')|capitalize }}</span>
+            <span class="breadcrumb__item breadcrumb__current" aria-current="page">{{ AIDE_PAGE.titre }}</span>
+          {% elif endpoint_action and not action_redondante %}
+            {% set premier = endpoint_action.split('_')[0] %}
+            {% set reste = endpoint_action.split('_')[1:] | join(' ') %}
+            <span class="breadcrumb__sep">›</span>
+            <span class="breadcrumb__item breadcrumb__current" aria-current="page">{{ (verbes_crumb.get(premier, premier) ~ (' ' ~ reste if reste else '')) | trim | capitalize }}</span>
           {% endif %}
-        {% endif %}
-      </nav>
+        </nav>
+      {% endif %}
 
       <section class="context-banner {% if ui_simplified %}context-banner--simple{% endif %}" aria-label="Contexte de visibilité">
         <span class="context-badge"><strong>Rôle</strong> · {{ role_labels.get(role_code, role_code or 'Utilisateur') }}</span>
@@ -1154,6 +1219,42 @@
       const current = root.getAttribute("data-theme") || "dark";
       apply(current === "dark" ? "light" : "dark");
     });
+  })();
+  </script>
+
+  <script>
+  /* Menu « Confort de lecture » : taille du texte et contraste, persistés. */
+  (function(){
+    const root = document.documentElement;
+    const menu = document.getElementById("a11yMenu");
+    if(!menu) return;
+
+    function syncActive(group){
+      const attr = "data-" + group;
+      const current = root.getAttribute(attr) || "normal";
+      menu.querySelectorAll("[" + attr + "]").forEach((btn)=>{
+        const on = btn.getAttribute(attr) === current;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    function apply(group, value, fallback){
+      const attr = "data-" + group;
+      if(value && value !== fallback){ root.setAttribute(attr, value); }
+      else { root.removeAttribute(attr); value = fallback; }
+      try{ localStorage.setItem("a11y-" + group, value); }catch(e){}
+      syncActive(group);
+    }
+
+    menu.querySelectorAll("[data-text-size]").forEach((btn)=>{
+      btn.addEventListener("click", ()=> apply("text-size", btn.getAttribute("data-text-size"), "normal"));
+    });
+    menu.querySelectorAll("[data-contrast]").forEach((btn)=>{
+      btn.addEventListener("click", ()=> apply("contrast", btn.getAttribute("data-contrast"), "normal"));
+    });
+
+    syncActive("text-size");
+    syncActive("contrast");
   })();
   </script>
 
