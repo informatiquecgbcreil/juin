@@ -129,3 +129,15 @@ class Config:
     # PASSWORD_RESET_ALLOW_DEBUG_LINK=1.
     PASSWORD_RESET_ALLOW_DEBUG_LINK = os.environ.get("PASSWORD_RESET_ALLOW_DEBUG_LINK", "0") in {"1", "true", "True", "yes", "YES"}
 
+    # --- Publication du programme public (FTPS vers un hébergement) ----------
+    # Pousse la page programme.html vers un site (ex: cPanel) en connexion
+    # SORTANTE chiffrée (FTP_TLS). Optionnel : tant que l'hôte et les
+    # identifiants ne sont pas renseignés, la publication est désactivée.
+    PROGRAMME_FTP_HOST = os.environ.get("PROGRAMME_FTP_HOST", "")
+    PROGRAMME_FTP_PORT = int(os.environ.get("PROGRAMME_FTP_PORT", "21"))
+    PROGRAMME_FTP_USER = os.environ.get("PROGRAMME_FTP_USER", "")
+    PROGRAMME_FTP_PASSWORD = os.environ.get("PROGRAMME_FTP_PASSWORD", "")
+    PROGRAMME_FTP_DIR = os.environ.get("PROGRAMME_FTP_DIR", "")
+    PROGRAMME_FTP_FILENAME = os.environ.get("PROGRAMME_FTP_FILENAME", "programme.html")
+    PROGRAMME_PUBLIC_URL = os.environ.get("PROGRAMME_PUBLIC_URL", "")
+

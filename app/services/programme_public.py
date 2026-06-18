@@ -57,3 +57,33 @@ def sessions_a_venir(jours: int = 60) -> list[dict]:
         {"label": label_date_fr(d), "sessions": items}
         for d, items in sorted(groupes.items())
     ]
+
+
+def rendu_html() -> str:
+    """Rend la page programme (HTML autonome) en chaîne de caractères.
+
+    Réutilisée par le téléchargement manuel et par la publication automatique.
+    """
+    from flask import current_app, has_request_context, render_template
+
+    structure = (
+        current_app.config.get("ORGANIZATION_NAME")
+        or current_app.config.get("APP_NAME")
+        or "Centre social"
+    )
+
+    def _render() -> str:
+        return render_template(
+            "exports/programme_public.html",
+            groupes=sessions_a_venir(jours=60),
+            structure=structure,
+            genere_le=date.today(),
+        )
+
+    # Le rendu peut être déclenché hors requête HTTP (tâche planifiée, CLI) :
+    # on fournit alors un contexte de requête temporaire, sinon les context
+    # processors qui lisent request.endpoint échouent.
+    if has_request_context():
+        return _render()
+    with current_app.test_request_context():
+        return _render()
