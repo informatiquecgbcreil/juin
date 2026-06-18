@@ -2,10 +2,10 @@ from datetime import date
 
 
 from flask import (
-    render_template, request, url_for, abort, current_app
+    render_template, request, url_for, abort, current_app, Response
 )
 from flask_login import login_required, current_user
-from app.rbac import can
+from app.rbac import can, require_perm
 
 from app.extensions import db
 from app.models import (
@@ -309,6 +309,32 @@ def _documents_orientation_count(year: int, secteur: str | None) -> int:
     return q.count()
 
 
+@bp.route("/programme-public.html")
+@login_required
+@require_perm("emargement:view")
+def programme_public_export():
+    """Télécharge le programme des activités en page HTML autonome, à publier
+    sur un site / hébergement externe. Données non nominatives."""
+    from app.services.programme_public import sessions_a_venir
+
+    structure = (
+        current_app.config.get("ORGANIZATION_NAME")
+        or current_app.config.get("APP_NAME")
+        or "Centre social"
+    )
+    html = render_template(
+        "exports/programme_public.html",
+        groupes=sessions_a_venir(jours=60),
+        structure=structure,
+        genere_le=date.today(),
+    )
+    return Response(
+        html,
+        mimetype="text/html",
+        headers={"Content-Disposition": 'attachment; filename="programme.html"'},
+    )
+
+
 @bp.route("/documents")
 @login_required
 def documents_exports():
@@ -424,6 +450,21 @@ def documents_exports():
                 ],
             },
         ])
+
+    if can("emargement:view"):
+        add_group(
+            "Communication",
+            "Le programme des activités à publier en ligne (sur votre site / hébergement).",
+            [
+                {
+                    "title": "Programme public des activités",
+                    "meta": "Page HTML autonome — ateliers collectifs à venir, sans données personnelles",
+                    "actions": [
+                        {"label": "Télécharger (HTML)", "url": url_for("main.programme_public_export"), "primary": True},
+                    ],
+                },
+            ],
+        )
 
     _hub_forbidden_if_empty(groups)
     subventions = _documents_subventions(year, selected_secteur)
