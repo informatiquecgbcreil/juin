@@ -114,20 +114,10 @@ def _questionnaires_for_session(session: SessionActivite) -> list[Questionnaire]
     return result
 
 
-@bp.route("/", methods=["GET", "POST"])
-@csrf.exempt
-def kiosk_home():
-    """Page publique: saisie PIN + liste des sessions ouvertes."""
-    if request.method == "POST":
-        pin = (request.form.get("pin") or "").strip()
-        s = _get_open_session_by_pin(pin)
-        if not s:
-            flash("Code invalide ou session fermée.", "danger")
-            return redirect(url_for("kiosk.kiosk_home"))
-        return redirect(url_for("kiosk.kiosk_session", token=s.kiosk_token))
-
+def _open_sessions_today() -> list[dict]:
+    """Liste des ateliers ouverts au kiosque aujourd'hui (collectif: date_session,
+    individuel: rdv_date), du plus récent au plus ancien. Données non nominatives."""
     today = date.today()
-    # sessions ouvertes du jour (collectif: date_session, individuel: rdv_date)
     sessions = (
         SessionActivite.query.filter_by(kiosk_open=True)
         .filter(SessionActivite.is_deleted.is_(False))
@@ -159,8 +149,29 @@ def kiosk_home():
             "debut": s.heure_debut or s.rdv_debut,
             "fin": s.heure_fin or s.rdv_fin,
         })
+    return entries
 
-    return render_template("kiosk/index.html", sessions=entries)
+
+@bp.route("/", methods=["GET", "POST"])
+@csrf.exempt
+def kiosk_home():
+    """Page publique: saisie PIN + liste des sessions ouvertes."""
+    if request.method == "POST":
+        pin = (request.form.get("pin") or "").strip()
+        s = _get_open_session_by_pin(pin)
+        if not s:
+            flash("Code invalide ou session fermée.", "danger")
+            return redirect(url_for("kiosk.kiosk_home"))
+        return redirect(url_for("kiosk.kiosk_session", token=s.kiosk_token))
+
+    return render_template("kiosk/index.html", sessions=_open_sessions_today())
+
+
+@bp.route("/programme")
+def kiosk_programme():
+    """Programme en direct (lecture seule) : les ateliers ouverts du jour,
+    consultables sans émarger. Pratique aussi en affichage mural dans le hall."""
+    return render_template("kiosk/programme.html", sessions=_open_sessions_today())
 
 
 @bp.route("/session/<token>/search")
