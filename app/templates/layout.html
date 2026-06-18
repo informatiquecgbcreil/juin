@@ -716,6 +716,7 @@
                     <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
                     <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Référentiels</a>
                     <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Identité app</a>
+                    <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>
                   {% endif %}
                   {% if can('secteurs:edit') %}
                     <a class="pill {% if ep.startswith('admin.secteurs') %}active{% endif %}" href="{{ safe_url_for('admin.secteurs') }}">Secteurs</a>
@@ -743,6 +744,7 @@
                     <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
                     <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Référentiels</a>
                     <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Identité app</a>
+                    <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>
                   {% endif %}
                   {% if can('secteurs:edit') %}
                     <a class="pill {% if ep.startswith('admin.secteurs') %}active{% endif %}" href="{{ safe_url_for('admin.secteurs') }}">Secteurs</a>

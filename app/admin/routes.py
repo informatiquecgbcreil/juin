@@ -449,6 +449,46 @@ def instance_settings():
     return render_template("admin_instance.html", settings=row)
 
 
+@bp.route("/sauvegardes", methods=["GET"])
+@login_required
+@require_perm("admin:rbac")
+def sauvegardes():
+    from app.services.sauvegarde import lister_sauvegardes
+
+    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "") or ""
+    if db_uri.startswith("postgresql"):
+        moteur = "PostgreSQL"
+    elif db_uri.startswith("sqlite"):
+        moteur = "SQLite"
+    else:
+        moteur = "inconnu"
+    return render_template(
+        "admin_sauvegardes.html",
+        sauvegardes=lister_sauvegardes(),
+        moteur=moteur,
+    )
+
+
+@bp.route("/sauvegardes/creer", methods=["POST"])
+@login_required
+@require_perm("admin:rbac")
+def sauvegarde_creer():
+    from app.services.sauvegarde import creer_sauvegarde
+
+    try:
+        info = creer_sauvegarde()
+        current_app.logger.info(
+            "Sauvegarde manuelle créée par %s : %s",
+            getattr(current_user, "email", "?"),
+            info.get("base"),
+        )
+        flash("Sauvegarde créée avec succès ✅", "success")
+    except Exception as exc:  # message lisible remonté à l'utilisateur
+        current_app.logger.exception("Échec de la sauvegarde manuelle")
+        flash(f"La sauvegarde a échoué : {exc}", "danger")
+    return redirect(url_for("admin.sauvegardes"))
+
+
 
 @bp.route("/import-excel", methods=["GET", "POST"])
 @login_required

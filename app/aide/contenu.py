@@ -644,6 +644,15 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Faites toujours une simulation d'abord : elle montre ce qui sera importé sans rien modifier.",
     },
+    "admin.sauvegardes": {
+        "titre": "Sauvegardes",
+        "resume": "Créez une sauvegarde de la base de données et des pièces jointes, et consultez les sauvegardes existantes.",
+        "etapes": [
+            "Cliquez sur « Sauvegarder maintenant » : la sauvegarde est créée sur le serveur, dans le dossier backups/.",
+            "Copiez régulièrement ce dossier sur un support externe (disque, clé, espace réseau) pour être protégé en cas de panne.",
+        ],
+        "astuce": "La sauvegarde reste sur le serveur : aucune donnée personnelle n'est téléchargée par le navigateur.",
+    },
 
     # ---------------------- Accès tablette / kiosque --------------------
     "launcher.index": {
