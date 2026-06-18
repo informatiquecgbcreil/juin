@@ -35,6 +35,18 @@ def test_service_cree_et_liste_une_sauvegarde(app):
             zip_path.unlink(missing_ok=True)
 
 
+def test_pg_dump_detecte_via_config(app, tmp_path, monkeypatch):
+    """Si pg_dump n'est pas dans le PATH, la variable PG_DUMP_PATH est utilisée."""
+    from app.services import sauvegarde
+
+    monkeypatch.setattr(sauvegarde.shutil, "which", lambda *a, **k: None)
+    faux = tmp_path / "pg_dump.exe"
+    faux.write_text("")
+    with app.app_context():
+        app.config["PG_DUMP_PATH"] = str(faux)
+        assert sauvegarde._trouver_pg_dump() == str(faux)
+
+
 def test_bouton_cree_une_sauvegarde(admin_client, app):
     from app.services.sauvegarde import dossier_sauvegardes, lister_sauvegardes
 
