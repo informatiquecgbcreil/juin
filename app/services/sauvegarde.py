@@ -13,6 +13,8 @@ Une sauvegarde produit, dans le dossier ``backups/`` à la racine du projet :
 from __future__ import annotations
 
 import datetime as dt
+import os
+import re
 import shutil
 import subprocess
 import zipfile
@@ -48,15 +50,58 @@ def _uri_libpq(db_uri: str) -> str:
     return db_uri
 
 
+def _trouver_pg_dump() -> str | None:
+    """Localise l'exécutable pg_dump, sans exiger qu'il soit dans le PATH.
+
+    Ordre de recherche :
+    1. le PATH du système ;
+    2. la variable PG_DUMP_PATH (config Flask ou variable d'environnement) ;
+    3. les emplacements d'installation PostgreSQL courants sous Windows
+       (``C:\\Program Files\\PostgreSQL\\<version>\\bin\\pg_dump.exe``),
+       version la plus récente d'abord.
+    """
+    exe = shutil.which("pg_dump") or shutil.which("pg_dump.exe")
+    if exe:
+        return exe
+
+    configure = (
+        current_app.config.get("PG_DUMP_PATH") or os.environ.get("PG_DUMP_PATH") or ""
+    ).strip()
+    if configure and Path(configure).exists():
+        return configure
+
+    def _version(verdir: Path) -> int:
+        m = re.match(r"(\d+)", verdir.name)
+        return int(m.group(1)) if m else -1
+
+    for base in (r"C:\Program Files\PostgreSQL", r"C:\Program Files (x86)\PostgreSQL"):
+        racine = Path(base)
+        if not racine.exists():
+            continue
+        for verdir in sorted(
+            (d for d in racine.iterdir() if d.is_dir()), key=_version, reverse=True
+        ):
+            candidat = verdir / "bin" / "pg_dump.exe"
+            if candidat.exists():
+                return str(candidat)
+    return None
+
+
 def _pg_dump(db_uri: str, cible: Path) -> None:
-    cmd = ["pg_dump", "--format=plain", "--no-owner", "--no-privileges", _uri_libpq(db_uri)]
+    exe = _trouver_pg_dump()
+    if not exe:
+        raise RuntimeError(
+            "La commande pg_dump est introuvable. Elle est normalement fournie avec "
+            "PostgreSQL (dossier « bin »). Ajoutez ce dossier au PATH du serveur, ou "
+            "définissez la variable PG_DUMP_PATH avec le chemin complet vers pg_dump.exe."
+        )
+    cmd = [exe, "--format=plain", "--no-owner", "--no-privileges", _uri_libpq(db_uri)]
     try:
         with cible.open("wb") as f:
             proc = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE)
-    except FileNotFoundError as exc:  # pg_dump absent du serveur
+    except FileNotFoundError as exc:  # pg_dump introuvable malgré la détection
         raise RuntimeError(
-            "La commande pg_dump est introuvable. Installez les outils clients "
-            "PostgreSQL sur le serveur pour pouvoir sauvegarder la base."
+            f"Impossible d'exécuter pg_dump ({exe}). Vérifiez l'installation de PostgreSQL."
         ) from exc
     if proc.returncode != 0:
         detail = (proc.stderr or b"").decode("utf-8", "replace").strip()
