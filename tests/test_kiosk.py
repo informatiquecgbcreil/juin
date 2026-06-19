@@ -130,3 +130,17 @@ def test_page_avis_publique(client, session_kiosk):
 
 def test_session_inexistante_404(client):
     assert client.get("/kiosk/session/inexistant").status_code == 404
+
+
+def test_programme_en_direct_public(client, session_kiosk):
+    """Le programme est public et liste les ateliers ouverts, sans émarger."""
+    r = client.get("/kiosk/programme")
+    assert r.status_code == 200
+    page = r.get_data(as_text=True)
+    assert "kiosk.css" in page
+    assert session_kiosk["atelier"] in page, "l'atelier ouvert doit apparaître au programme"
+
+
+def test_accueil_kiosque_lien_vers_programme(client, session_kiosk):
+    r = client.get("/kiosk/")
+    assert "/kiosk/programme" in r.get_data(as_text=True)

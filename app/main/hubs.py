@@ -2,10 +2,10 @@ from datetime import date
 
 
 from flask import (
-    render_template, request, url_for, abort, current_app
+    render_template, request, url_for, abort, current_app, Response, flash, redirect
 )
 from flask_login import login_required, current_user
-from app.rbac import can
+from app.rbac import can, require_perm
 
 from app.extensions import db
 from app.models import (
@@ -309,6 +309,61 @@ def _documents_orientation_count(year: int, secteur: str | None) -> int:
     return q.count()
 
 
+@bp.route("/programme-public.html")
+@login_required
+@require_perm("emargement:view")
+def programme_public_export():
+    """Télécharge le programme des activités en page HTML autonome, à publier
+    sur un site / hébergement externe. Données non nominatives."""
+    from app.services.programme_public import rendu_html
+
+    return Response(
+        rendu_html(),
+        mimetype="text/html",
+        headers={"Content-Disposition": 'attachment; filename="programme.html"'},
+    )
+
+
+@bp.route("/programme/publication")
+@login_required
+@require_perm("emargement:view")
+def publication_programme():
+    """Publication du programme sur l'hébergement (statut + bouton manuel)."""
+    from app.services.publication_web import (
+        config_publication,
+        derniere_publication,
+        publication_configuree,
+    )
+
+    return render_template(
+        "programme_publication.html",
+        configuree=publication_configuree(),
+        config=config_publication(),
+        derniere=derniere_publication(),
+    )
+
+
+@bp.route("/programme/publication/publier", methods=["POST"])
+@login_required
+@require_perm("emargement:view")
+def publication_programme_publier():
+    from app.services.publication_web import publier_programme
+
+    try:
+        info = publier_programme()
+        current_app.logger.info(
+            "Programme publié en ligne par %s (%s octets vers %s)",
+            getattr(current_user, "email", "?"),
+            info.get("octets"),
+            info.get("hote"),
+        )
+        flash("Programme publié en ligne avec succès ✅", "success")
+    except Exception as exc:  # message lisible remonté à l'utilisateur
+        current_app.logger.exception("Échec de la publication du programme")
+        flash(f"La publication a échoué : {exc}", "danger")
+    return redirect(url_for("main.publication_programme"))
+
+
 @bp.route("/documents")
 @login_required
 def documents_exports():
@@ -424,6 +479,22 @@ def documents_exports():
                 ],
             },
         ])
+
+    if can("emargement:view"):
+        add_group(
+            "Communication",
+            "Le programme des activités à publier en ligne (sur votre site / hébergement).",
+            [
+                {
+                    "title": "Programme public des activités",
+                    "meta": "Page HTML autonome — ateliers collectifs à venir, sans données personnelles",
+                    "actions": [
+                        {"label": "Télécharger (HTML)", "url": url_for("main.programme_public_export"), "primary": True},
+                        {"label": "Publier en ligne", "url": url_for("main.publication_programme")},
+                    ],
+                },
+            ],
+        )
 
     _hub_forbidden_if_empty(groups)
     subventions = _documents_subventions(year, selected_secteur)

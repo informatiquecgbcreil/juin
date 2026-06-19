@@ -332,6 +332,17 @@
       <br>
       Lien direct de cette session : <code id="kiosk-link">{{ request.url_root }}kiosk/session/{{ session.kiosk_token }}</code> <button type="button" class="btn copy-btn" data-copy-target="#kiosk-link">Copier le lien</button>
     </div>
+    <div style="margin-top:14px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+      <img alt="QR code de cette séance"
+           style="width:180px; height:180px; background:#fff; border:1px solid var(--border-soft); border-radius:12px; padding:6px;"
+           src="{{ url_for('launcher.launcher_qr', u=(request.url_root ~ 'kiosk/session/' ~ session.kiosk_token)) }}">
+      <div class="muted" style="max-width:44ch;">
+        Les participants <strong>scannent ce QR code</strong> pour émarger depuis leur téléphone
+        (connecté au Wi-Fi / réseau du centre) : ils cherchent leur nom et signent, sans toucher au terminal partagé.
+        <br>
+        <a href="{{ url_for('launcher.launcher_qr', u=(request.url_root ~ 'kiosk/session/' ~ session.kiosk_token)) }}" target="_blank" rel="noopener">Afficher le QR en grand</a>
+      </div>
+    </div>
   </section>
   {% endif %}
 
