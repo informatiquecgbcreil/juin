@@ -79,6 +79,26 @@ def _build_bilan_rows(participant: Participant) -> list[dict]:
                 "atelier": atelier_label,
             }
         )
+
+    # Compétences validées via le portail (fusionnées, marquées « Portail »).
+    from app.pedagogie.services import progression_portail
+
+    portail = progression_portail(participant.id)
+    valides_cids = [cid for cid, info in portail.items() if info["niveau"] >= 2]
+    if valides_cids:
+        deja = {r["competence"] for r in rows}
+        comps = (
+            db.session.query(Competence, Referentiel)
+            .join(Referentiel, Competence.referentiel_id == Referentiel.id)
+            .filter(Competence.id.in_(valides_cids))
+            .all()
+        )
+        for comp, ref in comps:
+            label = f"{comp.code} · {comp.nom}"
+            if label in deja:
+                continue
+            rows.append({"referentiel": ref.nom, "competence": label, "date": "", "atelier": "Portail"})
+        rows.sort(key=lambda r: (r["referentiel"], r["competence"]))
     return rows
 
 

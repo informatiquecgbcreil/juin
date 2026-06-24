@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime, time
 
 from app.extensions import db
 from app.models import Evaluation, Objectif, ObjectifCompetenceMap, Participant
@@ -29,6 +29,15 @@ def participant_timeline(participant_id: int):
     current_levels: dict[int, int] = {}
     for e in events:
         current_levels[e.competence_id] = e.etat
+
+    # Enrichissement portail : niveau effectif = max(manuel, portail). On
+    # n'écrase jamais les évaluations manuelles (events reste manuel) ; seul le
+    # niveau affiché/agrégé est relevé. Une compétence uniquement échouée au
+    # portail (niveau 0) n'est pas ajoutée si elle n'a pas d'évaluation manuelle.
+    for cid, info in progression_portail(participant_id).items():
+        if info["niveau"] > 0 or cid in current_levels:
+            current_levels[cid] = max(current_levels.get(cid, 0), info["niveau"])
+
     return participant, events, current_levels
 
 
@@ -122,6 +131,67 @@ def progression_portail(participant_id: int) -> dict[int, dict]:
     return resultat
 
 
+def niveaux_portail_par_paire(
+    competence_ids=None, start_date: date | None = None, end_date: date | None = None
+) -> dict[tuple[int, int], int]:
+    """Niveau portail (0-3) par (participant_id, competence_id), pour agrégation.
+
+    Restreint éventuellement aux compétences ``competence_ids`` et aux tentatives
+    terminées dans [start_date, end_date]. Sert à fusionner la progression portail
+    dans les stats (objectifs, etc.) : niveau effectif = max(manuel, portail).
+    """
+    from app.models import PortailAttempt, PortailCompetenceMap
+
+    maps_q = PortailCompetenceMap.query.filter(PortailCompetenceMap.actif.is_(True))
+    if competence_ids:
+        maps_q = maps_q.filter(PortailCompetenceMap.competence_id.in_(list(competence_ids)))
+    maps = maps_q.all()
+    if not maps:
+        return {}
+
+    by_comp: dict[int, list[tuple[str, float]]] = defaultdict(list)
+    activities: set[str] = set()
+    for m in maps:
+        by_comp[m.competence_id].append((m.activity, float(m.seuil_pct or 0)))
+        activities.add(m.activity)
+
+    att_q = PortailAttempt.query.filter(PortailAttempt.activity.in_(activities))
+    if start_date:
+        att_q = att_q.filter(PortailAttempt.finished_at >= datetime.combine(start_date, time.min))
+    if end_date:
+        att_q = att_q.filter(PortailAttempt.finished_at <= datetime.combine(end_date, time.max))
+    attempts = att_q.all()
+
+    best: dict[tuple[int, str], float] = {}
+    participants: set[int] = set()
+    for a in attempts:
+        if a.participant_id is None:
+            continue
+        participants.add(a.participant_id)
+        p = _pct_tentative(a)
+        if p is None:
+            continue
+        k = (a.participant_id, a.activity)
+        if k not in best or p > best[k]:
+            best[k] = p
+
+    resultat: dict[tuple[int, int], int] = {}
+    for pid in participants:
+        for cid, exos in by_comp.items():
+            reussis = 0
+            attempted = False
+            for activity, seuil in exos:
+                mp = best.get((pid, activity))
+                if mp is not None:
+                    attempted = True
+                    if mp >= seuil:
+                        reussis += 1
+            if not attempted:
+                continue
+            resultat[(pid, cid)] = _niveau_depuis_progression(reussis, len(exos))
+    return resultat
+
+
 def compute_objectif_scores(projet_id: int | None = None, start_date: date | None = None, end_date: date | None = None):
     objectifs_q = Objectif.query
     if projet_id:
@@ -153,6 +223,14 @@ def compute_objectif_scores(projet_id: int | None = None, start_date: date | Non
         key = (e.participant_id, e.competence_id)
         latest[key] = e.etat
         per_pair[key].append(e.etat)
+
+    # Fusion portail : niveau effectif = max(manuel, portail) ; ajoute aussi les
+    # participants qui n'ont qu'une progression portail (sans évaluation manuelle).
+    if comp_ids:
+        for cle, niveau in niveaux_portail_par_paire(comp_ids, start_date, end_date).items():
+            if niveau > latest.get(cle, -1):
+                latest[cle] = niveau
+                per_pair.setdefault(cle, [niveau])
 
     comp_latest_values = defaultdict(list)
     comp_participants = defaultdict(set)
