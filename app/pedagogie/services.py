@@ -32,6 +32,96 @@ def participant_timeline(participant_id: int):
     return participant, events, current_levels
 
 
+def _pct_tentative(a) -> float | None:
+    """Pourcentage d'une tentative portail (pct si fourni, sinon score/maxScore)."""
+    if a.pct is not None:
+        try:
+            return float(a.pct)
+        except (TypeError, ValueError):
+            return None
+    if a.max_score:
+        try:
+            return float(a.score) / float(a.max_score) * 100.0
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
+    return None
+
+
+def _niveau_depuis_progression(reussis: int, total: int) -> int:
+    """Niveau 0-3 déduit du ratio d'exercices réussis (échelle ERP : 2 = acquis)."""
+    if total <= 0 or reussis <= 0:
+        return 0
+    ratio = reussis / total
+    if ratio >= 1.0:
+        return 3
+    if ratio >= 0.5:
+        return 2
+    return 1
+
+
+def progression_portail(participant_id: int) -> dict[int, dict]:
+    """Progression déduite du portail, par compétence, pour un participant.
+
+    Pour chaque compétence ayant des exercices mappés (actifs) : un exercice est
+    « réussi » si le participant a au moins une tentative dont le pourcentage
+    atteint le seuil du mapping. Renvoie ``{competence_id: {niveau, reussis,
+    total, exercices: [...]}}``. Aucun effet de bord : tout est recalculé.
+    """
+    from app.models import PortailAttempt, PortailCompetenceMap
+
+    maps = PortailCompetenceMap.query.filter(PortailCompetenceMap.actif.is_(True)).all()
+    if not maps:
+        return {}
+
+    by_comp: dict[int, list[tuple[str, float]]] = defaultdict(list)
+    activities: set[str] = set()
+    for m in maps:
+        by_comp[m.competence_id].append((m.activity, float(m.seuil_pct or 0)))
+        activities.add(m.activity)
+
+    attempts = (
+        PortailAttempt.query
+        .filter(PortailAttempt.participant_id == participant_id)
+        .filter(PortailAttempt.activity.in_(activities))
+        .all()
+    )
+    meilleur_pct: dict[str, float] = {}
+    for a in attempts:
+        p = _pct_tentative(a)
+        if p is None:
+            continue
+        if a.activity not in meilleur_pct or p > meilleur_pct[a.activity]:
+            meilleur_pct[a.activity] = p
+
+    resultat: dict[int, dict] = {}
+    for cid, exos in by_comp.items():
+        detail = []
+        reussis = 0
+        attempted = False
+        for activity, seuil in exos:
+            mp = meilleur_pct.get(activity)
+            if mp is not None:
+                attempted = True
+            reussi = mp is not None and mp >= seuil
+            if reussi:
+                reussis += 1
+            detail.append(
+                {"activity": activity, "seuil": seuil, "meilleur_pct": mp, "reussi": reussi}
+            )
+        if not attempted:
+            # Le participant n'a tenté aucun exercice de cette compétence : on ne
+            # l'inclut pas (pas de progression portail à afficher pour lui).
+            continue
+        total = len(exos)
+        resultat[cid] = {
+            "niveau": _niveau_depuis_progression(reussis, total),
+            "reussis": reussis,
+            "total": total,
+            "exercices": detail,
+        }
+    return resultat
+
+
 def compute_objectif_scores(projet_id: int | None = None, start_date: date | None = None, end_date: date | None = None):
     objectifs_q = Objectif.query
     if projet_id:

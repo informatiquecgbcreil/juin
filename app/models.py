@@ -2242,3 +2242,29 @@ class PortailSyncState(db.Model):
     last_since = db.Column(db.String(40), nullable=True)
     last_run_at = db.Column(db.DateTime, nullable=True)
     last_status = db.Column(db.String(255), nullable=True)
+
+
+class PortailCompetenceMap(db.Model):
+    """Correspondance globale : un exercice du portail (champ ``activity``)
+    est une composante d'une compétence de l'ERP, avec un seuil de réussite.
+
+    Sert à alimenter la progression pédagogique : une tentative dont le
+    pourcentage atteint ``seuil_pct`` rend l'exercice « réussi » pour la
+    compétence visée.
+    """
+    __tablename__ = "portail_competence_map"
+
+    id = db.Column(db.Integer, primary_key=True)
+    activity = db.Column(db.String(255), nullable=False, index=True)
+    competence_id = db.Column(
+        db.Integer, db.ForeignKey("competence.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    seuil_pct = db.Column(db.Integer, nullable=False, default=80)
+    actif = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    competence = db.relationship("Competence")
+
+    __table_args__ = (
+        db.UniqueConstraint("activity", "competence_id", name="uq_portail_competence_map"),
+    )
