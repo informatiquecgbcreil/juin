@@ -811,24 +811,56 @@ def _compute_bilans_lourds_core(year: int, scope: BilansScope) -> dict:
     )
     base_eval = _apply_secteur_filter(base_eval, scope, SessionActivite.secteur)
 
-    total_eval_items = int(base_eval.with_entities(func.count(Evaluation.id)).scalar() or 0)
+    total_eval_items_manuel = int(base_eval.with_entities(func.count(Evaluation.id)).scalar() or 0)
 
-    # participants évalués (distinct participant_id)
-    total_eval = int(
-        base_eval.with_entities(func.count(func.distinct(Evaluation.participant_id))).scalar() or 0
-    )
+    # participants / compétences évalués manuellement (ensembles, pour l'union avec le portail)
+    manual_pids = {r[0] for r in base_eval.with_entities(Evaluation.participant_id).distinct().all()}
+    manual_cids = {r[0] for r in base_eval.with_entities(Evaluation.competence_id).distinct().all()}
 
     total_eval_sessions = int(
         base_eval.with_entities(func.count(func.distinct(Evaluation.session_id))).scalar() or 0
     )
 
-    # évaluations par état (volume d'items compétences)
-    par_etat = []
+    # évaluations manuelles par état (volume d'items compétences)
+    par_etat_manuel = {}
     for etat in (0, 1, 2, 3):
         q = base_eval.filter(Evaluation.etat == etat)
-        par_etat.append((_ETAT_LABELS.get(etat, str(etat)), int(q.with_entities(func.count(Evaluation.id)).scalar() or 0)))
+        par_etat_manuel[etat] = int(q.with_entities(func.count(Evaluation.id)).scalar() or 0)
 
-    nb_comp_u = int(base_eval.with_entities(func.count(func.distinct(Evaluation.competence_id))).scalar() or 0)
+    # --- Contribution portail, fusionnée dans les totaux ---
+    # Attribution validée : secteur du participant + année de la tentative (finished_at).
+    from datetime import datetime as _dt, timedelta as _td
+    from app.models import Participant
+    from app.pedagogie.services import niveaux_portail_par_paire
+
+    _s = start.date() if isinstance(start, _dt) else start
+    _e = end.date() if isinstance(end, _dt) else end
+    portal_pairs = niveaux_portail_par_paire(None, _s, _e - _td(days=1))  # période [start, end)
+    portal_part, portal_comp = set(), set()
+    portail_items = 0
+    portail_par_niveau = {0: 0, 1: 0, 2: 0, 3: 0}
+    if portal_pairs:
+        _pids = {pid for (pid, _cid) in portal_pairs}
+        _secteur_by_pid = {
+            p.id: (p.created_secteur or "")
+            for p in Participant.query.filter(Participant.id.in_(_pids)).all()
+        }
+        _scope_secteurs = set(scope.secteurs) if scope.secteurs is not None else None
+        for (pid, cid), niveau in portal_pairs.items():
+            if _scope_secteurs is not None and _secteur_by_pid.get(pid, "") not in _scope_secteurs:
+                continue
+            portal_part.add(pid)
+            portal_comp.add(cid)
+            portail_items += 1
+            portail_par_niveau[niveau] = portail_par_niveau.get(niveau, 0) + 1
+
+    total_eval_items = total_eval_items_manuel + portail_items
+    total_eval = len(manual_pids | portal_part)
+    nb_comp_u = len(manual_cids | portal_comp)
+    par_etat = [
+        (_ETAT_LABELS.get(etat, str(etat)), par_etat_manuel[etat] + portail_par_niveau.get(etat, 0))
+        for etat in (0, 1, 2, 3)
+    ]
 
     # détail par secteur (dans le périmètre)
     secteurs = scope.secteurs if scope.secteurs is not None else list_secteurs(year, scope)
@@ -886,6 +918,11 @@ def _compute_bilans_lourds_core(year: int, scope: BilansScope) -> dict:
             "total_sessions": total_eval_sessions,
             "par_etat": par_etat,
             "nb_competences_uniques": nb_comp_u,
+            "dont_portail": {
+                "participants": len(portal_part),
+                "competences": len(portal_comp),
+                "items": portail_items,
+            },
         },
         "par_secteur": par_secteur,
     }
