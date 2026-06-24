@@ -1227,6 +1227,14 @@ def participant_passeport(participant_id: int):
         reverse=True,
     )[:60]
 
+    from app.models import PortailAttempt
+    from app.services.portail_apprenants import portail_configure
+    portail_attempts = (
+        PortailAttempt.query.filter_by(participant_id=participant_id)
+        .order_by(PortailAttempt.finished_at.desc().nullslast())
+        .all()
+    )
+
     return render_template(
         "pedagogie/participant_passeport.html",
         participant=participant,
@@ -1249,7 +1257,28 @@ def participant_passeport(participant_id: int):
         session_choices=session_choices,
         comp_map=comp_map,
         referentiel_stats=referentiel_stats,
+        portail_attempts=portail_attempts,
+        portail_configure=portail_configure(),
     )
+
+
+@bp.route("/participant/<int:participant_id>/passeport/portail", methods=["POST"])
+@login_required
+@require_perm("pedagogie:view")
+def participant_passeport_portail(participant_id: int):
+    """Crée manuellement le profil portail (code apprenant) d'un participant déjà
+    présent dans l'ERP, sans attendre une nouvelle inscription en parcours insertion."""
+    from app.models import Participant
+    from app.services.portail_apprenants import assurer_code_portail, portail_configure
+
+    participant = db.get_or_404(Participant, participant_id)
+    if not portail_configure():
+        flash("L'intégration au portail n'est pas configurée (PORTAIL_BASE_URL / PORTAIL_TOKEN).", "warning")
+    elif assurer_code_portail(participant):
+        flash(f"Profil portail créé (code {participant.portail_code}).", "success")
+    else:
+        flash("Le portail n'a pas pu créer le profil pour le moment. Réessayez plus tard.", "danger")
+    return redirect(url_for("pedagogie.participant_passeport", participant_id=participant_id, tab="portail"))
 
 
 @bp.route("/participant/<int:participant_id>/passeport/evaluation", methods=["POST"])
