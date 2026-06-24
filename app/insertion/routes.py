@@ -354,6 +354,11 @@ def _render_parcours_form(participant: Participant, row: ParticipantInsertionPar
             row.legacy_source = False
             db.session.add(row)
             db.session.commit()
+            if is_new:
+                # Inscription : on s'assure que le stagiaire a un code apprenant
+                # sur le portail (idempotent, non bloquant en cas d'erreur réseau).
+                from app.services.portail_apprenants import assurer_code_portail
+                assurer_code_portail(participant)
             flash("Le parcours insertion a bien été enregistré.", "success")
             return redirect(url_for("insertion.participant_detail", participant_id=participant.id))
 
