@@ -141,3 +141,11 @@ class Config:
     PROGRAMME_FTP_FILENAME = os.environ.get("PROGRAMME_FTP_FILENAME", "programme.html")
     PROGRAMME_PUBLIC_URL = os.environ.get("PROGRAMME_PUBLIC_URL", "")
 
+    # --- Portail des apprenants (intégration REST externe) -------------------
+    # Le portail ne stocke aucune donnée personnelle : on lui transmet seulement
+    # notre ID interne de stagiaire (externalId). Auth par en-tête x-api-token.
+    # Optionnel : tant que l'URL et le jeton ne sont pas renseignés,
+    # l'intégration reste désactivée.
+    PORTAIL_BASE_URL = os.environ.get("PORTAIL_BASE_URL", "")
+    PORTAIL_TOKEN = os.environ.get("PORTAIL_TOKEN", "")
+

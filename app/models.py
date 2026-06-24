@@ -1230,6 +1230,9 @@ class Participant(db.Model):
     diplome_obtenu = db.Column(db.String(180), nullable=True)
     cir_obtenu = db.Column(db.Boolean, nullable=True)
 
+    # Code apprenant sur le portail externe (idempotent : 1 code par participant).
+    portail_code = db.Column(db.String(120), nullable=True, index=True)
+
     # Type de public (ex: H/S/B/A/P). Par défaut: H
     type_public = db.Column(db.String(2), nullable=False, default="H")
 
@@ -2194,3 +2197,48 @@ class ActionObjectifSectoriel(db.Model):
     __table_args__ = (
         db.UniqueConstraint("action_id", "objectif_id", name="uq_action_objectif"),
     )
+
+
+# ---------- PORTAIL DES APPRENANTS (intégration externe) ----------
+class PortailAttempt(db.Model):
+    """Résultat d'activité importé du portail des apprenants (externe).
+
+    Dédoublonné par ``attempt_id`` (l'``id`` renvoyé par le portail, car la
+    borne ``since`` est inclusive). Rapproché à un participant via l'externalId
+    (= notre ``Participant.id``).
+    """
+    __tablename__ = "portail_attempt"
+
+    id = db.Column(db.Integer, primary_key=True)
+    attempt_id = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    external_id = db.Column(db.String(64), nullable=True, index=True)
+    participant_id = db.Column(
+        db.Integer, db.ForeignKey("participant.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    activity = db.Column(db.String(255), nullable=True)
+    activity_type = db.Column(db.String(120), nullable=True)
+    theme = db.Column(db.String(255), nullable=True)
+    score = db.Column(db.Float, nullable=True)
+    max_score = db.Column(db.Float, nullable=True)
+    pct = db.Column(db.Float, nullable=True)
+    duration_ms = db.Column(db.Integer, nullable=True)
+    finished_at = db.Column(db.DateTime, nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    participant = db.relationship(
+        "Participant", backref=db.backref("portail_attempts", lazy="dynamic")
+    )
+
+
+class PortailSyncState(db.Model):
+    """État de la synchronisation périodique avec le portail (curseur ``since``).
+
+    Une seule ligne (id=1) : mémorise le dernier ``generatedAt`` reçu, à
+    renvoyer comme ``since`` au passage suivant.
+    """
+    __tablename__ = "portail_sync_state"
+
+    id = db.Column(db.Integer, primary_key=True)
+    last_since = db.Column(db.String(40), nullable=True)
+    last_run_at = db.Column(db.DateTime, nullable=True)
+    last_status = db.Column(db.String(255), nullable=True)
