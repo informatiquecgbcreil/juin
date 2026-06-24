@@ -514,6 +514,27 @@
   <div class="card tabpanel" data-panel="portail">
     <h2 style="margin-top:0;">🌐 Activités en ligne (portail des apprenants)</h2>
 
+    {% if portail_competences %}
+      <h3 style="margin-top:4px;">Compétences alimentées par le portail</h3>
+      <p class="muted">Déduit des exercices réussis — enrichit le niveau de compétence, sans remplacer l'évaluation de l'équipe.</p>
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Compétence</th><th>Exercices réussis</th><th>Niveau déduit</th></tr></thead>
+        <tbody>
+          {% for pc in portail_competences %}
+            <tr>
+              <td><strong>{{ pc.competence.code }}</strong> · {{ pc.competence.nom }}</td>
+              <td>{{ pc.reussis }}/{{ pc.total }}</td>
+              <td>N{{ pc.niveau }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% endif %}
+
+    <p class="ux-helper"><a href="{{ url_for('pedagogie.portail_competences') }}">⚙️ Gérer les correspondances exercices → compétences</a></p>
+
     {% if participant.portail_code %}
       <p class="muted">Code apprenant : <strong>{{ participant.portail_code }}</strong></p>
       {% if portail_attempts %}

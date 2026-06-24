@@ -39,7 +39,7 @@ from app.rbac import require_perm
 
 from . import bp
 from app.utils.delete_guard import commit_delete
-from .services import compute_objectif_scores, participant_timeline
+from .services import compute_objectif_scores, participant_timeline, progression_portail
 
 
 PASSPORT_NOTE_CATEGORIES = {
@@ -1093,6 +1093,14 @@ def plan_projet():
 def participant_passeport(participant_id: int):
     participant, events, current_levels = participant_timeline(participant_id)
 
+    # Portail : progression déduite des exercices mappés. Enrichit sans écraser
+    # (niveau effectif = max manuel / portail) ; les évaluations manuelles
+    # ne sont jamais modifiées.
+    portail_progress = progression_portail(participant_id)
+    for cid, info in portail_progress.items():
+        if info["niveau"] > 0 or cid in current_levels:
+            current_levels[cid] = max(current_levels.get(cid, 0), info["niveau"])
+
     selected_secteur = (request.args.get("secteur") or "").strip()
     selected_categorie = _normalize_note_category(request.args.get("categorie")) if request.args.get("categorie") else ""
     notes_page = max(request.args.get("notes_page", 1, type=int), 1)
@@ -1234,6 +1242,18 @@ def participant_passeport(participant_id: int):
         .order_by(PortailAttempt.finished_at.desc().nullslast())
         .all()
     )
+    # Détail des compétences alimentées par le portail (traçabilité).
+    portail_comp_ids = list(portail_progress.keys())
+    portail_comp_lookup = {
+        c.id: c for c in (Competence.query.filter(Competence.id.in_(portail_comp_ids)).all() if portail_comp_ids else [])
+    }
+    portail_competences = sorted(
+        (
+            {"competence": portail_comp_lookup[cid], **info}
+            for cid, info in portail_progress.items() if cid in portail_comp_lookup
+        ),
+        key=lambda x: (x["competence"].code or ""),
+    )
 
     return render_template(
         "pedagogie/participant_passeport.html",
@@ -1258,8 +1278,79 @@ def participant_passeport(participant_id: int):
         comp_map=comp_map,
         referentiel_stats=referentiel_stats,
         portail_attempts=portail_attempts,
+        portail_competences=portail_competences,
         portail_configure=portail_configure(),
     )
+
+
+@bp.route("/portail-competences", methods=["GET"])
+@login_required
+@require_perm("pedagogie:view")
+def portail_competences():
+    """Correspondance globale : exercices du portail → compétences de l'ERP."""
+    from app.models import Competence, PortailAttempt, PortailCompetenceMap
+
+    activities = [
+        r[0]
+        for r in db.session.query(PortailAttempt.activity)
+        .filter(PortailAttempt.activity.isnot(None))
+        .distinct()
+        .order_by(PortailAttempt.activity.asc())
+        .all()
+        if r[0]
+    ]
+    mappings = PortailCompetenceMap.query.order_by(PortailCompetenceMap.activity.asc()).all()
+    competences = (
+        Competence.query.join(Referentiel, Competence.referentiel_id == Referentiel.id, isouter=True)
+        .order_by(Referentiel.nom.asc().nullslast(), Competence.code.asc())
+        .all()
+    )
+    return render_template(
+        "pedagogie/portail_competences.html",
+        activities=activities,
+        mappings=mappings,
+        competences=competences,
+    )
+
+
+@bp.route("/portail-competences/add", methods=["POST"])
+@login_required
+@require_perm("pedagogie:view")
+def portail_competences_add():
+    from app.models import PortailCompetenceMap
+
+    activity = (request.form.get("activity") or "").strip()
+    competence_id = request.form.get("competence_id", type=int)
+    seuil = request.form.get("seuil_pct", type=int)
+    seuil = 80 if seuil is None else max(0, min(100, seuil))
+    if not activity or not competence_id:
+        flash("Choisissez un exercice et une compétence.", "danger")
+        return redirect(url_for("pedagogie.portail_competences"))
+    existing = PortailCompetenceMap.query.filter_by(activity=activity, competence_id=competence_id).first()
+    if existing:
+        existing.seuil_pct = seuil
+        existing.actif = True
+        flash("Correspondance mise à jour.", "success")
+    else:
+        db.session.add(
+            PortailCompetenceMap(activity=activity, competence_id=competence_id, seuil_pct=seuil, actif=True)
+        )
+        flash("Correspondance ajoutée.", "success")
+    db.session.commit()
+    return redirect(url_for("pedagogie.portail_competences"))
+
+
+@bp.route("/portail-competences/<int:map_id>/delete", methods=["POST"])
+@login_required
+@require_perm("pedagogie:view")
+def portail_competences_delete(map_id: int):
+    from app.models import PortailCompetenceMap
+
+    m = db.get_or_404(PortailCompetenceMap, map_id)
+    db.session.delete(m)
+    db.session.commit()
+    flash("Correspondance supprimée.", "success")
+    return redirect(url_for("pedagogie.portail_competences"))
 
 
 @bp.route("/participant/<int:participant_id>/passeport/portail", methods=["POST"])
