@@ -1093,13 +1093,9 @@ def plan_projet():
 def participant_passeport(participant_id: int):
     participant, events, current_levels = participant_timeline(participant_id)
 
-    # Portail : progression déduite des exercices mappés. Enrichit sans écraser
-    # (niveau effectif = max manuel / portail) ; les évaluations manuelles
-    # ne sont jamais modifiées.
+    # current_levels est déjà enrichi par le portail (max) dans participant_timeline.
+    # On conserve la progression détaillée pour l'affichage spécifique du passeport.
     portail_progress = progression_portail(participant_id)
-    for cid, info in portail_progress.items():
-        if info["niveau"] > 0 or cid in current_levels:
-            current_levels[cid] = max(current_levels.get(cid, 0), info["niveau"])
 
     selected_secteur = (request.args.get("secteur") or "").strip()
     selected_categorie = _normalize_note_category(request.args.get("categorie")) if request.args.get("categorie") else ""
