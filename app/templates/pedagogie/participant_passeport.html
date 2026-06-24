@@ -83,6 +83,7 @@
       <button class="tabbtn" data-tab="skills">Compétences</button>
       <button class="tabbtn" data-tab="notes">Notes</button>
       <button class="tabbtn" data-tab="files">Documents</button>
+      <button class="tabbtn" data-tab="portail">Activités en ligne</button>
     </div>
   </div>
 
@@ -505,6 +506,58 @@
         {% endif %}
       </div>
     </div>
+  </div>
+
+  {# -----------------------------
+     TAB: PORTAIL (activités en ligne)
+  ------------------------------ #}
+  <div class="card tabpanel" data-panel="portail">
+    <h2 style="margin-top:0;">🌐 Activités en ligne (portail des apprenants)</h2>
+
+    {% if participant.portail_code %}
+      <p class="muted">Code apprenant : <strong>{{ participant.portail_code }}</strong></p>
+      {% if portail_attempts %}
+        <div class="tablewrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th><th>Activité</th><th>Type</th><th>Thème</th><th>Score</th><th>Durée</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in portail_attempts %}
+              <tr>
+                <td>{{ a.finished_at.strftime('%d/%m/%Y %H:%M') if a.finished_at else '—' }}</td>
+                <td>{{ a.activity or '—' }}</td>
+                <td>{{ a.activity_type or '—' }}</td>
+                <td>{{ a.theme or '—' }}</td>
+                <td>
+                  {% if a.score is not none and a.max_score %}{{ a.score|int if a.score == a.score|int else a.score }}/{{ a.max_score|int if a.max_score == a.max_score|int else a.max_score }}{% if a.pct is not none %} ({{ a.pct|round(0)|int }}%){% endif %}
+                  {%- elif a.pct is not none %}{{ a.pct|round(0)|int }}%
+                  {%- else %}—{% endif %}
+                </td>
+                <td>{% if a.duration_ms %}{{ (a.duration_ms // 60000) }} min {{ ((a.duration_ms % 60000) // 1000) }} s{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        <p class="muted" style="margin-top:8px;">{{ portail_attempts|length }} activité(s) enregistrée(s). Mise à jour à chaque synchronisation.</p>
+      {% else %}
+        <p class="muted">Aucun résultat pour le moment. Les tentatives apparaîtront ici après la prochaine synchronisation.</p>
+      {% endif %}
+    {% else %}
+      <p class="muted">Ce participant n'a pas encore de profil sur le portail des apprenants.</p>
+      {% if portail_configure %}
+        <form method="post" action="{{ url_for('pedagogie.participant_passeport_portail', participant_id=participant.id) }}" data-no-scroll-restore>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn" type="submit" data-pending-text="Création en cours…">Créer le profil portail</button>
+        </form>
+        <p class="ux-helper" style="margin-top:6px;">Crée le code apprenant sur le portail et le rattache à cette fiche (utile pour les habitants déjà présents avant la mise en place du portail).</p>
+      {% else %}
+        <p class="muted">L'intégration au portail n'est pas configurée sur ce serveur (PORTAIL_BASE_URL / PORTAIL_TOKEN).</p>
+      {% endif %}
+    {% endif %}
   </div>
 
 </div>
