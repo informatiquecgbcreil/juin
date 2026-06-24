@@ -2,30 +2,19 @@ from __future__ import annotations
 
 import io
 
-from flask import current_app, render_template, request, Response, url_for
+from flask import render_template, request, Response, url_for
 from werkzeug.routing import BuildError
 
 import segno
 
+from app.services.public_urls import public_base_url
+
 from . import bp
-
-
-def _public_base_url() -> str:
-    """Retourne l'URL publique (LAN) de l'app.
-
-    Priorité:
-    1) config PUBLIC_BASE_URL (peut être alimenté via env ERP_PUBLIC_BASE_URL)
-    2) host de la requête courante
-    """
-    cfg = (current_app.config.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
-    if cfg:
-        return cfg
-    return request.host_url.rstrip("/")
 
 
 @bp.get("/")
 def index():
-    base = _public_base_url()
+    base = public_base_url()
 
     # Kiosque : dans ton app l'endpoint s'appelle kiosk.kiosk_home
     try:
@@ -55,7 +44,7 @@ def launcher_qr():
     /launcher/qr?target=admin
     /launcher/qr?u=https://...
     """
-    base = _public_base_url()
+    base = public_base_url()
     target = (request.args.get("target") or "kiosk").strip().lower()
     u = (request.args.get("u") or "").strip()
 

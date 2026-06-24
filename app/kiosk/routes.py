@@ -1,7 +1,7 @@
 import os
 import base64
 import json
-from datetime import datetime, date
+from datetime import datetime
 
 from app.utils.dates import utcnow
 
@@ -115,28 +115,30 @@ def _questionnaires_for_session(session: SessionActivite) -> list[Questionnaire]
 
 
 def _open_sessions_today() -> list[dict]:
-    """Liste des ateliers ouverts au kiosque aujourd'hui (collectif: date_session,
-    individuel: rdv_date), du plus récent au plus ancien. Données non nominatives."""
-    today = date.today()
+    """Liste des ateliers actuellement ouverts au kiosque.
+
+    La source de vérité est ``kiosk_open`` : une session peut être ouverte
+    pour émargement même si sa date métier n'est pas exactement la date du
+    serveur (préparation la veille, PC serveur en UTC, rattrapage, etc.).
+    Restreindre strictement à ``date.today()`` masquait donc des ateliers
+    pourtant ouverts et accessibles par PIN/token.
+    """
     sessions = (
         SessionActivite.query.filter_by(kiosk_open=True)
         .filter(SessionActivite.is_deleted.is_(False))
-        .order_by(SessionActivite.created_at.desc())
+        .order_by(
+            SessionActivite.date_session.asc(),
+            SessionActivite.rdv_date.asc(),
+            SessionActivite.heure_debut.asc(),
+            SessionActivite.rdv_debut.asc(),
+            SessionActivite.created_at.desc(),
+        )
         .limit(300)
         .all()
     )
 
-    filtered = []
-    for s in sessions:
-        d = s.date_session if s.session_type == "COLLECTIF" else s.rdv_date
-        if d == today:
-            filtered.append(s)
-
-    # on inverse pour afficher dans l'ordre horaire approximatif
-    filtered = list(reversed(filtered))
-
     entries = []
-    for s in filtered:
+    for s in sessions:
         atelier = db.session.get(AtelierActivite, s.atelier_id)
         entries.append({
             "token": s.kiosk_token,
