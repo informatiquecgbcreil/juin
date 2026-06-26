@@ -44,6 +44,7 @@ def hub_publics():
             "secondary": [
                 {"label": "Attestations", "url": url_for("activite.attestations")} if can("participants:view") or can("participants:view_all") else None,
                 {"label": "Ajouter une personne", "url": url_for("participants.new_participant")} if can("participants:edit") else None,
+                {"label": "Importer un annuaire", "url": url_for("participants.import_annuaire")} if (can("participants:edit") and can("scope:all_secteurs")) else None,
                 {"label": "Doublons potentiels", "url": url_for("participants.duplicates")} if can("participants:edit") else None,
             ],
             "tag": "Publics",
