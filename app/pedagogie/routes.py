@@ -1357,12 +1357,19 @@ def portail_competences_delete(map_id: int):
 @login_required
 @require_perm("pedagogie:view")
 def portail_competences_sync():
-    """Lance la synchronisation des résultats du portail depuis l'ERP."""
+    """Lance la synchronisation des résultats du portail depuis l'ERP.
+
+    Revient sur la page d'origine si un ``next`` local est fourni (ex. bouton
+    du tableau de bord), sinon sur la page des correspondances.
+    """
     from app.services.portail_apprenants import portail_configure, synchroniser_attempts
+
+    nxt = (request.form.get("next") or "").strip()
+    dest = nxt if (nxt.startswith("/") and not nxt.startswith("//")) else url_for("pedagogie.portail_competences")
 
     if not portail_configure():
         flash("Le portail n'est pas configuré (PORTAIL_BASE_URL / PORTAIL_TOKEN).", "warning")
-        return redirect(url_for("pedagogie.portail_competences"))
+        return redirect(dest)
     try:
         resume = synchroniser_attempts()
         flash(
@@ -1373,7 +1380,7 @@ def portail_competences_sync():
     except Exception as exc:  # réseau / portail indisponible : on ne plante pas
         current_app.logger.exception("Échec de la synchro portail (manuelle)")
         flash(f"La synchronisation a échoué : {exc}", "danger")
-    return redirect(url_for("pedagogie.portail_competences"))
+    return redirect(dest)
 
 
 @bp.route("/participant/<int:participant_id>/passeport/portail", methods=["POST"])

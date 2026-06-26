@@ -44,3 +44,17 @@ def test_sync_erreur_reseau_ne_plante_pas(admin_client, app, monkeypatch):
     r = admin_client.post("/pedagogie/portail-competences/sync", follow_redirects=True)
     assert r.status_code == 200
     assert "a échoué" in r.get_data(as_text=True)
+
+
+def test_sync_revient_sur_next(admin_client, app, monkeypatch):
+    """Le bouton du tableau de bord revient sur le dashboard via ?next."""
+    from app.services import portail_apprenants as svc
+
+    monkeypatch.setattr(svc, "synchroniser_attempts",
+                        lambda: {"nouvelles": 0, "recues": 0, "ignorees": 0, "since": None})
+    monkeypatch.setitem(app.config, "PORTAIL_BASE_URL", "https://portail.test")
+    monkeypatch.setitem(app.config, "PORTAIL_TOKEN", "secret")
+
+    r = admin_client.post("/pedagogie/portail-competences/sync", data={"next": "/dashboard"})
+    assert r.status_code == 302
+    assert r.headers["Location"].endswith("/dashboard")
