@@ -133,3 +133,25 @@ def test_bilan_financeur_respecte_le_secteur(app):
         # périmètre = un autre secteur (aucun participant) -> rien
         hors = _compute_bilans_lourds_core(2026, BilansScope(secteurs=[autre]))
         assert hors["evaluations"]["dont_portail"]["items"] == 0
+
+
+def test_bilan_lourds_affiche_dont_portail_sans_bug(admin_client, app):
+    """La page bilan lourd rend bien le nombre d'items portail (pas la méthode dict)."""
+    from app.extensions import db
+    from app.models import Participant, PortailAttempt, PortailCompetenceMap
+
+    with app.app_context():
+        cid, _ = _competence()
+        p = Participant(nom="BilRender", prenom="P", type_public="H", created_secteur="Numérique")
+        db.session.add(p)
+        db.session.flush()
+        act = f"ExR-{uuid.uuid4().hex[:6]}"
+        db.session.add(PortailCompetenceMap(activity=act, competence_id=cid, seuil_pct=80, actif=True))
+        db.session.add(PortailAttempt(attempt_id=f"br-{uuid.uuid4().hex[:6]}", external_id=str(p.id),
+                                      participant_id=p.id, activity=act, pct=95, score=95, max_score=100,
+                                      finished_at=dt.datetime(2026, 5, 10, 10, 0)))
+        db.session.commit()
+
+    page = admin_client.get("/bilans/lourds?year=2026").get_data(as_text=True)
+    assert "built-in method" not in page   # le bug (rendu de dict.items) ne doit plus apparaître
+    assert "via le portail" in page

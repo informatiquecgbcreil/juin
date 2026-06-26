@@ -91,8 +91,8 @@
         <p class="muted">Participants évalués</p>
         <h2>{{ stats.evaluations.total }}</h2>
         <div class="muted" style="font-size:12px;">{{ stats.evaluations.total_items }} items d'évaluation</div>
-        {% if stats.evaluations.dont_portail and stats.evaluations.dont_portail.items %}
-          <div class="muted" style="font-size:12px;">dont {{ stats.evaluations.dont_portail.participants }} participant(s) · {{ stats.evaluations.dont_portail.items }} item(s) via le portail</div>
+        {% if stats.evaluations.dont_portail and stats.evaluations.dont_portail['items'] %}
+          <div class="muted" style="font-size:12px;">dont {{ stats.evaluations.dont_portail['participants'] }} participant(s) · {{ stats.evaluations.dont_portail['items'] }} item(s) via le portail</div>
         {% endif %}
       </div>
       <div>

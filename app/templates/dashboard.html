@@ -369,6 +369,13 @@
           <label class="field-stack slim"><span>Exercice</span><input class="in budget-year-input" id="budget_year" name="budget_year" type="number" value="{{ budget_year }}" min="2000" max="2100" style="width:110px;"></label>
           <button class="btn" type="submit">Mettre à jour</button>
         </form>
+        {% if can('pedagogie:view') %}
+          <form method="post" action="{{ url_for('pedagogie.portail_competences_sync') }}" style="margin:0;" data-no-scroll-restore>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ url_for('main.dashboard') }}">
+            <button class="btn" type="submit" data-pending-text="Synchro…" title="Récupérer les derniers résultats du portail des apprenants">🔄 Synchroniser le portail</button>
+          </form>
+        {% endif %}
       </div>
     </div>
 
