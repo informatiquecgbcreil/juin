@@ -61,7 +61,14 @@ def wizard():
         u = User(email=admin_email, nom=admin_name)
         u.set_password(admin_password)
 
-        role = Role.query.filter_by(code="admin_tech").first()
+        # Premier compte = super-administrateur complet (accès total + gestion
+        # des utilisateurs/droits). Le rôle "direction" porte toutes les
+        # permissions, ce qui évite qu'un premier admin ne puisse pas accéder
+        # à ses propres données (ex. liste des participants).
+        role = (
+            Role.query.filter_by(code="direction").first()
+            or Role.query.filter_by(code="admin_tech").first()
+        )
         if role:
             u.roles.append(role)
 

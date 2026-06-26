@@ -1518,17 +1518,27 @@ def _import_dossier():
     return chemin
 
 
-def _import_resoudre_quartier_id(ville, nom):
-    """Relie à un quartier EXISTANT (ville + nom), sans jamais en créer."""
+def _import_resoudre_quartier_id(ville, nom, qpv=False):
+    """Relie à un quartier (ville + nom), en le CRÉANT s'il n'existe pas.
+
+    - Ne crée rien si le « quartier » est en réalité la commune (nom == ville)
+      ou si l'une des deux valeurs manque.
+    - ``qpv`` (drapeau Quartier prioritaire) n'est appliqué qu'à la création :
+      on n'écrase jamais le réglage QPV d'un quartier déjà présent.
+    """
     ville = (ville or "").strip()
     nom = (nom or "").strip()
-    if not (ville and nom):
+    if not (ville and nom) or nom.lower() == ville.lower():
         return None
     q = Quartier.query.filter(
         db.func.lower(Quartier.ville) == ville.lower(),
         db.func.lower(Quartier.nom) == nom.lower(),
     ).first()
-    return q.id if q else None
+    if q is None:
+        q = Quartier(ville=ville, nom=nom, is_qpv=bool(qpv))
+        db.session.add(q)
+        db.session.flush()
+    return q.id
 
 
 def _import_acces_autorise() -> bool:
@@ -1610,7 +1620,7 @@ def import_annuaire_confirmer():
             date_naissance=date(p.annee, 1, 1),  # jour/mois inconnus : 1er janvier de l'année connue
             type_public="H",
             adresse=p.adresse, ville=p.ville,
-            quartier_id=_import_resoudre_quartier_id(p.ville, p.quartier),
+            quartier_id=_import_resoudre_quartier_id(p.ville, p.quartier, p.qpv),
         ))
         faibles_courantes.add(p.cle_faible)
         crees += 1
@@ -1621,7 +1631,7 @@ def import_annuaire_confirmer():
             db.session.add(Participant(
                 nom=p.nom, prenom=p.prenom, genre=p.sexe, type_public="H",
                 adresse=p.adresse, ville=p.ville,
-                quartier_id=_import_resoudre_quartier_id(p.ville, p.quartier),
+                quartier_id=_import_resoudre_quartier_id(p.ville, p.quartier, p.qpv),
             ))
             faibles_courantes.add(p.cle_faible)
             crees_ambigus += 1

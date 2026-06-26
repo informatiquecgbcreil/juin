@@ -60,6 +60,50 @@ def test_import_persiste_adresse_et_lie_quartier(app, admin_client):
         assert p.quartier_id == q.id  # relié au quartier existant
 
 
+def test_import_cree_quartier_et_qpv(app, admin_client):
+    from app.extensions import db
+    from app.models import Participant, Quartier
+
+    pref = uuid.uuid4().hex[:6].upper()
+    qnom = f"Rouher{pref}"  # quartier inexistant -> doit être créé, marqué QPV
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Habitants"
+    ws.append(["NOMS", "PRENOMS", "ANNEE NAISSANCE", "SEXE", "VILLE", "ADRESSE", "QUARTIER", "QPV"])
+    ws.append([f"QPV{pref}", "Awa", 1995, "F", "Creil", "3 rue Henri Dunant", qnom, "oui"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    data = buf.getvalue()
+
+    r = admin_client.post("/participants/import",
+                          data={"fichier": (io.BytesIO(data), "h.xlsx")},
+                          content_type="multipart/form-data")
+    token = re.search(r'name="token" value="([0-9a-f]{32})"', r.get_data(as_text=True)).group(1)
+    admin_client.post("/participants/import/confirmer", data={"token": token})
+
+    with app.app_context():
+        q = Quartier.query.filter_by(ville="Creil", nom=qnom).first()
+        assert q is not None and q.is_qpv is True  # quartier créé + QPV
+        p = Participant.query.filter(Participant.nom.ilike(f"QPV{pref}")).first()
+        assert p.quartier_id == q.id
+
+
+def test_import_ne_cree_pas_quartier_commune(app, admin_client):
+    """Sans colonne QUARTIER, on ne crée pas un quartier nommé comme la ville."""
+    from app.extensions import db
+    from app.models import Quartier
+
+    pref = uuid.uuid4().hex[:6].upper()
+    data = _classeur([[f"NOQ{pref}", "Sam", 1988, "M", "Creil", "1 rue Test", ""]])
+    r = admin_client.post("/participants/import",
+                          data={"fichier": (io.BytesIO(data), "h.xlsx")},
+                          content_type="multipart/form-data")
+    token = re.search(r'name="token" value="([0-9a-f]{32})"', r.get_data(as_text=True)).group(1)
+    admin_client.post("/participants/import/confirmer", data={"token": token})
+    with app.app_context():
+        assert Quartier.query.filter_by(ville="Creil", nom="Creil").first() is None
+
+
 def test_repartition_repli_par_commune(app):
     from app.extensions import db
     from app.models import Participant

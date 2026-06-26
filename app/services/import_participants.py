@@ -29,7 +29,13 @@ ENTETES = {
     "sexe": "sexe", "genre": "sexe",
     "quartier": "quartier", "ville": "ville", "commune": "ville",
     "adresse": "adresse", "adresses": "adresse", "rue": "adresse",
+    "qpv": "qpv",
 }
+
+
+def _vrai(valeur) -> bool:
+    """Interprète une cellule comme un booléen (oui/1/x/vrai/qpv...)."""
+    return normaliser(valeur) in {"1", "oui", "o", "vrai", "true", "x", "qpv", "yes", "y"}
 
 # Valeurs d'année non exploitables (saisies à la place d'une vraie année).
 _ANNEE_NON_RENSEIGNEE = {"adulte", "enfant", "inconnu", "na", "nc", ""}
@@ -77,6 +83,7 @@ class PersonneImportee:
     ligne: int
     adresse: str | None = None
     ville: str | None = None
+    qpv: bool = False
 
     @property
     def cle_forte(self) -> tuple | None:
@@ -118,6 +125,7 @@ def parser_feuille(nom_feuille: str, lignes: list) -> tuple[list[PersonneImporte
     i_quartier = cols.get("quartier", cols.get("ville"))
     i_ville = cols.get("ville")
     i_adresse = cols.get("adresse")
+    i_qpv = cols.get("qpv")
 
     def val(ligne, idx):
         if idx is None or idx >= len(ligne):
@@ -144,6 +152,7 @@ def parser_feuille(nom_feuille: str, lignes: list) -> tuple[list[PersonneImporte
             ligne=offset,
             adresse=nettoyer_affichage(val(ligne, i_adresse)) or None,
             ville=nettoyer_affichage(val(ligne, i_ville)) or None,
+            qpv=_vrai(val(ligne, i_qpv)),
         ))
     return personnes, None
 
