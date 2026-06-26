@@ -27,7 +27,8 @@ ENTETES = {
     "anneenaissance": "annee", "annee": "annee", "naissance": "annee",
     "datenaissance": "annee", "ddn": "annee",
     "sexe": "sexe", "genre": "sexe",
-    "quartier": "quartier", "ville": "ville",
+    "quartier": "quartier", "ville": "ville", "commune": "ville",
+    "adresse": "adresse", "adresses": "adresse", "rue": "adresse",
 }
 
 # Valeurs d'année non exploitables (saisies à la place d'une vraie année).
@@ -74,6 +75,8 @@ class PersonneImportee:
     quartier: str | None
     feuille: str
     ligne: int
+    adresse: str | None = None
+    ville: str | None = None
 
     @property
     def cle_forte(self) -> tuple | None:
@@ -113,6 +116,8 @@ def parser_feuille(nom_feuille: str, lignes: list) -> tuple[list[PersonneImporte
     i_nom, i_prenom = cols["nom"], cols["prenom"]
     i_annee, i_sexe = cols.get("annee"), cols.get("sexe")
     i_quartier = cols.get("quartier", cols.get("ville"))
+    i_ville = cols.get("ville")
+    i_adresse = cols.get("adresse")
 
     def val(ligne, idx):
         if idx is None or idx >= len(ligne):
@@ -137,6 +142,8 @@ def parser_feuille(nom_feuille: str, lignes: list) -> tuple[list[PersonneImporte
             quartier=nettoyer_affichage(val(ligne, i_quartier)) or None,
             feuille=nom_feuille,
             ligne=offset,
+            adresse=nettoyer_affichage(val(ligne, i_adresse)) or None,
+            ville=nettoyer_affichage(val(ligne, i_ville)) or None,
         ))
     return personnes, None
 
