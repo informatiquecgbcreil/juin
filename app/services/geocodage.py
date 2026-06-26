@@ -126,47 +126,45 @@ def geocoder(adresse: str | None, ville: str | None) -> dict | None:
     }
 
 
-def _requete_courante(p) -> str:
-    return construire_requete(getattr(p, "adresse", None), getattr(p, "ville", None))
-
-
-def _a_geocoder(p) -> bool:
+# --------------------------------------------------------------------------
+# Synchronisation générique (réutilisée pour participants ET partenaires).
+# ``requete_de(obj)`` renvoie la chaîne d'adresse normalisée ; ``geocode_de``
+# appelle la BAN avec les bons champs. Toute entité dotée des colonnes
+# latitude/longitude/geocode_* peut être géocodée ainsi.
+# --------------------------------------------------------------------------
+def _a_geocoder(obj, requete_de) -> bool:
     """Vrai si l'adresse courante diffère de la dernière résolue."""
-    return (p.geocode_query or "") != _requete_courante(p)
+    return (obj.geocode_query or "") != requete_de(obj)
 
 
-def nombre_a_geocoder() -> int:
-    from app.models import Participant
-
+def _compter(model, requete_de) -> int:
     n = 0
-    for p in Participant.query.yield_per(200):
-        if _a_geocoder(p):
+    for o in model.query.yield_per(200):
+        if _a_geocoder(o, requete_de):
             n += 1
     return n
 
 
-def synchroniser_geocodages(limit: int = 50) -> dict:
-    """Géocode (par lots) les participants dont l'adresse a changé.
+def _synchroniser(model, requete_de, geocode_de, limit: int) -> dict:
+    """Géocode (par lots) les objets dont l'adresse a changé.
 
     Ne lève jamais : capture les erreurs réseau, s'arrête proprement et
-    laisse les participants concernés pour le prochain passage.
+    laisse les objets concernés pour le prochain passage.
     """
-    from app.models import Participant
-
     nb_localises = 0
     nb_non_localises = 0
     nb_erreurs = 0
     erreur_msg = None
     traites = 0
 
-    for p in Participant.query.yield_per(200):
+    for o in model.query.yield_per(200):
         if traites >= limit:
             break
-        if not _a_geocoder(p):
+        if not _a_geocoder(o, requete_de):
             continue
-        courante = _requete_courante(p)
+        courante = requete_de(o)
         try:
-            res = geocoder(p.adresse, p.ville)
+            res = geocode_de(o)
         except GeocodageError as exc:
             if exc.retryable:
                 # Réseau probablement indisponible : on arrête et on retentera.
@@ -179,19 +177,19 @@ def synchroniser_geocodages(limit: int = 50) -> dict:
 
         traites += 1
         if res:
-            p.latitude = res["lat"]
-            p.longitude = res["lon"]
-            p.geocode_score = res.get("score")
-            p.geocode_precision = res.get("precision")
+            o.latitude = res["lat"]
+            o.longitude = res["lon"]
+            o.geocode_score = res.get("score")
+            o.geocode_precision = res.get("precision")
             nb_localises += 1
         else:
-            p.latitude = None
-            p.longitude = None
-            p.geocode_score = None
-            p.geocode_precision = None
+            o.latitude = None
+            o.longitude = None
+            o.geocode_score = None
+            o.geocode_precision = None
             nb_non_localises += 1
-        p.geocoded_at = utcnow()
-        p.geocode_query = courante
+        o.geocoded_at = utcnow()
+        o.geocode_query = courante
 
     db.session.commit()
     return {
@@ -199,5 +197,43 @@ def synchroniser_geocodages(limit: int = 50) -> dict:
         "non_localises": nb_non_localises,
         "erreurs": nb_erreurs,
         "erreur": erreur_msg,
-        "restants": nombre_a_geocoder(),
+        "restants": _compter(model, requete_de),
     }
+
+
+# --- Participants (adresse + ville) ---------------------------------------
+def _requete_participant(p) -> str:
+    return construire_requete(getattr(p, "adresse", None), getattr(p, "ville", None))
+
+
+def nombre_a_geocoder() -> int:
+    from app.models import Participant
+
+    return _compter(Participant, _requete_participant)
+
+
+def synchroniser_geocodages(limit: int = 50) -> dict:
+    from app.models import Participant
+
+    return _synchroniser(
+        Participant, _requete_participant, lambda p: geocoder(p.adresse, p.ville), limit
+    )
+
+
+# --- Partenaires (structures : une adresse complète unique) ---------------
+def _requete_partenaire(x) -> str:
+    return construire_requete(getattr(x, "adresse", None), None)
+
+
+def nombre_a_geocoder_partenaires() -> int:
+    from app.models import Partenaire
+
+    return _compter(Partenaire, _requete_partenaire)
+
+
+def synchroniser_geocodages_partenaires(limit: int = 50) -> dict:
+    from app.models import Partenaire
+
+    return _synchroniser(
+        Partenaire, _requete_partenaire, lambda x: geocoder(x.adresse, None), limit
+    )
