@@ -149,3 +149,20 @@ class Config:
     PORTAIL_BASE_URL = os.environ.get("PORTAIL_BASE_URL", "")
     PORTAIL_TOKEN = os.environ.get("PORTAIL_TOKEN", "")
 
+    # --- Cartographie / géocodage (Base Adresse Nationale) -------------------
+    # Géocodage des adresses participants via l'API publique et gratuite de
+    # l'État (https://api-adresse.data.gouv.fr) : aucune clé requise. On ne
+    # transmet qu'une chaîne d'adresse (jamais l'identité). L'adresse reste
+    # FACULTATIVE : sans adresse exploitable, le participant est « non localisé ».
+    GEOCODAGE_BASE_URL = os.environ.get("GEOCODAGE_BASE_URL", "https://api-adresse.data.gouv.fr")
+    GEOCODAGE_USER_AGENT = os.environ.get("GEOCODAGE_USER_AGENT", "AppGestion-ERP/1.0 (geocodage interne)")
+    GEOCODAGE_BATCH = int(os.environ.get("GEOCODAGE_BATCH", "50"))
+    # Fond de carte (tuiles). OpenStreetMap par défaut ; surchargeable pour
+    # pointer un serveur de tuiles interne (utile en LAN sans Internet côté postes).
+    CARTO_TILE_URL = os.environ.get(
+        "CARTO_TILE_URL", "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    )
+    CARTO_TILE_ATTRIBUTION = os.environ.get(
+        "CARTO_TILE_ATTRIBUTION", "© contributeurs OpenStreetMap"
+    )
+

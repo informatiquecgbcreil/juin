@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required
-from sqlalchemy import func
+from sqlalchemy import func, extract
 
 from app.extensions import db
 from app.models import Quartier, Participant, PresenceActivite, SessionActivite, AtelierActivite
@@ -292,3 +292,93 @@ def stats():
         secteur_choices=secteur_choices,
         type_public_choices=type_public_choices,
     )
+
+
+# --------------------------------------------------------------------------
+# Carte des habitants (agrégée par quartier, sans exposer de domicile)
+# --------------------------------------------------------------------------
+@bp.route("/carte")
+@login_required
+@require_perm("quartiers:view")
+def carte():
+    from app.services.geocodage import nombre_a_geocoder
+
+    secteur_choices = [
+        v for (v,) in db.session.query(Participant.created_secteur)
+        .filter(Participant.created_secteur.isnot(None))
+        .distinct()
+        .order_by(Participant.created_secteur.asc())
+        .all() if v
+    ]
+    type_public_choices = [
+        v for (v,) in db.session.query(Participant.type_public)
+        .filter(Participant.type_public.isnot(None))
+        .distinct()
+        .order_by(Participant.type_public.asc())
+        .all() if v
+    ]
+    annee_rows = (
+        db.session.query(extract("year", Participant.created_at))
+        .filter(Participant.created_at.isnot(None))
+        .distinct()
+        .all()
+    )
+    annee_choices = sorted({int(a) for (a,) in annee_rows if a is not None}, reverse=True)
+
+    return render_template(
+        "quartiers/carte.html",
+        secteur_choices=secteur_choices,
+        type_public_choices=type_public_choices,
+        annee_choices=annee_choices,
+        restants=nombre_a_geocoder(),
+        tile_url=current_app.config.get("CARTO_TILE_URL")
+        or "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        tile_attribution=current_app.config.get("CARTO_TILE_ATTRIBUTION")
+        or "© contributeurs OpenStreetMap",
+    )
+
+
+@bp.route("/carte/data")
+@login_required
+@require_perm("quartiers:view")
+def carte_data():
+    from app.services.cartographie import repartition_par_quartier
+
+    secteur = (request.args.get("secteur") or "").strip() or None
+    type_public = (request.args.get("type_public") or "").strip() or None
+    annee = (request.args.get("annee") or "").strip() or None
+    return jsonify(
+        repartition_par_quartier(secteur=secteur, type_public=type_public, annee=annee)
+    )
+
+
+@bp.route("/carte/geocoder", methods=["POST"])
+@login_required
+@require_perm("quartiers:edit")
+def carte_geocoder():
+    from app.services import geocodage as geo
+
+    try:
+        limit = int(current_app.config.get("GEOCODAGE_BATCH") or 50)
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        resume = geo.synchroniser_geocodages(limit=limit)
+    except geo.GeocodageError as exc:
+        flash(f"Géocodage indisponible : {exc}", "warning")
+        return redirect(url_for("quartiers.carte"))
+
+    if resume["erreurs"]:
+        flash(
+            f"Géocodage interrompu (réseau) : {resume['localises']} adresse(s) localisée(s), "
+            f"{resume['restants']} restante(s). Réessayez plus tard.",
+            "warning",
+        )
+    else:
+        msg = f"{resume['localises']} adresse(s) localisée(s)"
+        if resume["non_localises"]:
+            msg += f", {resume['non_localises']} sans coordonnées"
+        if resume["restants"]:
+            msg += f" · {resume['restants']} restante(s) — relancez pour continuer"
+        flash(msg + ".", "success")
+    return redirect(url_for("quartiers.carte"))
