@@ -48,18 +48,27 @@ def repartition_par_quartier(secteur=None, type_public=None, annee=None) -> dict
         if p.latitude is None or p.longitude is None:
             non_localises += 1
             continue
-        cle = p.quartier_id or "__sans__"
+        # Regroupement par quartier si renseigné, sinon par commune (ville),
+        # pour que les habitants hors quartier restent lisibles sur la carte.
+        if p.quartier_id:
+            cle = ("q", p.quartier_id)
+        elif (p.ville or "").strip():
+            cle = ("v", p.ville.strip())
+        else:
+            cle = ("sans",)
         g = groupes.get(cle)
         if g is None:
-            if cle == "__sans__":
-                nom, ville, is_qpv = "Sans quartier", "", False
-            else:
-                qq = quartiers.get(cle)
+            if cle[0] == "q":
+                qq = quartiers.get(cle[1])
                 nom = qq.nom if qq else "Quartier inconnu"
                 ville = qq.ville if qq else ""
                 is_qpv = bool(qq.is_qpv) if qq else False
+            elif cle[0] == "v":
+                nom, ville, is_qpv = cle[1], cle[1], False
+            else:
+                nom, ville, is_qpv = "Sans localisation", "", False
             g = groupes[cle] = {
-                "id": None if cle == "__sans__" else cle,
+                "id": cle[1] if cle[0] == "q" else None,
                 "nom": nom,
                 "ville": ville,
                 "is_qpv": is_qpv,

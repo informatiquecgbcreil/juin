@@ -1518,6 +1518,19 @@ def _import_dossier():
     return chemin
 
 
+def _import_resoudre_quartier_id(ville, nom):
+    """Relie à un quartier EXISTANT (ville + nom), sans jamais en créer."""
+    ville = (ville or "").strip()
+    nom = (nom or "").strip()
+    if not (ville and nom):
+        return None
+    q = Quartier.query.filter(
+        db.func.lower(Quartier.ville) == ville.lower(),
+        db.func.lower(Quartier.nom) == nom.lower(),
+    ).first()
+    return q.id if q else None
+
+
 def _import_acces_autorise() -> bool:
     # L'import en masse est une opération globale : réservé aux comptes à portée globale.
     return bool(can("participants:edit")) and bool(can("scope:all_secteurs"))
@@ -1596,6 +1609,8 @@ def import_annuaire_confirmer():
             nom=p.nom, prenom=p.prenom, genre=p.sexe,
             date_naissance=date(p.annee, 1, 1),  # jour/mois inconnus : 1er janvier de l'année connue
             type_public="H",
+            adresse=p.adresse, ville=p.ville,
+            quartier_id=_import_resoudre_quartier_id(p.ville, p.quartier),
         ))
         faibles_courantes.add(p.cle_faible)
         crees += 1
@@ -1603,7 +1618,11 @@ def import_annuaire_confirmer():
     crees_ambigus = 0
     if inclure_ambigus:
         for p in _import_dedup_ambigus(rapport.ambigus, faibles_courantes):
-            db.session.add(Participant(nom=p.nom, prenom=p.prenom, genre=p.sexe, type_public="H"))
+            db.session.add(Participant(
+                nom=p.nom, prenom=p.prenom, genre=p.sexe, type_public="H",
+                adresse=p.adresse, ville=p.ville,
+                quartier_id=_import_resoudre_quartier_id(p.ville, p.quartier),
+            ))
             faibles_courantes.add(p.cle_faible)
             crees_ambigus += 1
 
