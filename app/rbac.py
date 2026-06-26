@@ -142,6 +142,17 @@ ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
             "admin:rbac",
             "controle:view",
             "scope:all_secteurs",
+            # Accès en lecture aux données métier : un super-admin doit pouvoir
+            # naviguer (sans ces droits, la liste des participants renvoie 403).
+            "participants:view",
+            "participants:view_all",
+            "insertion:view",
+            "ateliers:view",
+            "emargement:view",
+            "pedagogie:view",
+            "stats:view",
+            "statsimpact:view",
+            "bilans:view",
             "secteurs:view",
             "secteurs:edit",
             "quartiers:view",
@@ -314,6 +325,23 @@ def bootstrap_rbac() -> None:
             role.permissions = [perms_by_code[c] for c in desired if c in perms_by_code]
 
     db.session.commit()
+
+    # Auto-réparation du compte technique : garantir qu'admin_tech dispose
+    # toujours des permissions de son gabarit (AJOUT seulement, jamais de
+    # retrait, pour ne pas écraser des réglages manuels). Répare les
+    # installations où admin_tech avait été créé avec un gabarit plus restreint
+    # (ex. sans participants:view_all -> 403 sur la liste des participants).
+    at = Role.query.filter_by(code="admin_tech").first()
+    if at is not None:
+        actuels = {p.code for p in at.permissions}
+        ajouts = [
+            perms_by_code[c]
+            for c in ROLE_TEMPLATES["admin_tech"]["perms"]
+            if c in perms_by_code and c not in actuels
+        ]
+        if ajouts:
+            at.permissions = list(at.permissions) + ajouts
+            db.session.commit()
 
 
     # Rattrapage: si un utilisateur n'a aucun rôle RBAC, on l'aligne sur User.role (legacy).

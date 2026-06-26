@@ -63,7 +63,10 @@ def users():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         nom = request.form.get("nom", "").strip()
-        password = request.form.get("password", "")
+        # Strip cohérent avec la page de connexion (qui strip aussi) et le
+        # wizard d'installation : évite un « mot de passe incorrect » dû à un
+        # espace en trop collé au moment de la création.
+        password = request.form.get("password", "").strip()
         role_code = request.form.get("role")
         secteur = request.form.get("secteur_assigne") or None
 
