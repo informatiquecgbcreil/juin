@@ -583,6 +583,7 @@
                   {% endif %}
                   {% if can('quartiers:view') %}
                     <a class="pill {% if ep.startswith('quartiers.') %}active{% endif %}" href="{{ url_for('quartiers.index') }}">Quartiers</a>
+                    <a class="pill {% if ep == 'quartiers.carte' %}active{% endif %}" href="{{ url_for('quartiers.carte') }}">Carte des habitants</a>
                   {% endif %}
                   {% if can('pedagogie:view') %}
                     <a class="pill {% if ep.startswith('pedagogie.') %}active{% endif %}" href="{{ url_for('pedagogie.index') }}">Apprentissages</a>
@@ -632,6 +633,7 @@
                   {% endif %}
                   {% if can('quartiers:view') %}
                     <a class="pill {% if ep.startswith('quartiers.') %}active{% endif %}" href="{{ url_for('quartiers.index') }}">Quartiers</a>
+                    <a class="pill {% if ep == 'quartiers.carte' %}active{% endif %}" href="{{ url_for('quartiers.carte') }}">Carte des habitants</a>
                   {% endif %}
                 </div>
               </details>
@@ -763,6 +765,7 @@
                 <div class="nav-more-panel">
                   {% if can('quartiers:view') %}
                     <a class="pill {% if ep.startswith('quartiers.') %}active{% endif %}" href="{{ url_for('quartiers.index') }}">Quartiers</a>
+                    <a class="pill {% if ep == 'quartiers.carte' %}active{% endif %}" href="{{ url_for('quartiers.carte') }}">Carte des habitants</a>
                   {% endif %}
                   {% if can('questionnaires:view') %}
                     <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires</a>

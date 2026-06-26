@@ -1254,6 +1254,19 @@ class Participant(db.Model):
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_secteur = db.Column(db.String(80), nullable=True)
 
+    # --- Géolocalisation (carte des habitants) -------------------------------
+    # Coordonnées issues du géocodage de l'adresse via la Base Adresse
+    # Nationale. ENTIÈREMENT FACULTATIF : NULL = participant « non localisé »
+    # (jamais bloquant). ``geocode_query`` mémorise la dernière adresse résolue
+    # (détection de changement, évite de re-géocoder inutilement) et
+    # ``geocoded_at`` l'horodatage de la dernière résolution.
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    geocode_precision = db.Column(db.String(20), nullable=True)
+    geocode_score = db.Column(db.Float, nullable=True)
+    geocoded_at = db.Column(db.DateTime, nullable=True)
+    geocode_query = db.Column(db.String(255), nullable=True)
+
     @property
     def is_creil(self):
         return (self.ville or "").strip().lower() == "creil"
