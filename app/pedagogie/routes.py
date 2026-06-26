@@ -1301,11 +1301,15 @@ def portail_competences():
         .order_by(Referentiel.nom.asc().nullslast(), Competence.code.asc())
         .all()
     )
+    from app.models import PortailSyncState
+    from app.services.portail_apprenants import portail_configure
     return render_template(
         "pedagogie/portail_competences.html",
         activities=activities,
         mappings=mappings,
         competences=competences,
+        sync_state=db.session.get(PortailSyncState, 1),
+        portail_configure=portail_configure(),
     )
 
 
@@ -1346,6 +1350,29 @@ def portail_competences_delete(map_id: int):
     db.session.delete(m)
     db.session.commit()
     flash("Correspondance supprimée.", "success")
+    return redirect(url_for("pedagogie.portail_competences"))
+
+
+@bp.route("/portail-competences/sync", methods=["POST"])
+@login_required
+@require_perm("pedagogie:view")
+def portail_competences_sync():
+    """Lance la synchronisation des résultats du portail depuis l'ERP."""
+    from app.services.portail_apprenants import portail_configure, synchroniser_attempts
+
+    if not portail_configure():
+        flash("Le portail n'est pas configuré (PORTAIL_BASE_URL / PORTAIL_TOKEN).", "warning")
+        return redirect(url_for("pedagogie.portail_competences"))
+    try:
+        resume = synchroniser_attempts()
+        flash(
+            f"Synchronisation réussie : {resume['nouvelles']} nouvelle(s) tentative(s) "
+            f"sur {resume['recues']} reçue(s).",
+            "success",
+        )
+    except Exception as exc:  # réseau / portail indisponible : on ne plante pas
+        current_app.logger.exception("Échec de la synchro portail (manuelle)")
+        flash(f"La synchronisation a échoué : {exc}", "danger")
     return redirect(url_for("pedagogie.portail_competences"))
 
 
