@@ -1037,6 +1037,17 @@ class Partenaire(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
+    # --- Géolocalisation (carte des partenaires) -----------------------------
+    # Coordonnées issues du géocodage de l'adresse (Base Adresse Nationale).
+    # Facultatif : NULL = partenaire non localisé. ``geocode_query`` mémorise
+    # la dernière adresse résolue (détection de changement).
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    geocode_precision = db.Column(db.String(20), nullable=True)
+    geocode_score = db.Column(db.Float, nullable=True)
+    geocoded_at = db.Column(db.DateTime, nullable=True)
+    geocode_query = db.Column(db.String(255), nullable=True)
+
     secteurs = db.relationship("PartenaireSecteur", backref="partenaire", cascade="all, delete-orphan")
     interventions = db.relationship(
         "PartenaireIntervention",

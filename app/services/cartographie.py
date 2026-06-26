@@ -108,3 +108,69 @@ def repartition_par_quartier(secteur=None, type_public=None, annee=None) -> dict
         "localises": total - non_localises,
         "non_localises": non_localises,
     }
+
+
+def liste_partenaires(secteur=None) -> dict:
+    """Liste des partenaires géolocalisés (un point cliquable par structure).
+
+    Contrairement aux habitants, un partenaire est une structure (information
+    publique) : on affiche donc des marqueurs individuels. Filtre optionnel
+    par secteur d'intervention.
+    """
+    from flask import has_request_context, url_for
+
+    from app.models import Partenaire, PartenaireSecteur
+
+    def _fiche_url(pid):
+        # url_for nécessite un contexte de requête ; hors requête (tâche/tests),
+        # on construit le chemin relatif (le préfixe du blueprint est fixe).
+        if has_request_context():
+            return url_for("partenaires.edit", partenaire_id=pid)
+        return f"/partenaires/{pid}/edit"
+
+    try:
+        from app.partenaires.routes import ORIENTATION_DOMAINES
+    except Exception:  # pragma: no cover - dégradation si import indisponible
+        ORIENTATION_DOMAINES = {}
+
+    q = Partenaire.query
+    if secteur:
+        q = q.join(PartenaireSecteur).filter(PartenaireSecteur.secteur == secteur)
+    partenaires = q.order_by(Partenaire.nom.asc()).distinct().all()
+
+    points = []
+    non_localises = 0
+    for p in partenaires:
+        if p.latitude is None or p.longitude is None:
+            non_localises += 1
+            continue
+        points.append(
+            {
+                "id": p.id,
+                "nom": p.nom,
+                "adresse": p.adresse,
+                "lat": p.latitude,
+                "lon": p.longitude,
+                "secteurs": [s.secteur for s in p.secteurs],
+                "competences": [ORIENTATION_DOMAINES.get(c, c) for c in p.competences_orientation()],
+                "tel": p.tel_general or p.tel_contact,
+                "email": p.email_general or p.email_contact,
+                "fiche_url": _fiche_url(p.id),
+            }
+        )
+
+    if points:
+        centre = {
+            "lat": sum(x["lat"] for x in points) / len(points),
+            "lon": sum(x["lon"] for x in points) / len(points),
+        }
+    else:
+        centre = dict(CENTRE_DEFAUT)
+
+    return {
+        "centre": centre,
+        "partenaires": points,
+        "total": len(partenaires),
+        "localises": len(points),
+        "non_localises": non_localises,
+    }

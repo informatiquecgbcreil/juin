@@ -5,7 +5,7 @@ from collections import Counter
 from datetime import date
 from io import BytesIO
 
-from flask import render_template, request, redirect, url_for, flash, abort, send_file
+from flask import render_template, request, redirect, url_for, flash, abort, send_file, jsonify, current_app, Response
 from flask_login import login_required, current_user
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
@@ -350,6 +350,74 @@ def index():
     )
 
 
+# --------------------------------------------------------------------------
+# Carte des partenaires (un marqueur cliquable par structure)
+# --------------------------------------------------------------------------
+@bp.route("/carte")
+@login_required
+@require_perm("partenaires:view")
+def carte():
+    from app.services.geocodage import nombre_a_geocoder_partenaires
+
+    secteur_choices = [
+        s for (s,) in db.session.query(PartenaireSecteur.secteur)
+        .distinct()
+        .order_by(PartenaireSecteur.secteur.asc())
+        .all() if s
+    ]
+    return render_template(
+        "partenaires/carte.html",
+        secteur_choices=secteur_choices,
+        restants=nombre_a_geocoder_partenaires(),
+        tile_url=current_app.config.get("CARTO_TILE_URL")
+        or "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        tile_attribution=current_app.config.get("CARTO_TILE_ATTRIBUTION")
+        or "© contributeurs OpenStreetMap",
+    )
+
+
+@bp.route("/carte/data")
+@login_required
+@require_perm("partenaires:view")
+def carte_data():
+    from app.services.cartographie import liste_partenaires
+
+    secteur = (request.args.get("secteur") or "").strip() or None
+    return jsonify(liste_partenaires(secteur=secteur))
+
+
+@bp.route("/carte/geocoder", methods=["POST"])
+@login_required
+@require_perm("partenaires:edit")
+def carte_geocoder():
+    from app.services import geocodage as geo
+
+    try:
+        limit = int(current_app.config.get("GEOCODAGE_BATCH") or 50)
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        resume = geo.synchroniser_geocodages_partenaires(limit=limit)
+    except geo.GeocodageError as exc:
+        flash(f"Géocodage indisponible : {exc}", "warning")
+        return redirect(url_for("partenaires.carte"))
+
+    if resume["erreurs"]:
+        flash(
+            f"Géocodage interrompu (réseau) : {resume['localises']} partenaire(s) localisé(s), "
+            f"{resume['restants']} restant(s). Réessayez plus tard.",
+            "warning",
+        )
+    else:
+        msg = f"{resume['localises']} partenaire(s) localisé(s)"
+        if resume["non_localises"]:
+            msg += f", {resume['non_localises']} sans coordonnées"
+        if resume["restants"]:
+            msg += f" · {resume['restants']} restant(s) — relancez pour continuer"
+        flash(msg + ".", "success")
+    return redirect(url_for("partenaires.carte"))
+
+
 @bp.route("/orientations", methods=["GET", "POST"])
 @login_required
 @require_perm("partenaires:view")
@@ -576,6 +644,67 @@ def export_orientations_xlsx():
         as_attachment=True,
         download_name=f"orientations_acces_droits_{year}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+# --------------------------------------------------------------------------
+# Import CSV de partenaires (reprend tous les champs d'identification)
+# --------------------------------------------------------------------------
+@bp.route("/import", methods=["GET", "POST"])
+@login_required
+@require_perm("partenaires:edit")
+def import_partenaires():
+    if request.method == "POST":
+        fichier = request.files.get("fichier")
+        if not fichier or not fichier.filename:
+            flash("Sélectionnez un fichier CSV.", "danger")
+            return redirect(url_for("partenaires.import_partenaires"))
+
+        from app.partenaires.import_csv import importer_csv
+
+        try:
+            resume = importer_csv(fichier.read())
+        except Exception as exc:  # noqa: BLE001
+            db.session.rollback()
+            flash(f"Import impossible : {exc}", "danger")
+            return redirect(url_for("partenaires.import_partenaires"))
+
+        niveau = "warning" if resume["erreurs"] else "success"
+        flash(
+            f"Import terminé : {resume['crees']} créé(s), {resume['maj']} mis à jour, "
+            f"{resume['ignores']} ignoré(s) sur {resume['total']} ligne(s).",
+            niveau,
+        )
+        for err in resume["erreurs"][:12]:
+            flash(err, "warning")
+        return redirect(url_for("partenaires.import_partenaires"))
+
+    return render_template(
+        "partenaires/import.html",
+        orientation_domaines=ORIENTATION_DOMAINES,
+        orientation_niveaux=PARTENAIRE_NIVEAUX_ORIENTATION,
+    )
+
+
+@bp.route("/import/modele.csv")
+@login_required
+@require_perm("partenaires:edit")
+def import_modele():
+    from app.partenaires.import_csv import COLONNES
+
+    entete = ";".join(COLONNES)
+    exemple = ";".join([
+        "Exemple Association", "Dupont", "Marie", "1 rue de Paris, 60100 Creil",
+        "marie.dupont@asso.fr", "contact@asso.fr", "", "03 44 00 00 00",
+        "Numérique|Insertion Sociale et Professionnelle", "numerique|emploi",
+        "Creil", "Sur rendez-vous", "relais", "Association d'exemple",
+    ])
+    # BOM UTF-8 pour qu'Excel ouvre correctement les accents.
+    contenu = "﻿" + entete + "\n" + exemple + "\n"
+    return Response(
+        contenu,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=modele_partenaires.csv"},
     )
 
 

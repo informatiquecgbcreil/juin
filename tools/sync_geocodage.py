@@ -20,7 +20,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app import create_app
-from app.services.geocodage import nombre_a_geocoder, synchroniser_geocodages
+from app.services.geocodage import (
+    nombre_a_geocoder,
+    nombre_a_geocoder_partenaires,
+    synchroniser_geocodages,
+    synchroniser_geocodages_partenaires,
+)
 
 
 def main() -> int:
@@ -32,18 +37,23 @@ def main() -> int:
             limite = None
 
     app = create_app()
+    code = 0
     with app.app_context():
         # Par défaut, on traite tout ce qui reste en un passage (pas de timeout web).
-        total = limite if limite is not None else max(1, nombre_a_geocoder())
-        resume = synchroniser_geocodages(limit=total)
-        print("Géocodage ✅")
-        print(f"- Localisés : {resume['localises']}")
-        print(f"- Sans coordonnées : {resume['non_localises']}")
-        print(f"- Restants : {resume['restants']}")
-        if resume["erreurs"]:
-            print(f"- Interrompu (réseau) : {resume['erreur']}")
-            return 1
-        return 0
+        for libelle, compter, synchro in (
+            ("Habitants", nombre_a_geocoder, synchroniser_geocodages),
+            ("Partenaires", nombre_a_geocoder_partenaires, synchroniser_geocodages_partenaires),
+        ):
+            total = limite if limite is not None else max(1, compter())
+            resume = synchro(limit=total)
+            print(f"Géocodage {libelle} ✅")
+            print(f"- Localisés : {resume['localises']}")
+            print(f"- Sans coordonnées : {resume['non_localises']}")
+            print(f"- Restants : {resume['restants']}")
+            if resume["erreurs"]:
+                print(f"- Interrompu (réseau) : {resume['erreur']}")
+                code = 1
+    return code
 
 
 if __name__ == "__main__":

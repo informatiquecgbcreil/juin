@@ -10,8 +10,10 @@
         
       </div>
       <div class="inline" style="gap:8px; flex-wrap:wrap;">
+        <a class="btn" href="{{ url_for('partenaires.carte') }}">🗺️ Carte des partenaires</a>
         <a class="btn" href="{{ url_for('partenaires.orientations') }}">Orientations accès aux droits</a>
         {% if can('partenaires:edit') %}
+          <a class="btn" href="{{ url_for('partenaires.import_partenaires') }}">📥 Importer (CSV)</a>
           <a class="btn" href="{{ url_for('partenaires.create') }}">➕ Ajouter un partenaire</a>
         {% endif %}
       </div>
