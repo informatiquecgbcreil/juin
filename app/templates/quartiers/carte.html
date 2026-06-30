@@ -38,11 +38,20 @@
         </select>
       </div>
       <div class="field">
-        <label class="muted" for="carte-annee">Année de création</label>
-        <select id="carte-annee" class="in">
-          <option value="">Toutes les années</option>
-          {% for a in annee_choices %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+        <label class="muted" for="carte-periode">Période de présence</label>
+        <select id="carte-periode" class="in">
+          <option value="">Toutes les périodes</option>
+          {% for a in annees %}<option value="{{ a }}">Année {{ a }}</option>{% endfor %}
+          <option value="custom">Plage personnalisée…</option>
         </select>
+      </div>
+      <div class="field carte-periode-custom" style="display:none;">
+        <label class="muted" for="carte-date-from">Du</label>
+        <input id="carte-date-from" class="in" type="date">
+      </div>
+      <div class="field carte-periode-custom" style="display:none;">
+        <label class="muted" for="carte-date-to">Au</label>
+        <input id="carte-date-to" class="in" type="date">
       </div>
 
       {% if can('quartiers:edit') %}
@@ -65,6 +74,7 @@
 
     <div id="carte-habitants"
          data-data-url="{{ url_for('quartiers.carte_data') }}"
+         data-stats-url="{{ url_for('quartiers.stats') }}"
          data-tile-url="{{ tile_url }}"
          data-tile-attr="{{ tile_attribution }}"
          data-centre-lat="49.2583"

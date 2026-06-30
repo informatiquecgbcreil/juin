@@ -11,31 +11,67 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from sqlalchemy import extract
+from sqlalchemy import func
 
 from app.extensions import db
-from app.models import Participant, Quartier
+from app.models import Participant, PresenceActivite, Quartier, SessionActivite
+
+
+def _date_session_expr():
+    """Date effective d'une session (rdv sinon date collective)."""
+    return func.coalesce(SessionActivite.rdv_date, SessionActivite.date_session)
+
+
+def annees_de_presence() -> list[int]:
+    """Années (décroissant) où au moins une présence a été enregistrée.
+
+    Sert à alimenter le filtre « période de présence » (carte et stats).
+    """
+    sd = _date_session_expr()
+    rows = (
+        db.session.query(func.extract("year", sd))
+        .join(PresenceActivite, PresenceActivite.session_id == SessionActivite.id)
+        .filter(sd.isnot(None))
+        .distinct()
+        .all()
+    )
+    return sorted({int(a) for (a,) in rows if a is not None}, reverse=True)
+
+
+def _ids_presents(date_from, date_to):
+    """IDs des participants ayant ≥1 présence sur la période [date_from, date_to]."""
+    sd = _date_session_expr()
+    q = (
+        db.session.query(PresenceActivite.participant_id)
+        .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+    )
+    if date_from:
+        q = q.filter(sd >= date_from)
+    if date_to:
+        q = q.filter(sd <= date_to)
+    return q.distinct()
 
 # Centre de Creil par défaut (utilisé si aucun participant n'est localisé).
 CENTRE_DEFAUT = {"lat": 49.2583, "lon": 2.4750}
 
 
-def repartition_par_quartier(secteur=None, type_public=None, annee=None) -> dict:
+def repartition_par_quartier(secteur=None, type_public=None, date_from=None, date_to=None) -> dict:
     """Retourne l'agrégat par quartier, prêt à sérialiser en JSON pour la carte.
 
     Filtres optionnels : ``secteur`` (Participant.created_secteur),
-    ``type_public`` (Participant.type_public), ``annee`` (année de création).
+    ``type_public`` (Participant.type_public) et surtout la **période de
+    présence active** : si ``date_from``/``date_to`` sont fournis, on ne compte
+    que les habitants ayant participé (≥1 présence) sur cette période — un même
+    habitant compte donc dans chaque période où il est revenu, pas selon son
+    année de création.
     """
     q = Participant.query
     if type_public:
         q = q.filter(Participant.type_public == type_public)
     if secteur:
         q = q.filter(Participant.created_secteur == secteur)
-    if annee:
-        try:
-            q = q.filter(extract("year", Participant.created_at) == int(annee))
-        except (TypeError, ValueError):
-            pass
+    if date_from or date_to:
+        q = q.filter(Participant.id.in_(_ids_presents(date_from, date_to)))
 
     participants = q.all()
     quartiers = {qq.id: qq for qq in Quartier.query.all()}

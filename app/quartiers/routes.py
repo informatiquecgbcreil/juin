@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required
-from sqlalchemy import func, extract
+from sqlalchemy import func
 
 from app.extensions import db
 from app.models import Quartier, Participant, PresenceActivite, SessionActivite, AtelierActivite
@@ -148,7 +148,16 @@ def stats():
     end_date = today
 
     preset_days = {"30": 30, "90": 90, "180": 180, "365": 365}
-    if period in preset_days:
+    if period == "tout":
+        # Tout l'historique : aucune borne de date.
+        start_date = None
+        end_date = None
+    elif period.isdigit() and len(period) == 4:
+        # Année de présence précise (ex. 2024) : du 1er janvier au 31 décembre.
+        annee = int(period)
+        start_date = date(annee, 1, 1)
+        end_date = date(annee, 12, 31)
+    elif period in preset_days:
         start_date = today - timedelta(days=preset_days[period] - 1)
     elif period == "year":
         start_date = date(today.year, 1, 1)
@@ -314,7 +323,14 @@ def stats():
         type_public_filter=type_public_filter,
         secteur_choices=secteur_choices,
         type_public_choices=type_public_choices,
+        annees=_annees_presence_cache(),
     )
+
+
+def _annees_presence_cache():
+    from app.services.cartographie import annees_de_presence
+
+    return annees_de_presence()
 
 
 # --------------------------------------------------------------------------
@@ -325,6 +341,7 @@ def stats():
 @require_perm("quartiers:view")
 def carte():
     from app.services.geocodage import nombre_a_geocoder, nombre_quartiers_a_geocoder
+    from app.services.cartographie import annees_de_presence
 
     secteur_choices = [
         v for (v,) in db.session.query(Participant.created_secteur)
@@ -340,19 +357,12 @@ def carte():
         .order_by(Participant.type_public.asc())
         .all() if v
     ]
-    annee_rows = (
-        db.session.query(extract("year", Participant.created_at))
-        .filter(Participant.created_at.isnot(None))
-        .distinct()
-        .all()
-    )
-    annee_choices = sorted({int(a) for (a,) in annee_rows if a is not None}, reverse=True)
 
     return render_template(
         "quartiers/carte.html",
         secteur_choices=secteur_choices,
         type_public_choices=type_public_choices,
-        annee_choices=annee_choices,
+        annees=annees_de_presence(),
         restants=nombre_a_geocoder(),
         restants_quartiers=nombre_quartiers_a_geocoder(),
         tile_url=current_app.config.get("CARTO_TILE_URL")
@@ -397,9 +407,20 @@ def carte_data():
 
     secteur = (request.args.get("secteur") or "").strip() or None
     type_public = (request.args.get("type_public") or "").strip() or None
-    annee = (request.args.get("annee") or "").strip() or None
+
+    def _d(val):
+        val = (val or "").strip()
+        try:
+            return datetime.strptime(val, "%Y-%m-%d").date() if val else None
+        except ValueError:
+            return None
+
+    date_from = _d(request.args.get("date_from"))
+    date_to = _d(request.args.get("date_to"))
     return jsonify(
-        repartition_par_quartier(secteur=secteur, type_public=type_public, annee=annee)
+        repartition_par_quartier(
+            secteur=secteur, type_public=type_public, date_from=date_from, date_to=date_to
+        )
     )
 
 
