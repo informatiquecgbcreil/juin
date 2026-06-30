@@ -103,6 +103,7 @@
               <th>Email</th>
               <th>Rôle</th>
               <th>Secteur</th>
+              <th>Statut</th>
               <th></th>
             </tr>
           </thead>
@@ -120,15 +121,25 @@
                 </td>
                 <td class="muted">{{ u.secteur_assigne or "—" }}</td>
                 <td>
-                  <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn danger" type="submit" onclick="return confirm('Supprimer définitivement cet utilisateur ?')">Supprimer</button>
-                  </form>
+                  <span class="status-badge {{ 'status-info' if u.actif else 'status-danger' }}">{{ 'Actif' if u.actif else 'Désactivé' }}</span>
+                </td>
+                <td>
+                  <div class="inline" style="gap:6px; flex-wrap:wrap;">
+                    <a class="btn" href="{{ url_for('admin.edit_user', user_id=u.id) }}">Modifier</a>
+                    <form method="POST" action="{{ url_for('admin.toggle_user_actif', user_id=u.id) }}" style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn" type="submit">{{ 'Désactiver' if u.actif else 'Réactiver' }}</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}" style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn danger" type="submit" onclick="return confirm('Supprimer définitivement cet utilisateur ?')">Supprimer</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             {% endfor %}
             {% if users|length == 0 %}
-              <tr><td colspan="5"><div class="quick-empty"><strong>Aucun utilisateur.</strong>Créez le premier compte pour démarrer l’administration.</div></td></tr>
+              <tr><td colspan="6"><div class="quick-empty"><strong>Aucun utilisateur.</strong>Créez le premier compte pour démarrer l’administration.</div></td></tr>
             {% endif %}
           </tbody>
         </table>
@@ -154,6 +165,11 @@
               </div>
             </dl>
             <div class="inline-actions">
+              <a class="btn" href="{{ url_for('admin.edit_user', user_id=u.id) }}">Modifier</a>
+              <form method="POST" action="{{ url_for('admin.toggle_user_actif', user_id=u.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn" type="submit">{{ 'Désactiver' if u.actif else 'Réactiver' }}</button>
+              </form>
               <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn danger" type="submit" onclick="return confirm('Supprimer définitivement cet utilisateur ?')">Supprimer</button>

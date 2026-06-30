@@ -13,6 +13,9 @@ class User(db.Model):
     nom = db.Column(db.String(120), nullable=False, default="Utilisateur")
     role = db.Column(db.String(40), nullable=False, default="responsable_secteur")
     secteur_assigne = db.Column(db.String(80), nullable=True)
+    # Compte actif : un compte désactivé ne peut plus se connecter (sans
+    # perdre son historique, contrairement à une suppression).
+    actif = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     # Flask-Login
@@ -22,7 +25,8 @@ class User(db.Model):
 
     @property
     def is_active(self):
-        return True
+        # Flask-Login refuse la session d'un utilisateur inactif.
+        return bool(self.actif)
 
     @property
     def is_anonymous(self):

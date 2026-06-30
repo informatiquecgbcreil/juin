@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import User, Role, Permission, Secteur, InstanceSettings, Framework, Skill
 from app.utils.delete_guard import commit_delete
-from app.rbac import require_perm, HIDDEN_LEGACY_PERMS
+from app.rbac import require_perm, can, HIDDEN_LEGACY_PERMS
 from app.services.storage import ensure_upload_subdir, media_relpath
 from app.ateliers.excel_import import import_presences_from_xlsx
 
@@ -50,6 +50,44 @@ def _get_single_role_code_from_form() -> str | None:
         if v:
             return v
     return None
+
+
+# ---------------------------------------------------------------------------
+# Garde-fous « dernier administrateur » : ne jamais laisser une action vider
+# l'ensemble des comptes ACTIFS capables de gérer les droits (admin:rbac),
+# sous peine de verrouiller toute l'application.
+# ---------------------------------------------------------------------------
+def _role_ids_admin_rbac() -> set[int]:
+    return {
+        r.id for r in Role.query.all()
+        if any(p.code == "admin:rbac" for p in (r.permissions or []))
+    }
+
+
+def _role_donne_admin(role) -> bool:
+    return bool(role) and any(p.code == "admin:rbac" for p in (role.permissions or []))
+
+
+def _est_admin(u) -> bool:
+    admin_ids = _role_ids_admin_rbac()
+    return any(r.id in admin_ids for r in (getattr(u, "roles", None) or []))
+
+
+def _nb_admins_actifs(exclure_user_id=None, exclure_role_id=None) -> int:
+    """Comptes ACTIFS pouvant administrer (admin:rbac), en excluant
+    éventuellement un utilisateur ou un rôle (pour simuler une action)."""
+    admin_ids = _role_ids_admin_rbac()
+    if exclure_role_id is not None:
+        admin_ids = admin_ids - {exclure_role_id}
+    n = 0
+    for u in User.query.all():
+        if exclure_user_id is not None and u.id == exclure_user_id:
+            continue
+        if not getattr(u, "actif", True):
+            continue
+        if any(r.id in admin_ids for r in (getattr(u, "roles", None) or [])):
+            n += 1
+    return n
 
 
 @bp.route("/users", methods=["GET", "POST"])
@@ -96,11 +134,20 @@ def users():
     roles = Role.query.order_by(Role.code).all()
     secteurs = get_secteur_labels(active_only=True)
 
+    # Les comptes à portée globale n'ont pas besoin d'un secteur assigné.
+    role_sector_policy = {
+        "admin_tech": {"allow_sector": False},
+        "direction": {"allow_sector": False},
+        "directrice": {"allow_sector": False},
+        "finance": {"allow_sector": False},
+    }
+
     return render_template(
         "admin_users.html",
         users=users,
         roles=roles,
         secteurs=secteurs,
+        role_sector_policy=role_sector_policy,
     )
 
 
@@ -113,6 +160,9 @@ def delete_user(user_id):
         return redirect(url_for("admin.users"))
 
     u = db.get_or_404(User, user_id)
+    if _est_admin(u) and _nb_admins_actifs(exclure_user_id=u.id) == 0:
+        flash("Impossible de supprimer le dernier administrateur (compte capable de gérer les droits).", "danger")
+        return redirect(url_for("admin.users"))
     db.session.delete(u)
     commit_delete(
         f"l'utilisateur « {u.nom} »",
@@ -120,6 +170,82 @@ def delete_user(user_id):
         success_category="warning",
         blocked_message=f"Impossible de supprimer l'utilisateur « {u.nom} » : il est encore référencé ailleurs.",
     )
+    return redirect(url_for("admin.users"))
+
+
+@bp.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
+@login_required
+@require_perm("admin:users")
+def edit_user(user_id):
+    from app.secteurs import get_secteur_labels
+
+    u = db.get_or_404(User, user_id)
+    roles = Role.query.order_by(Role.code).all()
+    secteurs = get_secteur_labels(active_only=True)
+
+    if request.method == "POST":
+        nom = (request.form.get("nom") or "").strip()
+        if nom:
+            u.nom = nom
+        u.secteur_assigne = (request.form.get("secteur_assigne") or "").strip() or None
+
+        # Changement de rôle : réservé à qui peut gérer les droits (admin:rbac).
+        role_code = (request.form.get("role") or "").strip()
+        if role_code and can("admin:rbac"):
+            nouveau_role = Role.query.filter_by(code=role_code).first()
+            if (not _role_donne_admin(nouveau_role)
+                    and getattr(u, "actif", True)
+                    and _nb_admins_actifs(exclure_user_id=u.id) == 0):
+                flash("Impossible : ce changement retirerait le dernier administrateur.", "danger")
+                return redirect(url_for("admin.edit_user", user_id=u.id))
+            if nouveau_role:
+                u.roles = [nouveau_role]
+
+        # Réinitialisation du mot de passe par l'admin (optionnel, sans SMTP).
+        new_pw = (request.form.get("password") or "").strip()
+        if new_pw:
+            if len(new_pw) < 8:
+                flash("Le mot de passe doit contenir au moins 8 caractères.", "danger")
+                return redirect(url_for("admin.edit_user", user_id=u.id))
+            u.set_password(new_pw)
+            current_app.logger.warning(
+                "Mot de passe réinitialisé par admin %s pour %s",
+                getattr(current_user, "email", "?"), u.email,
+            )
+
+        db.session.commit()
+        flash("Compte mis à jour.", "success")
+        return redirect(url_for("admin.users"))
+
+    return render_template(
+        "admin_user_edit.html",
+        u=u,
+        roles=roles,
+        secteurs=secteurs,
+        current_role=(u.role_codes[0] if u.role_codes else ""),
+        peut_changer_role=can("admin:rbac"),
+    )
+
+
+@bp.route("/users/<int:user_id>/toggle-actif", methods=["POST"])
+@login_required
+@require_perm("admin:users")
+def toggle_user_actif(user_id):
+    u = db.get_or_404(User, user_id)
+    if u.id == current_user.id:
+        flash("Vous ne pouvez pas désactiver votre propre compte.", "danger")
+        return redirect(url_for("admin.users"))
+
+    if getattr(u, "actif", True):
+        if _est_admin(u) and _nb_admins_actifs(exclure_user_id=u.id) == 0:
+            flash("Impossible de désactiver le dernier administrateur.", "danger")
+            return redirect(url_for("admin.users"))
+        u.actif = False
+        flash(f"Compte « {u.nom} » désactivé (il ne peut plus se connecter).", "warning")
+    else:
+        u.actif = True
+        flash(f"Compte « {u.nom} » réactivé.", "success")
+    db.session.commit()
     return redirect(url_for("admin.users"))
 
 
@@ -209,6 +335,14 @@ def set_user_roles():
 
     role_code = _get_single_role_code_from_form()
 
+    # Garde-fou : ne pas retirer le dernier administrateur.
+    nouveau_role = Role.query.filter_by(code=role_code).first() if role_code else None
+    if (not _role_donne_admin(nouveau_role)
+            and getattr(u, "actif", True)
+            and _nb_admins_actifs(exclure_user_id=u.id) == 0):
+        flash("Impossible : ce changement retirerait le dernier administrateur.", "danger")
+        return redirect(url_for("admin.droits"))
+
     # Force: 1 seul rôle RBAC
     u.roles = []
     if role_code:
@@ -230,6 +364,15 @@ def save_role_perms():
     perm_codes = set(request.form.getlist("perm_codes"))
 
     role = Role.query.filter_by(code=role_code).first_or_404()
+
+    # Garde-fou : ne pas retirer admin:rbac si ce rôle est le dernier à
+    # fournir l'accès administrateur à un compte actif.
+    if (_role_donne_admin(role)
+            and "admin:rbac" not in perm_codes
+            and _nb_admins_actifs(exclure_role_id=role.id) == 0):
+        flash("Impossible : retirer « admin:rbac » de ce rôle verrouillerait l'administration.", "danger")
+        return redirect(url_for("admin.droits"))
+
     role.permissions = []
     for pcode in perm_codes:
         p = Permission.query.filter_by(code=pcode).first()
@@ -276,6 +419,11 @@ def delete_role():
     r = Role.query.filter_by(code=role_code).first()
     if not r:
         flash("Le rôle demandé est introuvable.", "warning")
+        return redirect(url_for("admin.droits"))
+
+    # Garde-fou : supprimer ce rôle ne doit pas vider l'administration.
+    if _nb_admins_actifs(exclure_role_id=r.id) == 0:
+        flash("Impossible de supprimer ce rôle : il donne l'accès administrateur au dernier compte capable d'administrer.", "danger")
         return redirect(url_for("admin.droits"))
 
     # Détache users + perms (évite erreurs tables d'association)
@@ -456,7 +604,7 @@ def instance_settings():
 @login_required
 @require_perm("admin:rbac")
 def sauvegardes():
-    from app.services.sauvegarde import lister_sauvegardes
+    from app.services.sauvegarde import lister_lots, jours_depuis_derniere
 
     db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "") or ""
     if db_uri.startswith("postgresql"):
@@ -465,9 +613,15 @@ def sauvegardes():
         moteur = "SQLite"
     else:
         moteur = "inconnu"
+    try:
+        seuil = int(current_app.config.get("BACKUP_ALERT_DAYS") or 2)
+    except (TypeError, ValueError):
+        seuil = 2
     return render_template(
         "admin_sauvegardes.html",
-        sauvegardes=lister_sauvegardes(),
+        lots=lister_lots(),
+        jours_depuis=jours_depuis_derniere(),
+        seuil_alerte=seuil,
         moteur=moteur,
     )
 
@@ -476,19 +630,48 @@ def sauvegardes():
 @login_required
 @require_perm("admin:rbac")
 def sauvegarde_creer():
-    from app.services.sauvegarde import creer_sauvegarde
+    from app.services.sauvegarde import creer_sauvegarde, nettoyer_sauvegardes
 
     try:
         info = creer_sauvegarde()
+        supprimes = nettoyer_sauvegardes()  # rotation/rétention
         current_app.logger.info(
-            "Sauvegarde manuelle créée par %s : %s",
+            "Sauvegarde manuelle créée par %s : %s (%s ancien(s) fichier(s) purgé(s))",
             getattr(current_user, "email", "?"),
             info.get("base"),
+            supprimes,
         )
         flash("Sauvegarde créée avec succès ✅", "success")
     except Exception as exc:  # message lisible remonté à l'utilisateur
         current_app.logger.exception("Échec de la sauvegarde manuelle")
         flash(f"La sauvegarde a échoué : {exc}", "danger")
+    return redirect(url_for("admin.sauvegardes"))
+
+
+@bp.route("/sauvegardes/restaurer", methods=["POST"])
+@login_required
+@require_perm("admin:rbac")
+def sauvegarde_restaurer():
+    from app.services.sauvegarde import restaurer_lot
+
+    base = (request.form.get("base") or "").strip()
+    if not base:
+        flash("Sélectionnez une sauvegarde à restaurer.", "danger")
+        return redirect(url_for("admin.sauvegardes"))
+    try:
+        res = restaurer_lot(base)
+        current_app.logger.warning(
+            "RESTAURATION effectuée par %s depuis « %s » (sécurité : %s)",
+            getattr(current_user, "email", "?"), base, res.get("securite"),
+        )
+        flash(
+            "Restauration effectuée ✅ Une sauvegarde de sécurité de l'état précédent "
+            "a été créée juste avant. Reconnectez-vous si nécessaire.",
+            "success",
+        )
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.exception("Échec de la restauration")
+        flash(f"La restauration a échoué : {exc}", "danger")
     return redirect(url_for("admin.sauvegardes"))
 
 

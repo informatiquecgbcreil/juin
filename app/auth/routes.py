@@ -161,6 +161,11 @@ def login():
             flash("Identifiants invalides.", "danger")
             return render_template("login.html")
 
+        if not getattr(u, "actif", True):
+            flash("Ce compte est désactivé. Contactez un administrateur.", "danger")
+            current_app.logger.warning("Connexion refusée (compte désactivé) pour %s", email)
+            return render_template("login.html")
+
         enregistrer_succes(email, adresse_ip)
         login_user(u)
         return redirect(url_for("main.dashboard"))

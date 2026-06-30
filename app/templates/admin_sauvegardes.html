@@ -10,45 +10,81 @@
       C'est votre filet de sécurité en cas de panne, de fausse manipulation ou de
       changement de machine.
     </p>
+
+    {% if jours_depuis is none %}
+      <div class="callout danger" style="margin:10px 0;">
+        ⚠️ <strong>Aucune sauvegarde n'existe encore.</strong> Créez-en une dès maintenant.
+      </div>
+    {% elif jours_depuis > seuil_alerte %}
+      <div class="callout danger" style="margin:10px 0;">
+        ⚠️ <strong>Dernière sauvegarde il y a {{ jours_depuis }} jour(s)</strong> — au-delà du seuil
+        d'alerte ({{ seuil_alerte }} j). Vérifiez la tâche planifiée ou sauvegardez manuellement.
+      </div>
+    {% else %}
+      <div class="muted" style="margin:10px 0;">✅ Dernière sauvegarde il y a {{ jours_depuis }} jour(s).</div>
+    {% endif %}
+
     <form method="post" action="{{ url_for('admin.sauvegarde_creer') }}" data-no-scroll-restore>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn" type="submit" data-pending-text="Sauvegarde en cours…">💾 Sauvegarder maintenant</button>
     </form>
     <p class="ux-helper">
-      La sauvegarde reste <strong>sur le serveur</strong> : aucune donnée personnelle n'est
-      téléchargée par le navigateur. Pour être vraiment protégé, copiez régulièrement le
-      dossier <code>backups/</code> sur un support externe (disque, clé, espace réseau).
+      Les sauvegardes restent <strong>sur le serveur</strong> (aucune donnée téléchargée par le
+      navigateur). Pour être vraiment protégé, copiez régulièrement le dossier <code>backups/</code>
+      sur un support externe. Les plus anciennes sont automatiquement purgées.
     </p>
   </div>
 
   <div class="card">
-    <h2>{{ sauvegardes|length }} fichier(s) de sauvegarde</h2>
-    {% if sauvegardes %}
+    <h2>{{ lots|length }} sauvegarde(s) disponible(s)</h2>
+    {% if lots %}
       <div class="tablewrap">
       <table class="table">
         <thead>
           <tr>
-            <th>Fichier</th>
-            <th>Contenu</th>
             <th>Date</th>
+            <th>Contenu</th>
             <th>Taille</th>
+            <th>Intégrité</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {% for s in sauvegardes %}
+          {% for lot in lots %}
             <tr>
-              <td>{{ s.nom }}</td>
-              <td>{{ s.type }}</td>
-              <td>{{ s.modifie.strftime('%d/%m/%Y à %H:%M') }}</td>
-              <td>{{ s.taille_lisible }}</td>
+              <td>{{ lot.modifie.strftime('%d/%m/%Y à %H:%M') if lot.modifie else '—' }}</td>
+              <td>
+                {% if lot.complet %}Base + pièces jointes{% elif lot.db_nom %}Base seule{% else %}Pièces jointes seules{% endif %}
+                <div class="muted" style="font-size:12px;">{{ lot.db_nom or lot.uploads_nom }}</div>
+              </td>
+              <td>{{ lot.taille_lisible }}</td>
+              <td>
+                {% if lot.integre is none %}<span class="muted">non vérifiée</span>
+                {% elif lot.integre %}<span class="status-badge status-info">intègre ✓</span>
+                {% else %}<span class="status-badge status-danger">corrompue ✗</span>{% endif %}
+              </td>
+              <td>
+                {% if lot.complet and lot.integre != false %}
+                  <form method="post" action="{{ url_for('admin.sauvegarde_restaurer') }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="base" value="{{ lot.base }}">
+                    <button class="btn danger" type="submit"
+                            onclick="return confirm('RESTAURER cette sauvegarde ? Les données actuelles seront REMPLACÉES. Une sauvegarde de sécurité sera créée juste avant. Continuer ?')"
+                            data-pending-text="Restauration…">♻️ Restaurer</button>
+                  </form>
+                {% else %}
+                  <span class="muted" style="font-size:12px;">restauration indisponible</span>
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
       </div>
       <p class="muted">
-        Chaque sauvegarde est composée de deux fichiers : la base de données et l'archive
-        des pièces jointes (suffixe <code>_uploads.zip</code>). Conservez les deux ensemble.
+        Restaurer remplace la base <strong>et</strong> les pièces jointes par celles de la
+        sauvegarde choisie. Une sauvegarde de sécurité de l'état actuel est créée automatiquement
+        juste avant. Après une restauration, reconnectez-vous si nécessaire.
       </p>
     {% else %}
       <p class="muted">

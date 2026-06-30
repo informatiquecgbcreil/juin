@@ -166,3 +166,9 @@ class Config:
         "CARTO_TILE_ATTRIBUTION", "© contributeurs OpenStreetMap"
     )
 
+    # --- Sauvegardes ---------------------------------------------------------
+    # Nombre de lots de sauvegarde conservés (rotation automatique) et seuil
+    # d'alerte « aucune sauvegarde récente » (en jours).
+    BACKUP_RETENTION_LOTS = int(os.environ.get("BACKUP_RETENTION_LOTS", "30"))
+    BACKUP_ALERT_DAYS = int(os.environ.get("BACKUP_ALERT_DAYS", "2"))
+
