@@ -2178,6 +2178,26 @@ class JournalConnexion(db.Model):
     cree_le = db.Column(db.DateTime, nullable=False, default=utcnow, index=True)
 
 
+class AuditLog(db.Model):
+    """Journal d'audit des actions sensibles (conformité RGPD / traçabilité).
+
+    Enregistre QUI a fait QUOI et QUAND pour les actions à fort enjeu :
+    gestion des comptes/rôles, restauration de sauvegarde, exports de données
+    personnelles. ``user_email`` est un instantané (l'utilisateur peut être
+    supprimé ensuite).
+    """
+
+    __tablename__ = "journal_audit"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    user_email = db.Column(db.String(180), nullable=True)
+    action = db.Column(db.String(60), nullable=False, index=True)
+    cible = db.Column(db.String(255), nullable=True)
+    details = db.Column(db.Text, nullable=True)
+
+
 # ---------- TÂCHES PLANIFIÉES INTERNES ----------
 
 class TachePlanifiee(db.Model):
