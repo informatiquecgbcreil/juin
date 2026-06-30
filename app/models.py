@@ -353,6 +353,10 @@ class Projet(db.Model):
     cr_filename = db.Column(db.String(255), nullable=True)
     cr_original_name = db.Column(db.String(255), nullable=True)
 
+    # Archivage (soft-delete) : un projet archivé sort des listes sans être détruit.
+    is_archive = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=utcnow)
 
     subventions = db.relationship("SubventionProjet", back_populates="projet", cascade="all, delete-orphan")
@@ -734,6 +738,21 @@ class ProjetActionAtelier(db.Model):
     __table_args__ = (
         db.UniqueConstraint("action_id", "atelier_id", name="uq_projet_action_atelier"),
     )
+
+
+class ProjetJalon(db.Model):
+    """Échéance / jalon d'un projet (échéancier de pilotage)."""
+    __tablename__ = "projet_jalon"
+
+    id = db.Column(db.Integer, primary_key=True)
+    projet_id = db.Column(db.Integer, db.ForeignKey("projet.id", ondelete="CASCADE"), nullable=False, index=True)
+    libelle = db.Column(db.String(200), nullable=False)
+    date_echeance = db.Column(db.Date, nullable=True, index=True)
+    statut = db.Column(db.String(20), nullable=False, default="a_faire")  # a_faire | fait
+    ordre = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    projet = db.relationship("Projet", backref=db.backref("jalons", cascade="all, delete-orphan", order_by="ProjetJalon.ordre.asc(), ProjetJalon.date_echeance.asc()"))
 
 
 

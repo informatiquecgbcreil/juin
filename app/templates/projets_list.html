@@ -10,9 +10,16 @@
     <div class="hero-actions">
       <a class="btn" href="{{ url_for('projets.finance_secteur') }}">Pilotage annuel</a>
       <a class="btn" href="{{ url_for('projets.objectifs_referentiel') }}">Objectifs sectoriels</a>
+      <a class="btn" href="{{ url_for('projets.projets_export_xlsx', archives=1 if voir_archives else None) }}">⬇ Export Excel</a>
+      {% if voir_archives %}
+        <a class="btn" href="{{ url_for('projets.projets_list') }}">← Projets actifs</a>
+      {% else %}
+        <a class="btn" href="{{ url_for('projets.projets_list', archives=1) }}">Archives{% if nb_archives %} ({{ nb_archives }}){% endif %}</a>
+      {% endif %}
       <a class="btn ok" href="{{ url_for('projets.projets_new') }}">Ajouter un projet</a>
     </div>
   </div>
+  {% if voir_archives %}<div class="callout-soft">Vous consultez les projets <strong>archivés</strong>. Ils n'apparaissent plus dans la liste active mais restent restaurables.</div>{% endif %}
 
   <div class="section-card compact">
     <div class="table-toolbar">
@@ -49,11 +56,27 @@
                 <div class="inline-actions">
                   <a class="btn" href="{{ url_for('projets.projets_edit', projet_id=p.id) }}">Voir le projet</a>
                   <a class="btn" href="{{ url_for('projets.projet_indicateurs', projet_id=p.id) }}">Indicateurs</a>
+                  <a class="btn" href="{{ url_for('projets.projet_jalons', projet_id=p.id) }}">Jalons</a>
                   <a class="btn ok" href="{{ url_for('projets.projet_finance', projet_id=p.id) }}">Finances</a>
-                  <form method="post" action="{{ url_for('projets.projets_delete', projet_id=p.id) }}" onsubmit="return confirm('Supprimer définitivement ce projet ? Cette action est irréversible.');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn danger" type="submit">Supprimer</button>
-                  </form>
+                  {% if voir_archives %}
+                    <form method="post" action="{{ url_for('projets.projets_restore', projet_id=p.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn" type="submit">Restaurer</button>
+                    </form>
+                    <form method="post" action="{{ url_for('projets.projets_delete', projet_id=p.id) }}" onsubmit="return confirm('Supprimer DÉFINITIVEMENT ce projet ? Cette action est irréversible.');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn danger" type="submit">Supprimer définitivement</button>
+                    </form>
+                  {% else %}
+                    <form method="post" action="{{ url_for('projets.projets_duplicate', projet_id=p.id) }}" onsubmit="return confirm('Reconduire ce projet (copie de la structure) ?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn" type="submit">Reconduire</button>
+                    </form>
+                    <form method="post" action="{{ url_for('projets.projets_archive', projet_id=p.id) }}" onsubmit="return confirm('Archiver ce projet ? Il restera consultable dans les archives.');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn" type="submit">Archiver</button>
+                    </form>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -80,11 +103,18 @@
           </dl>
           <div class="inline-actions">
             <a class="btn" href="{{ url_for('projets.projets_edit', projet_id=p.id) }}">Voir le projet</a>
-            <a class="btn" href="{{ url_for('projets.projet_indicateurs', projet_id=p.id) }}">Indicateurs</a>
-            <form method="post" action="{{ url_for('projets.projets_delete', projet_id=p.id) }}" onsubmit="return confirm('Supprimer définitivement ce projet ? Cette action est irréversible.');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn danger" type="submit">Supprimer</button>
-            </form>
+            <a class="btn" href="{{ url_for('projets.projet_jalons', projet_id=p.id) }}">Jalons</a>
+            {% if voir_archives %}
+              <form method="post" action="{{ url_for('projets.projets_restore', projet_id=p.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn" type="submit">Restaurer</button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('projets.projets_archive', projet_id=p.id) }}" onsubmit="return confirm('Archiver ce projet ?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn" type="submit">Archiver</button>
+              </form>
+            {% endif %}
           </div>
         </article>
       {% else %}
