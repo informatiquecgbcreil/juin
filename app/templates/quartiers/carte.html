@@ -46,11 +46,18 @@
       </div>
 
       {% if can('quartiers:edit') %}
-      <form method="post" action="{{ url_for('quartiers.carte_geocoder') }}" style="margin-left:auto;">
+      <form method="post" action="{{ url_for('quartiers.carte_geocoder_quartiers') }}" style="margin-left:auto;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit" data-pending-text="Placement…"
+                title="Placer chaque quartier via la Base Adresse Nationale (les placements manuels sont préservés)">
+          🧭 Placer les quartiers{% if restants_quartiers %} ({{ restants_quartiers }} à placer){% endif %}
+        </button>
+      </form>
+      <form method="post" action="{{ url_for('quartiers.carte_geocoder') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn" type="submit" data-pending-text="Géocodage…"
-                title="Géocoder les adresses non encore traitées via la Base Adresse Nationale">
-          📍 Géocoder les adresses{% if restants %} ({{ restants }} à traiter){% endif %}
+                title="Géocoder les adresses des habitants (utile pour les fiches hors quartier)">
+          📍 Géocoder les adresses{% if restants %} ({{ restants }}){% endif %}
         </button>
       </form>
       {% endif %}

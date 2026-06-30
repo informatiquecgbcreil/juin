@@ -1009,6 +1009,13 @@ class Quartier(db.Model):
     description = db.Column(db.Text, nullable=True)
     is_qpv = db.Column(db.Boolean, default=False)
 
+    # Position du quartier sur la carte (centroïde). Renseignée par
+    # géocodage automatique (BAN sur « nom, ville ») ou placement manuel.
+    # geo_manuel=True protège un placement manuel d'un écrasement par l'auto.
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    geo_manuel = db.Column(db.Boolean, nullable=False, default=False)
+
     __table_args__ = (
         db.UniqueConstraint("ville", "nom", name="uq_quartier_ville_nom"),
     )

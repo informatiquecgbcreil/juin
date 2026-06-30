@@ -41,15 +41,10 @@ def repartition_par_quartier(secteur=None, type_public=None, annee=None) -> dict
     quartiers = {qq.id: qq for qq in Quartier.query.all()}
 
     groupes: dict = {}
-    non_localises = 0
     total = 0
     for p in participants:
         total += 1
-        if p.latitude is None or p.longitude is None:
-            non_localises += 1
-            continue
-        # Regroupement par quartier si renseigné, sinon par commune (ville),
-        # pour que les habitants hors quartier restent lisibles sur la carte.
+        # Regroupement par quartier si renseigné, sinon par commune (ville).
         if p.quartier_id:
             cle = ("q", p.quartier_id)
         elif (p.ville or "").strip():
@@ -58,11 +53,14 @@ def repartition_par_quartier(secteur=None, type_public=None, annee=None) -> dict
             cle = ("sans",)
         g = groupes.get(cle)
         if g is None:
+            q_lat = q_lon = None
             if cle[0] == "q":
                 qq = quartiers.get(cle[1])
                 nom = qq.nom if qq else "Quartier inconnu"
                 ville = qq.ville if qq else ""
                 is_qpv = bool(qq.is_qpv) if qq else False
+                q_lat = qq.latitude if qq else None
+                q_lon = qq.longitude if qq else None
             elif cle[0] == "v":
                 nom, ville, is_qpv = cle[1], cle[1], False
             else:
@@ -73,28 +71,44 @@ def repartition_par_quartier(secteur=None, type_public=None, annee=None) -> dict
                 "ville": ville,
                 "is_qpv": is_qpv,
                 "total": 0,
+                # Position : coordonnées propres du quartier (prioritaires)…
+                "q_lat": q_lat,
+                "q_lon": q_lon,
+                # …sinon moyenne des adresses géocodées des membres.
                 "_lat": 0.0,
                 "_lon": 0.0,
+                "_n": 0,
                 "par_secteur": defaultdict(int),
                 "par_type_public": defaultdict(int),
             }
         g["total"] += 1
-        g["_lat"] += p.latitude
-        g["_lon"] += p.longitude
         g["par_secteur"][p.created_secteur or "—"] += 1
         g["par_type_public"][p.type_public or "—"] += 1
+        if p.latitude is not None and p.longitude is not None:
+            g["_lat"] += p.latitude
+            g["_lon"] += p.longitude
+            g["_n"] += 1
 
     quartiers_out = []
+    non_localises = 0
     for g in groupes.values():
-        n = g["total"] or 1
+        # Coordonnées du quartier en priorité ; sinon moyenne des adresses ;
+        # sinon le groupe n'a aucune position connue (compté « non localisé »).
+        if g["q_lat"] is not None and g["q_lon"] is not None:
+            lat, lon = g["q_lat"], g["q_lon"]
+        elif g["_n"] > 0:
+            lat, lon = g["_lat"] / g["_n"], g["_lon"] / g["_n"]
+        else:
+            non_localises += g["total"]
+            continue
         quartiers_out.append(
             {
                 "id": g["id"],
                 "nom": g["nom"],
                 "ville": g["ville"],
                 "is_qpv": g["is_qpv"],
-                "lat": round(g["_lat"] / n, 6),
-                "lon": round(g["_lon"] / n, 6),
+                "lat": round(lat, 6),
+                "lon": round(lon, 6),
                 "total": g["total"],
                 "par_secteur": dict(sorted(g["par_secteur"].items(), key=lambda x: -x[1])),
                 "par_type_public": dict(sorted(g["par_type_public"].items(), key=lambda x: -x[1])),

@@ -80,11 +80,34 @@ def edit(quartier_id: int):
         quartier.nom = nom
         quartier.description = description
         quartier.is_qpv = is_qpv
+
+        # Placement manuel sur la carte (prioritaire, protégé du géocodage auto).
+        lat_raw = (request.form.get("latitude") or "").strip().replace(",", ".")
+        lon_raw = (request.form.get("longitude") or "").strip().replace(",", ".")
+        if lat_raw and lon_raw:
+            try:
+                quartier.latitude = float(lat_raw)
+                quartier.longitude = float(lon_raw)
+                quartier.geo_manuel = True
+            except ValueError:
+                flash("Coordonnées ignorées (format invalide).", "warning")
+        elif not lat_raw and not lon_raw and request.form.get("effacer_position") == "1":
+            quartier.latitude = None
+            quartier.longitude = None
+            quartier.geo_manuel = False
+
         db.session.commit()
         flash("Quartier mis à jour.", "success")
         return redirect(url_for("quartiers.index"))
 
-    return render_template("quartiers/edit.html", quartier=quartier)
+    return render_template(
+        "quartiers/edit.html",
+        quartier=quartier,
+        tile_url=current_app.config.get("CARTO_TILE_URL")
+        or "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        tile_attribution=current_app.config.get("CARTO_TILE_ATTRIBUTION")
+        or "© contributeurs OpenStreetMap",
+    )
 
 
 @bp.route("/<int:quartier_id>/delete", methods=["POST"])
@@ -301,7 +324,7 @@ def stats():
 @login_required
 @require_perm("quartiers:view")
 def carte():
-    from app.services.geocodage import nombre_a_geocoder
+    from app.services.geocodage import nombre_a_geocoder, nombre_quartiers_a_geocoder
 
     secteur_choices = [
         v for (v,) in db.session.query(Participant.created_secteur)
@@ -331,11 +354,39 @@ def carte():
         type_public_choices=type_public_choices,
         annee_choices=annee_choices,
         restants=nombre_a_geocoder(),
+        restants_quartiers=nombre_quartiers_a_geocoder(),
         tile_url=current_app.config.get("CARTO_TILE_URL")
         or "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         tile_attribution=current_app.config.get("CARTO_TILE_ATTRIBUTION")
         or "© contributeurs OpenStreetMap",
     )
+
+
+@bp.route("/carte/geocoder-quartiers", methods=["POST"])
+@login_required
+@require_perm("quartiers:edit")
+def carte_geocoder_quartiers():
+    from app.services import geocodage as geo
+
+    force = request.form.get("force") == "1"
+    try:
+        resume = geo.synchroniser_geocodages_quartiers(force=force)
+    except geo.GeocodageError as exc:
+        flash(f"Géocodage indisponible : {exc}", "warning")
+        return redirect(url_for("quartiers.carte"))
+
+    if resume["erreurs"]:
+        flash(
+            f"Géocodage interrompu (réseau) : {resume['localises']} quartier(s) placé(s), "
+            f"{resume['restants']} restant(s). Réessayez plus tard.",
+            "warning",
+        )
+    else:
+        msg = f"{resume['localises']} quartier(s) placé(s)"
+        if resume["sans_resultat"]:
+            msg += f", {resume['sans_resultat']} introuvable(s) (à placer à la main)"
+        flash(msg + ".", "success")
+    return redirect(url_for("quartiers.carte"))
 
 
 @bp.route("/carte/data")
