@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 
 from flask import (
@@ -179,6 +179,86 @@ def session_new(atelier_id: int):
         projet_id=projet_id,
         materiels=list_materiels_actifs(),
     )
+
+
+@bp.route("/atelier/<int:atelier_id>/sessions/bulk", methods=["GET", "POST"])
+@login_required
+def session_bulk_new(atelier_id: int):
+    """Création EN SÉRIE de séances collectives (ex. tous les jeudis 14h-16h)."""
+    require_perm("ateliers:edit")(lambda: None)()
+    secteur = _user_secteur()
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
+    if atelier.is_deleted:
+        flash("Cet atelier est dans la corbeille.", "warning")
+        return redirect(url_for("activite.index", corbeille=1))
+    if not _can_access_activity_secteur(atelier.secteur):
+        return _deny_activity_access()
+    if atelier.type_atelier == "INDIVIDUEL_MENSUEL":
+        flash("La création en série concerne les ateliers collectifs (séances à dates régulières).", "warning")
+        return redirect(url_for("activite.session_new", atelier_id=atelier.id))
+
+    if request.method == "POST":
+        try:
+            d_debut = datetime.strptime(request.form.get("date_debut", ""), "%Y-%m-%d").date()
+            d_fin = datetime.strptime(request.form.get("date_fin", ""), "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            flash("Renseignez des dates de début et de fin valides.", "danger")
+            return redirect(url_for("activite.session_bulk_new", atelier_id=atelier.id))
+        if d_fin < d_debut:
+            d_debut, d_fin = d_fin, d_debut
+
+        jours = {int(j) for j in request.form.getlist("weekday") if str(j).isdigit() and 0 <= int(j) <= 6}
+        if not jours:
+            flash("Cochez au moins un jour de la semaine.", "danger")
+            return redirect(url_for("activite.session_bulk_new", atelier_id=atelier.id))
+
+        heure_debut = (request.form.get("heure_debut") or "").strip() or None
+        heure_fin = (request.form.get("heure_fin") or "").strip() or None
+        capacite_raw = request.form.get("capacite") or atelier.capacite_defaut
+        capacite = int(capacite_raw) if capacite_raw else None
+        eviter_doublons = request.form.get("skip_existing") == "1"
+
+        existantes = set()
+        if eviter_doublons:
+            for (dte,) in db.session.query(SessionActivite.date_session).filter(
+                SessionActivite.atelier_id == atelier.id,
+                SessionActivite.is_deleted == False,  # noqa: E712
+                SessionActivite.date_session.isnot(None),
+            ).all():
+                existantes.add(dte)
+
+        crees, ignores = 0, 0
+        MAX_SEANCES = 366
+        d = d_debut
+        gardefou = 0
+        while d <= d_fin and crees < MAX_SEANCES:
+            gardefou += 1
+            if gardefou > 1000:
+                break
+            if d.weekday() in jours:
+                if eviter_doublons and d in existantes:
+                    ignores += 1
+                else:
+                    db.session.add(SessionActivite(
+                        atelier_id=atelier.id,
+                        secteur=atelier.secteur,
+                        session_type="COLLECTIF",
+                        date_session=d,
+                        heure_debut=heure_debut,
+                        heure_fin=heure_fin,
+                        capacite=capacite,
+                    ))
+                    crees += 1
+            d += timedelta(days=1)
+        db.session.commit()
+
+        msg = f"{crees} séance(s) créée(s)."
+        if ignores:
+            msg += f" {ignores} ignorée(s) (déjà existantes)."
+        flash(msg, "success")
+        return redirect(url_for("activite.sessions", atelier_id=atelier.id))
+
+    return render_template("activite/session_bulk.html", secteur=secteur, atelier=atelier)
 
 
 @bp.route("/session/<int:session_id>/edit-schedule", methods=["GET", "POST"])
