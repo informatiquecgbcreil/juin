@@ -1735,6 +1735,9 @@ class PresenceActivite(db.Model):
     motif = db.Column(db.String(180), nullable=True)
     motif_autre = db.Column(db.String(255), nullable=True)
 
+    # Statut de présence : présent / en retard / absent excusé.
+    presence_type = db.Column(db.String(20), nullable=False, default="present")
+
     # signature: stockée en fichier (temp), ici juste le chemin
     signature_path = db.Column(db.String(255), nullable=True)
 

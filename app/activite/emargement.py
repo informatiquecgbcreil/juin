@@ -291,10 +291,40 @@ def emargement(session_id: int):
             flash("Le participant a bien été créé.", "success")
             return redirect(url_for("activite.emargement", session_id=session_id, highlight=p.id))
 
+        if action == "delete_presence":
+            from app.services.audit import journaliser
+
+            presence_id = request.form.get("presence_id", type=int)
+            pr = PresenceActivite.query.filter_by(id=presence_id, session_id=session_id).first() if presence_id else None
+            if not pr:
+                flash("Présence introuvable pour cette séance.", "danger")
+                return _redirect_emargement_with_period(session_id)
+            cible = (f"{pr.participant.nom} {pr.participant.prenom}" if pr.participant else str(pr.participant_id))
+            db.session.delete(pr)
+            db.session.commit()
+            journaliser("presence.delete", cible=f"session #{session_id} · {cible}")
+            flash("Présence retirée.", "success")
+            return _redirect_emargement_with_period(session_id)
+
+        if action == "update_presence_type":
+            presence_id = request.form.get("presence_id", type=int)
+            pr = PresenceActivite.query.filter_by(id=presence_id, session_id=session_id).first() if presence_id else None
+            if not pr:
+                flash("Présence introuvable pour cette séance.", "danger")
+                return _redirect_emargement_with_period(session_id)
+            ptype = (request.form.get("presence_type") or "present").strip()
+            pr.presence_type = ptype if ptype in {"present", "retard", "absent_excuse"} else "present"
+            db.session.commit()
+            flash("Statut de présence mis à jour.", "success")
+            return _redirect_emargement_with_period(session_id, highlight=pr.participant_id)
+
         if action == "emarger":
             participant_id = request.form.get("participant_id")
             motif = request.form.get("motif") or None
             motif_autre = (request.form.get("motif_autre") or "").strip() or None
+            presence_type = (request.form.get("presence_type") or "present").strip()
+            if presence_type not in {"present", "retard", "absent_excuse"}:
+                presence_type = "present"
             signature_data = request.form.get("signature_data")
             materiel_individuel_ids = _materiel_ids_from_request_form()
             try:
@@ -329,6 +359,7 @@ def emargement(session_id: int):
                 if pr:
                     pr.motif = motif
                     pr.motif_autre = motif_autre
+                    pr.presence_type = presence_type
                     if sig_path:
                         pr.signature_path = sig_path
                 else:
@@ -337,6 +368,7 @@ def emargement(session_id: int):
                         participant_id=participant.id,
                         motif=motif,
                         motif_autre=motif_autre,
+                        presence_type=presence_type,
                         signature_path=sig_path,
                     )
                     db.session.add(pr)

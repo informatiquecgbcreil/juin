@@ -220,6 +220,7 @@ def kiosk_session(token: str):
     quartiers = Quartier.query.order_by(Quartier.ville.asc(), Quartier.nom.asc()).all()
 
     message_ok = None
+    recu = None
 
     if request.method == "POST":
         action = request.form.get("action")
@@ -314,6 +315,7 @@ def kiosk_session(token: str):
                 generate_individuel_mensuel_docx(app=current_app, atelier=atelier, annee=s.rdv_date.year, mois=s.rdv_date.month)
 
             message_ok = "Merci, c’est bon !"
+            recu = pr.id
 
     highlight = request.args.get("highlight")
     highlight_label = None
@@ -335,6 +337,7 @@ def kiosk_session(token: str):
         motifs=motifs,
         quartiers=quartiers,
         message_ok=message_ok,
+        recu=recu,
         highlight=highlight,
         highlight_label=highlight_label,
         token=token,
