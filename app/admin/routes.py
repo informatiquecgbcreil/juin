@@ -604,7 +604,7 @@ def instance_settings():
 @login_required
 @require_perm("admin:rbac")
 def sauvegardes():
-    from app.services.sauvegarde import lister_sauvegardes
+    from app.services.sauvegarde import lister_lots, jours_depuis_derniere
 
     db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "") or ""
     if db_uri.startswith("postgresql"):
@@ -613,9 +613,15 @@ def sauvegardes():
         moteur = "SQLite"
     else:
         moteur = "inconnu"
+    try:
+        seuil = int(current_app.config.get("BACKUP_ALERT_DAYS") or 2)
+    except (TypeError, ValueError):
+        seuil = 2
     return render_template(
         "admin_sauvegardes.html",
-        sauvegardes=lister_sauvegardes(),
+        lots=lister_lots(),
+        jours_depuis=jours_depuis_derniere(),
+        seuil_alerte=seuil,
         moteur=moteur,
     )
 
@@ -624,19 +630,48 @@ def sauvegardes():
 @login_required
 @require_perm("admin:rbac")
 def sauvegarde_creer():
-    from app.services.sauvegarde import creer_sauvegarde
+    from app.services.sauvegarde import creer_sauvegarde, nettoyer_sauvegardes
 
     try:
         info = creer_sauvegarde()
+        supprimes = nettoyer_sauvegardes()  # rotation/rétention
         current_app.logger.info(
-            "Sauvegarde manuelle créée par %s : %s",
+            "Sauvegarde manuelle créée par %s : %s (%s ancien(s) fichier(s) purgé(s))",
             getattr(current_user, "email", "?"),
             info.get("base"),
+            supprimes,
         )
         flash("Sauvegarde créée avec succès ✅", "success")
     except Exception as exc:  # message lisible remonté à l'utilisateur
         current_app.logger.exception("Échec de la sauvegarde manuelle")
         flash(f"La sauvegarde a échoué : {exc}", "danger")
+    return redirect(url_for("admin.sauvegardes"))
+
+
+@bp.route("/sauvegardes/restaurer", methods=["POST"])
+@login_required
+@require_perm("admin:rbac")
+def sauvegarde_restaurer():
+    from app.services.sauvegarde import restaurer_lot
+
+    base = (request.form.get("base") or "").strip()
+    if not base:
+        flash("Sélectionnez une sauvegarde à restaurer.", "danger")
+        return redirect(url_for("admin.sauvegardes"))
+    try:
+        res = restaurer_lot(base)
+        current_app.logger.warning(
+            "RESTAURATION effectuée par %s depuis « %s » (sécurité : %s)",
+            getattr(current_user, "email", "?"), base, res.get("securite"),
+        )
+        flash(
+            "Restauration effectuée ✅ Une sauvegarde de sécurité de l'état précédent "
+            "a été créée juste avant. Reconnectez-vous si nécessaire.",
+            "success",
+        )
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.exception("Échec de la restauration")
+        flash(f"La restauration a échoué : {exc}", "danger")
     return redirect(url_for("admin.sauvegardes"))
 
 
