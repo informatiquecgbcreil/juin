@@ -1199,14 +1199,33 @@ class SuiviRappel(db.Model):
     user = db.relationship("User")
 
 
+QUESTIONNAIRE_TYPES = [
+    ("autre", "Autre"),
+    ("satisfaction", "Satisfaction"),
+    ("avant", "Avant (état initial)"),
+    ("apres", "Après (état final)"),
+]
+QUESTIONNAIRE_TYPES_DICT = dict(QUESTIONNAIRE_TYPES)
+
+
 class Questionnaire(db.Model):
     __tablename__ = "questionnaire"
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(180), nullable=False)
     description = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    # Nature du questionnaire (satisfaction / avant / après…) pour le dépouillement.
+    type_questionnaire = db.Column(db.String(30), nullable=False, default="autre")
+    # Rattachement optionnel à un projet (mesure d'impact d'un projet).
+    projet_id = db.Column(db.Integer, db.ForeignKey("projet.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+    projet = db.relationship("Projet")
+
+    @property
+    def type_label(self):
+        return QUESTIONNAIRE_TYPES_DICT.get(self.type_questionnaire or "autre", self.type_questionnaire or "—")
 
     secteurs = db.relationship("QuestionnaireSecteur", backref="questionnaire", cascade="all, delete-orphan")
     ateliers = db.relationship("QuestionnaireAtelier", backref="questionnaire", cascade="all, delete-orphan")
