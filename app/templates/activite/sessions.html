@@ -16,6 +16,9 @@
           {% endif %}
           {% if not corbeille %}
             <a class="btn" href="{{ url_for('activite.session_new', atelier_id=atelier.id) }}">+ Nouvelle session / RDV</a>
+            {% if atelier.type_atelier != 'INDIVIDUEL_MENSUEL' %}
+              <a class="btn" href="{{ url_for('activite.session_bulk_new', atelier_id=atelier.id) }}">📅 Créer en série</a>
+            {% endif %}
           {% endif %}
           <a class="btn" href="{{ url_for('activite.index') }}">Retour ateliers</a>
         </div>

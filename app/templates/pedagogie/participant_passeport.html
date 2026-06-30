@@ -292,9 +292,10 @@
             {% if lvl == 1 %}{% set cls="lvl1" %}{% endif %}
             {% if lvl == 2 %}{% set cls="lvl2" %}{% endif %}
             {% if lvl >= 3 %}{% set cls="lvl3" %}{% endif %}
-            <span class="skill-pill {{ cls }}" title="{{ c.nom }}">
+            <span class="skill-pill {{ cls }}" title="{{ c.nom }}{% if c.id in portail_comp_ids %} (niveau enrichi par le portail){% endif %}">
               <b>{{ c.code }}</b>
               <span class="lvlmark">N{{ lvl }}</span>
+              {% if c.id in portail_comp_ids %}<span class="lvlmark" title="Niveau enrichi par le portail des apprenants">🔌</span>{% endif %}
             </span>
           {% endfor %}
         </div>

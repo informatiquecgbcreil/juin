@@ -946,12 +946,17 @@ def new_participant():
             flash("Le nom et le prénom sont obligatoires.", "err")
             return redirect(url_for("participants.new_participant"))
 
+        email = (request.form.get("email") or "").strip() or None
+        if email and ("@" not in email or "." not in email.rsplit("@", 1)[-1]):
+            flash("Adresse e-mail invalide (ex. nom@domaine.fr).", "err")
+            return redirect(url_for("participants.new_participant"))
+
         p = Participant(
             nom=nom,
             prenom=prenom,
             adresse=(request.form.get("adresse") or "").strip() or None,
             ville=(request.form.get("ville") or "").strip() or None,
-            email=(request.form.get("email") or "").strip() or None,
+            email=email,
             telephone=(request.form.get("telephone") or "").strip() or None,
             genre=(request.form.get("genre") or "").strip() or None,
             type_public=(request.form.get("type_public") or "H").strip() or "H",
@@ -985,6 +990,8 @@ def new_participant():
         db.session.flush()
         sync_legacy_insertion_fields(p, actor_id=getattr(current_user, "id", None))
         db.session.commit()
+        from app.services.audit import journaliser
+        journaliser("participant.create", cible=f"{p.nom} {p.prenom}")
         flash("Le participant a bien été créé.", "ok")
         return redirect(url_for("participants.edit_participant", participant_id=p.id))
 
@@ -1027,7 +1034,11 @@ def edit_participant(participant_id: int):
         p.prenom = (request.form.get("prenom") or "").strip() or p.prenom
         p.adresse = (request.form.get("adresse") or "").strip() or None
         p.ville = (request.form.get("ville") or "").strip() or None
-        p.email = (request.form.get("email") or "").strip() or None
+        email = (request.form.get("email") or "").strip() or None
+        if email and ("@" not in email or "." not in email.rsplit("@", 1)[-1]):
+            flash("Adresse e-mail invalide (ex. nom@domaine.fr).", "err")
+            return redirect(url_for("participants.edit_participant", participant_id=p.id))
+        p.email = email
         p.telephone = (request.form.get("telephone") or "").strip() or None
         p.genre = (request.form.get("genre") or "").strip() or None
         p.type_public = (request.form.get("type_public") or p.type_public or "H").strip() or "H"
@@ -1058,6 +1069,8 @@ def edit_participant(participant_id: int):
         _appliquer_droit_image(p)
         sync_legacy_insertion_fields(p, actor_id=getattr(current_user, "id", None))
         db.session.commit()
+        from app.services.audit import journaliser
+        journaliser("participant.edit", cible=f"{p.nom} {p.prenom}")
         flash("Le participant a bien été mis à jour.", "ok")
         return redirect(url_for("participants.edit_participant", participant_id=p.id))
 
