@@ -7,6 +7,16 @@
     .indicator-record-grid { grid-template-columns:1fr; }
     .indicator-record-actions { flex-direction:row; flex-wrap:wrap; }
   }
+  .gauge-list { display:flex; flex-direction:column; gap:14px; }
+  .gauge-row { display:grid; grid-template-columns: minmax(180px, 1fr) 2fr auto; gap:12px; align-items:center; }
+  .gauge-track { position:relative; height:18px; border-radius:9px; background: color-mix(in srgb, var(--border) 60%, transparent); overflow:hidden; }
+  .gauge-fill { height:100%; border-radius:9px; transition:width .2s; }
+  .gauge-fill.is-ok { background: var(--ok, #2e7d32); }
+  .gauge-fill.is-warn { background: var(--warn, #f59e0b); }
+  .gauge-fill.is-bad { background: var(--danger, #dc2626); }
+  .gauge-fill.is-none { background: color-mix(in srgb, var(--muted) 50%, transparent); }
+  .gauge-meta { font-size:13px; white-space:nowrap; }
+  @media (max-width: 720px) { .gauge-row { grid-template-columns: 1fr; } }
 </style>
 
 <div class="ui-page ui-page--wide indicator-page">
@@ -18,6 +28,7 @@
       </div>
       <div class="ui-actions">
         <a class="btn" href="{{ url_for('projets.projets_edit', projet_id=projet.id) }}">Retour au projet</a>
+        <a class="btn" href="{{ url_for('projets.projet_indicateurs_export', projet_id=projet.id) }}">⬇ Export Excel</a>
         <a class="btn" href="{{ url_for('main.stats', secteur=projet.secteur, projet_id=projet.id) }}">Voir dans Stats</a>
         <a class="btn ok" href="{{ url_for('statsimpact.dashboard', secteur=projet.secteur) }}{% for atelier_id in linked_ateliers %}&atelier_ids={{ atelier_id }}{% endfor %}">Ouvrir Stats-impact</a>
       </div>
@@ -30,6 +41,52 @@
       <div class="ui-kpi-card"><div class="ui-kpi-card__label">Stats-impact</div><div class="ui-kpi-card__value">{{ indicator_counts.stats }}</div></div>
     </div>
   </section>
+
+  {% if indicator_alertes and indicator_alertes|length %}
+  <section class="ui-panel" style="border-color: color-mix(in srgb, var(--warn) 55%, var(--border));">
+    <div class="ui-section-head">
+      <div><h2 style="margin:0;">⚠ À traiter ({{ indicator_year }})</h2>
+        <div class="muted">Indicateurs non renseignés, sous l'objectif ou jalons non validés.</div></div>
+    </div>
+    <ul style="margin:8px 0 0 0; padding-left:18px; display:flex; flex-direction:column; gap:6px;">
+      {% for a in indicator_alertes %}
+        <li><span class="ui-badge ui-badge--{{ 'bad' if a.niveau == 'danger' else 'warn' }}">{{ 'Urgent' if a.niveau == 'danger' else 'À voir' }}</span>
+          <strong>{{ a.label }}</strong> — {{ a.message }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if indicator_computed and indicator_computed|length %}
+  <section class="ui-panel">
+    <div class="ui-section-head">
+      <div><h2 style="margin:0;">Restitution visuelle ({{ indicator_year }})</h2>
+        <div class="muted">Valeur atteinte par rapport à l'objectif. Les valeurs « Stats-impact » sont recalculées.</div></div>
+    </div>
+    <div class="gauge-list">
+      {% for row in indicator_computed %}
+        {% set st = row.status or 'none' %}
+        <div class="gauge-row">
+          <div>
+            <strong>{{ row.label }}</strong>
+            <div class="muted" style="font-size:12px;">{{ 'Stats-impact' if row.source == 'stats' else 'Manuel' }}</div>
+          </div>
+          <div class="gauge-track">
+            <div class="gauge-fill is-{{ st }}" style="width: {{ row.gauge_pct if row.gauge_pct is not none else 0 }}%;"></div>
+          </div>
+          <div class="gauge-meta">
+            {% if row.value_type == 'check' %}
+              <span class="ui-badge ui-badge--{{ st }}">{{ row.display_value }}</span>
+            {% else %}
+              <strong>{% if row.display_value %}{{ row.display_value }}{% elif row.value is not none %}{{ row.value }}{{ ' ' ~ row.unit if row.unit else '' }}{% else %}—{% endif %}</strong>
+              {% if row.target is not none %}<span class="muted"> / {{ row.target_symbol }} {{ row.target }}</span>{% endif %}
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   {% if can_edit_indicateurs %}
     <div class="ui-card-grid">
@@ -174,6 +231,13 @@
                 <label>Valeur</label>
                 <input class="in" name="manual_value" inputmode="decimal" value="{{ params.get('manual_value','') }}" {% if not can_edit_indicateurs %}disabled{% endif %}>
                 <input class="in" name="unit" value="{{ params.get('unit','') }}" placeholder="Unité" {% if not can_edit_indicateurs %}disabled{% endif %}>
+                {% if can_edit_indicateurs %}
+                  <input class="in" name="commentaire" placeholder="Commentaire (historisé)" style="margin-top:4px;">
+                {% endif %}
+                {% set dr = derniers_releves.get(ind.id) %}
+                {% if dr %}
+                  <span class="muted" style="font-size:11px;">Dernier relevé : {{ dr.valeur }} · {{ dr.saisie_le.strftime('%d/%m/%Y') }}{% if dr.user %} · {{ dr.user.email }}{% endif %}</span>
+                {% endif %}
               {% else %}
                 <label>Statistique</label>
                 <select class="in" name="metric_code" {% if not can_edit_indicateurs %}disabled{% endif %}>

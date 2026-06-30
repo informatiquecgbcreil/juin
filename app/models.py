@@ -651,6 +651,28 @@ class ProjetIndicateur(db.Model):
             return {}
 
 
+class ProjetIndicateurValeur(db.Model):
+    """Historique des valeurs saisies pour un indicateur (qui / quand / combien).
+
+    Permet de tracer l'évolution d'un indicateur manuel et de répondre aux
+    exigences d'audit (RGPD, contrôle financeur) : aucune valeur n'est écrasée
+    sans laisser de trace.
+    """
+    __tablename__ = "projet_indicateur_valeur"
+
+    id = db.Column(db.Integer, primary_key=True)
+    indicateur_id = db.Column(db.Integer, db.ForeignKey("projet_indicateur.id", ondelete="CASCADE"), nullable=False, index=True)
+    date_releve = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    valeur = db.Column(db.Float, nullable=True)
+    source = db.Column(db.String(30), nullable=False, default="manual")  # manual | stats
+    commentaire = db.Column(db.Text, nullable=True)
+    saisie_par_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    saisie_le = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+
+    indicateur = db.relationship("ProjetIndicateur", backref=db.backref("historique", cascade="all, delete-orphan", order_by="ProjetIndicateurValeur.saisie_le.desc()"))
+    user = db.relationship("User")
+
+
 class ProjetJournalEntry(db.Model):
     __tablename__ = "projet_journal_entry"
 

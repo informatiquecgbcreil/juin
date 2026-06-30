@@ -15,7 +15,9 @@ from app.services.indicators import (
     TARGET_OP_CHOICES,
     TARGET_OP_SYMBOLS,
     compute_project_indicators,
+    compute_project_indicator_alerts,
     indicator_counts,
+    indicator_gauge_pct,
     indicator_list_rows,
     indicator_metric_code,
     indicator_params,
@@ -30,6 +32,7 @@ from app.models import (
     AtelierActivite,
     ProjetAtelier,
     ProjetIndicateur,
+    ProjetIndicateurValeur,
     ProjetJournalEntry,
     ProjetAction,
     ProjetActionAtelier,
@@ -263,13 +266,24 @@ def projet_indicateurs(projet_id):
                     "checked": bool(request.form.get("checked")),
                 }
             else:
+                ancienne_valeur = parse_float_optional(params.get("manual_value"))
+                nouvelle_valeur = parse_float_optional(request.form.get("manual_value"))
                 params.update({
                     "source": "manual",
                     "value_type": "number",
-                    "manual_value": parse_float_optional(request.form.get("manual_value")),
+                    "manual_value": nouvelle_valeur,
                     "unit": (request.form.get("unit") or "").strip(),
                 })
                 clean_target_params(params)
+                # Historise toute valeur effectivement modifiée (traçabilité).
+                if nouvelle_valeur is not None and nouvelle_valeur != ancienne_valeur:
+                    db.session.add(ProjetIndicateurValeur(
+                        indicateur_id=ind.id,
+                        valeur=nouvelle_valeur,
+                        source="manual",
+                        commentaire=(request.form.get("commentaire") or "").strip() or None,
+                        saisie_par_user_id=getattr(current_user, "id", None),
+                    ))
 
             ind.params_json = json.dumps(params, ensure_ascii=False)
             db.session.commit()
@@ -291,6 +305,23 @@ def projet_indicateurs(projet_id):
     indicateurs = ProjetIndicateur.query.filter_by(projet_id=p.id).order_by(ProjetIndicateur.created_at.asc()).all()
     indicator_rows = indicator_list_rows(indicateurs)
 
+    # Restitution : valeurs calculées (y compris stats), jauges et alertes « à traiter ».
+    year = _projet_selected_year(p)
+    finance = _projet_finance_context(p, year)
+    computed = compute_project_indicators(p, selected_annee=year, subventions=finance.get("subventions"))
+    for row in computed:
+        row["gauge_pct"] = indicator_gauge_pct(row)
+    alertes_indicateurs = compute_project_indicator_alerts(computed)
+
+    # Dernier relevé historisé par indicateur (pour affichage rapide).
+    derniers_releves = {}
+    ind_ids = [i.id for i in indicateurs]
+    if ind_ids:
+        for v in (ProjetIndicateurValeur.query
+                  .filter(ProjetIndicateurValeur.indicateur_id.in_(ind_ids))
+                  .order_by(ProjetIndicateurValeur.saisie_le.desc()).all()):
+            derniers_releves.setdefault(v.indicateur_id, v)
+
     return render_template(
         "projets_indicateurs.html",
         projet=p,
@@ -298,6 +329,10 @@ def projet_indicateurs(projet_id):
         linked_ateliers=linked_atelier_ids,
         indicator_rows=indicator_rows,
         indicator_counts=indicator_counts(indicator_rows),
+        indicator_computed=computed,
+        indicator_alertes=alertes_indicateurs,
+        derniers_releves=derniers_releves,
+        indicator_year=year,
         indicator_templates=INDICATOR_TEMPLATES,
         indicator_metric_groups=INDICATOR_METRIC_GROUPS,
         indicator_packs=INDICATOR_PACKS,
@@ -305,6 +340,54 @@ def projet_indicateurs(projet_id):
         target_op_choices=TARGET_OP_CHOICES,
         target_op_symbols=TARGET_OP_SYMBOLS,
         can_edit_indicateurs=can("projets:edit"),
+    )
+
+
+@bp.route("/projets/<int:projet_id>/indicateurs.xlsx")
+@login_required
+@require_perm("projets:view")
+def projet_indicateurs_export(projet_id):
+    from openpyxl import Workbook
+
+    p = db.get_or_404(Projet, projet_id)
+    if not can_see_secteur(p.secteur):
+        abort(403)
+
+    year = _projet_selected_year(p)
+    finance = _projet_finance_context(p, year)
+    computed = compute_project_indicators(p, selected_annee=year, subventions=finance.get("subventions"))
+
+    statut_labels = {"ok": "Atteint", "warn": "À surveiller", "bad": "Non atteint", None: "—"}
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Indicateurs"
+    ws.append(["Indicateur", "Source", "Valeur", "Unité", "Règle", "Objectif", "Statut", "Période"])
+    for row in computed:
+        value = row.get("display_value")
+        if value is None:
+            value = row.get("value")
+        ws.append([
+            row.get("label") or row.get("code") or "",
+            "Stats-impact" if row.get("source") == "stats" else "Manuel",
+            value if value is not None else "",
+            row.get("unit") or "",
+            row.get("target_symbol") or "",
+            row.get("target") if row.get("target") is not None else "",
+            statut_labels.get(row.get("status"), row.get("status") or "—"),
+            row.get("period") or "",
+        ])
+    for col, width in zip("ABCDEFGH", (40, 14, 12, 10, 8, 12, 16, 12)):
+        ws.column_dimensions[col].width = width
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"indicateurs_projet_{p.id}_{year}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

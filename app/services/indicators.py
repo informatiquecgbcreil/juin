@@ -409,6 +409,85 @@ def compute_project_indicators(projet, selected_annee: int | None = None, subven
     return rows
 
 
+def indicator_gauge_pct(row: dict) -> float | None:
+    """Pourcentage d'atteinte (0-100, plafonné) d'un indicateur chiffré.
+
+    Renvoie ``None`` si la jauge n'a pas de sens (pas d'objectif, coche, valeur
+    absente). Pour les règles « ne pas dépasser » (le/lt), la jauge mesure la
+    marge restante sous le plafond.
+    """
+    if row.get("value_type") == "check":
+        return 100.0 if row.get("value") else 0.0
+    value = row.get("value")
+    target = row.get("target")
+    if value is None or target is None:
+        return None
+    try:
+        v = float(value)
+        t = float(target)
+    except Exception:
+        return None
+    op = (row.get("target_op") or "ge").strip()
+    if op in ("le", "lt"):
+        if v <= 0:
+            ratio = 1.0
+        else:
+            ratio = t / v if v else 1.0
+    else:
+        ratio = v / t if t else (1.0 if v > 0 else 0.0)
+    pct = max(0.0, min(1.0, ratio)) * 100.0
+    return round(pct, 1)
+
+
+def compute_project_indicator_alerts(indicators: list[dict]) -> list[dict]:
+    """Construit la liste « à traiter » à partir d'indicateurs déjà calculés.
+
+    Signale les indicateurs non renseignés (manuel sans valeur), sous l'objectif
+    (statut warn/bad) ou les coches non validées. Trié danger d'abord.
+    """
+    alertes = []
+    for row in indicators:
+        label = row.get("label") or row.get("code") or "Indicateur"
+        value_type = row.get("value_type")
+        source = row.get("source")
+        status = row.get("status")
+
+        if value_type == "check":
+            if not row.get("value"):
+                alertes.append({"label": label, "niveau": "warning", "message": "Jalon non validé."})
+            continue
+
+        if source == "manual" and row.get("value") is None:
+            alertes.append({"label": label, "niveau": "warning", "message": "Valeur non renseignée."})
+            continue
+
+        if status == "bad":
+            alertes.append({"label": label, "niveau": "danger",
+                            "message": f"Objectif non atteint ({_fmt_val(row)} pour cible {row.get('target_symbol','≥')} {_fmt_num(row.get('target'))})."})
+        elif status == "warn":
+            alertes.append({"label": label, "niveau": "warning",
+                            "message": f"Proche de l'objectif ({_fmt_val(row)} pour cible {row.get('target_symbol','≥')} {_fmt_num(row.get('target'))})."})
+
+    alertes.sort(key=lambda a: 0 if a["niveau"] == "danger" else 1)
+    return alertes
+
+
+def _fmt_num(value) -> str:
+    if value is None:
+        return "—"
+    try:
+        f = float(value)
+        return str(int(f)) if f == int(f) else f"{f:.2f}"
+    except Exception:
+        return str(value)
+
+
+def _fmt_val(row: dict) -> str:
+    if row.get("display_value"):
+        return str(row["display_value"])
+    return f"{_fmt_num(row.get('value'))}{(' ' + row['unit']) if row.get('unit') else ''}"
+
+
 def _parse_iso_date(value: str):
     try:
         if not value:
