@@ -1275,6 +1275,7 @@ def participant_passeport(participant_id: int):
         referentiel_stats=referentiel_stats,
         portail_attempts=portail_attempts,
         portail_competences=portail_competences,
+        portail_comp_ids=set(portail_progress.keys()),
         portail_configure=portail_configure(),
     )
 
