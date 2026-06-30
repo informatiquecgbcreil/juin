@@ -416,13 +416,12 @@
         <div class="emargement-form-grid">
           <div>
             <label>Participant</label>
-            <select class="in" name="participant_id" required>
-              <option value="">— Choisir —</option>
-              {% for p in participants %}
-                <option value="{{ p.id }}">{{ p.nom }} {{ p.prenom }}{% if p.ville %} · {{ p.ville }}{% endif %}</option>
-              {% endfor %}
-            </select>
-            <div class="muted">Sélectionnez le participant dans la liste puis enregistrez sa présence avec une signature.</div>
+            <input type="hidden" name="participant_id" id="participant_id">
+            <input type="text" class="in" id="participantSearch" autocomplete="off"
+                   placeholder="Tapez un nom, prénom, ville…"
+                   data-search-url="{{ url_for('participants.search_participants') }}">
+            <div id="participantResults" class="emarge-ac-results"></div>
+            <div class="muted">Tapez pour rechercher, puis cliquez sur la personne. (Pas dans la liste ? Créez la fiche plus bas.)</div>
           </div>
 
           <div>
@@ -435,6 +434,12 @@
               <option value="Autre">Autre</option>
             </select>
             <input class="in" type="text" name="motif_autre" placeholder="Si nécessaire, précisez le motif" style="margin-top:8px;">
+            <label style="margin-top:10px; display:block;">Statut</label>
+            <select class="in" name="presence_type">
+              <option value="present">Présent</option>
+              <option value="retard">En retard</option>
+              <option value="absent_excuse">Absent excusé</option>
+            </select>
           </div>
 
           <div>
@@ -463,6 +468,53 @@
         </div>
       </form>
     </div>
+
+    <style>
+      .emarge-ac-results{position:relative;}
+      .emarge-ac-results .ac-list{position:absolute;z-index:60;left:0;right:0;background:var(--surface,#fff);border:1px solid var(--border,#ccc);border-radius:10px;max-height:280px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.14);}
+      .emarge-ac-results .ac-item{padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--border,#eee);}
+      .emarge-ac-results .ac-item:last-child{border-bottom:none;}
+      .emarge-ac-results .ac-item:hover{background:var(--surface-soft,#eef);}
+    </style>
+    <script>
+      (function(){
+        var input=document.getElementById('participantSearch');
+        var hidden=document.getElementById('participant_id');
+        var box=document.getElementById('participantResults');
+        if(!input||!hidden||!box) return;
+        var url=input.getAttribute('data-search-url');
+        var timer=null;
+        function clear(){ box.innerHTML=''; }
+        function choose(it){ hidden.value=it.id; input.value=(it.nom||'')+' '+(it.prenom||'')+(it.ville?(' · '+it.ville):''); clear(); }
+        function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+        function render(items){
+          if(!items.length){ box.innerHTML='<div class="ac-list"><div class="ac-item muted">Aucun résultat — créez la fiche plus bas.</div></div>'; return; }
+          var html='<div class="ac-list">';
+          items.forEach(function(it){
+            html+='<div class="ac-item" data-id="'+it.id+'"><strong>'+esc(it.nom)+' '+esc(it.prenom)+'</strong>'+
+              (it.ville?(' <span class="muted">· '+esc(it.ville)+'</span>'):'')+
+              (it.annee_naissance?(' <span class="muted">('+it.annee_naissance+')</span>'):'')+'</div>';
+          });
+          box.innerHTML=html+'</div>';
+          Array.prototype.forEach.call(box.querySelectorAll('.ac-item[data-id]'),function(el){
+            el.addEventListener('click',function(){ var id=el.getAttribute('data-id'); var it=items.filter(function(x){return String(x.id)===id;})[0]; if(it) choose(it); });
+          });
+        }
+        input.addEventListener('input',function(){
+          hidden.value='';
+          var q=input.value.trim();
+          if(timer) clearTimeout(timer);
+          if(q.length<2){ clear(); return; }
+          timer=setTimeout(function(){
+            fetch(url+'?q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}})
+              .then(function(r){return r.json();}).then(function(d){ render(d.items||[]); }).catch(function(){ clear(); });
+          },200);
+        });
+        document.addEventListener('click',function(e){ if(!box.contains(e.target)&&e.target!==input) clear(); });
+        var form=document.getElementById('emargeForm');
+        if(form){ form.addEventListener('submit',function(e){ if(!hidden.value){ e.preventDefault(); e.stopImmediatePropagation(); alert('Choisissez d\'abord un participant dans la recherche.'); input.focus(); } }, true); }
+      })();
+    </script>
 
     <div class="card">
       <div class="row" style="justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -512,6 +564,30 @@
                 <td>
                   {{ pr.motif or '' }}
                   {% if pr.motif_autre %}<br><span class="muted">{{ pr.motif_autre }}</span>{% endif %}
+                  <div class="row" style="gap:6px; margin-top:6px; align-items:center; flex-wrap:wrap;">
+                    <form method="post" style="margin:0;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="conso_period_mode" value="{{ conso_period_mode }}">
+                      <input type="hidden" name="conso_period_start" value="{{ conso_period_start_value or '' }}">
+                      <input type="hidden" name="conso_period_end" value="{{ conso_period_end_value or '' }}">
+                      <input type="hidden" name="action" value="update_presence_type">
+                      <input type="hidden" name="presence_id" value="{{ pr.id }}">
+                      <select class="in" name="presence_type" onchange="this.form.submit()" style="font-size:.8rem; padding:2px 6px;">
+                        <option value="present" {% if pr.presence_type == 'present' %}selected{% endif %}>Présent</option>
+                        <option value="retard" {% if pr.presence_type == 'retard' %}selected{% endif %}>Retard</option>
+                        <option value="absent_excuse" {% if pr.presence_type == 'absent_excuse' %}selected{% endif %}>Absent excusé</option>
+                      </select>
+                    </form>
+                    <form method="post" style="margin:0;" onsubmit="return confirm('Retirer cette présence ?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="conso_period_mode" value="{{ conso_period_mode }}">
+                      <input type="hidden" name="conso_period_start" value="{{ conso_period_start_value or '' }}">
+                      <input type="hidden" name="conso_period_end" value="{{ conso_period_end_value or '' }}">
+                      <input type="hidden" name="action" value="delete_presence">
+                      <input type="hidden" name="presence_id" value="{{ pr.id }}">
+                      <button class="btn danger" type="submit" title="Retirer cette présence">🗑</button>
+                    </form>
+                  </div>
                 </td>
                 <td>
                   {% if pr.signature_path %}<span class="muted">OK</span>{% else %}<span class="muted">—</span>{% endif %}
