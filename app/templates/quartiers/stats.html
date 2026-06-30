@@ -31,6 +31,10 @@
       <div class="field-stack">
         <label>Période</label>
         <select class="in" name="period" id="quartier-period-select">
+          <option value="tout" {% if period == 'tout' %}selected{% endif %}>Tout l'historique</option>
+          {% for a in annees %}
+            <option value="{{ a }}" {% if period == a|string %}selected{% endif %}>Année {{ a }} (présence)</option>
+          {% endfor %}
           <option value="30" {% if period == '30' %}selected{% endif %}>30 derniers jours</option>
           <option value="90" {% if period == '90' %}selected{% endif %}>90 derniers jours</option>
           <option value="180" {% if period == '180' %}selected{% endif %}>180 derniers jours</option>
