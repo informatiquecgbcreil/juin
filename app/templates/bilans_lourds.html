@@ -1,5 +1,8 @@
 {% extends "layout.html" %}
 {% import "_ux_helpers.html" as ux %}
+{% block head_extra %}
+  <style>@media print { .no-print { display: none !important; } }</style>
+{% endblock %}
 {% block body %}
 <div class="monster-shell">
   <div class="monster-card">
@@ -11,7 +14,7 @@
         </p>
       </div>
 
-      <form method="get" action="{{ url_for('bilans.bilans_lourds') }}" class="inline" style="gap:8px;">
+      <form method="get" action="{{ url_for('bilans.bilans_lourds') }}" class="inline no-print" style="gap:8px;">
         <label for="year" class="muted">Exercice</label>
         <select id="year" name="year">
           {% for y in years %}
@@ -19,6 +22,7 @@
           {% endfor %}
         </select>
         <button class="btn" type="submit">Charger</button>
+        <button class="btn" type="button" onclick="window.print()">🖨️ Imprimer / PDF</button>
         <a class="btn" href="{{ url_for('bilans.bilans_lourds_export_docx', year=year) }}">⬇️ Export DOCX</a>
         <a class="btn" href="{{ url_for('bilans.dashboard', year=year) }}">⬅ Retour</a>
       </form>

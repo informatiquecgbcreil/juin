@@ -8,6 +8,7 @@ from app.extensions import db
 from app.models import User, Role, Permission, Secteur, InstanceSettings, Framework, Skill
 from app.utils.delete_guard import commit_delete
 from app.rbac import require_perm, can, HIDDEN_LEGACY_PERMS
+from app.services.audit import journaliser
 from app.services.storage import ensure_upload_subdir, media_relpath
 from app.ateliers.excel_import import import_presences_from_xlsx
 
@@ -127,6 +128,7 @@ def users():
         db.session.add(u)
         db.session.commit()
 
+        journaliser("user.create", cible=email, details={"role": role_code, "secteur": secteur})
         flash("Le compte utilisateur a bien été créé.", "success")
         return redirect(url_for("admin.users"))
 
@@ -163,6 +165,7 @@ def delete_user(user_id):
     if _est_admin(u) and _nb_admins_actifs(exclure_user_id=u.id) == 0:
         flash("Impossible de supprimer le dernier administrateur (compte capable de gérer les droits).", "danger")
         return redirect(url_for("admin.users"))
+    cible = u.email
     db.session.delete(u)
     commit_delete(
         f"l'utilisateur « {u.nom} »",
@@ -170,6 +173,7 @@ def delete_user(user_id):
         success_category="warning",
         blocked_message=f"Impossible de supprimer l'utilisateur « {u.nom} » : il est encore référencé ailleurs.",
     )
+    journaliser("user.delete", cible=cible)
     return redirect(url_for("admin.users"))
 
 
@@ -214,6 +218,8 @@ def edit_user(user_id):
             )
 
         db.session.commit()
+        journaliser("user.edit", cible=u.email,
+                    details={"role_change": bool(role_code), "password_reset": bool(new_pw)})
         flash("Compte mis à jour.", "success")
         return redirect(url_for("admin.users"))
 
@@ -242,10 +248,13 @@ def toggle_user_actif(user_id):
             return redirect(url_for("admin.users"))
         u.actif = False
         flash(f"Compte « {u.nom} » désactivé (il ne peut plus se connecter).", "warning")
+        _action_audit = "user.disable"
     else:
         u.actif = True
         flash(f"Compte « {u.nom} » réactivé.", "success")
+        _action_audit = "user.enable"
     db.session.commit()
+    journaliser(_action_audit, cible=u.email)
     return redirect(url_for("admin.users"))
 
 
@@ -352,6 +361,7 @@ def set_user_roles():
             # legacy sync
 
     db.session.commit()
+    journaliser("user.role", cible=u.email, details={"role": role_code})
     flash("Les rôles de l’utilisateur ont bien été mis à jour.", "success")
     return redirect(url_for("admin.droits"))
 
@@ -380,6 +390,7 @@ def save_role_perms():
             role.permissions.append(p)
 
     db.session.commit()
+    journaliser("role.perms", cible=role_code, details={"nb": len(perm_codes)})
     flash("Les permissions du rôle ont bien été mises à jour.", "success")
     return redirect(url_for("admin.droits"))
 
@@ -403,6 +414,7 @@ def create_role():
     db.session.add(r)
     db.session.commit()
 
+    journaliser("role.create", cible=code)
     flash("Le rôle a bien été créé.", "success")
     return redirect(url_for("admin.droits"))
 
@@ -439,6 +451,7 @@ def delete_role():
         success_category="warning",
         blocked_message=f"Impossible de supprimer le rôle « {r.code} » : il est encore utilisé ailleurs.",
     )
+    journaliser("role.delete", cible=role_code)
     return redirect(url_for("admin.droits"))
 
 
@@ -660,6 +673,7 @@ def sauvegarde_restaurer():
         return redirect(url_for("admin.sauvegardes"))
     try:
         res = restaurer_lot(base)
+        journaliser("backup.restore", cible=base, details={"securite": res.get("securite")})
         current_app.logger.warning(
             "RESTAURATION effectuée par %s depuis « %s » (sécurité : %s)",
             getattr(current_user, "email", "?"), base, res.get("securite"),
@@ -674,6 +688,104 @@ def sauvegarde_restaurer():
         flash(f"La restauration a échoué : {exc}", "danger")
     return redirect(url_for("admin.sauvegardes"))
 
+
+
+@bp.route("/journal")
+@login_required
+@require_perm("admin:rbac")
+def journal_audit():
+    from app.models import AuditLog
+
+    action = (request.args.get("action") or "").strip()
+    q = AuditLog.query
+    if action:
+        q = q.filter(AuditLog.action == action)
+    entrees = q.order_by(AuditLog.created_at.desc()).limit(300).all()
+    actions = [a for (a,) in db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()]
+    return render_template("admin_journal.html", entrees=entrees, actions=actions, action=action)
+
+
+@bp.route("/sante")
+@login_required
+@require_perm("admin:rbac")
+def sante_systeme():
+    import shutil as _shutil
+    from sqlalchemy import text
+    from app.services.sauvegarde import jours_depuis_derniere, dossier_sauvegardes
+    from app.services.instance_settings import resolve_mail_settings
+    from app.services.portail_apprenants import portail_configure
+
+    # Base de données
+    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "") or ""
+    moteur = "PostgreSQL" if db_uri.startswith("postgresql") else ("SQLite" if db_uri.startswith("sqlite") else "inconnu")
+    try:
+        db.session.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception:  # noqa: BLE001
+        db_ok = False
+
+    # Espace disque (dossier des sauvegardes)
+    disque = None
+    try:
+        usage = _shutil.disk_usage(str(dossier_sauvegardes()))
+        disque = {
+            "libre": usage.free,
+            "total": usage.total,
+            "pct_libre": round(usage.free / usage.total * 100) if usage.total else 0,
+        }
+    except Exception:  # noqa: BLE001
+        disque = None
+
+    mail = resolve_mail_settings(current_app.config)
+    try:
+        seuil = int(current_app.config.get("BACKUP_ALERT_DAYS") or 2)
+    except (TypeError, ValueError):
+        seuil = 2
+
+    return render_template(
+        "admin_sante.html",
+        moteur=moteur,
+        db_ok=db_ok,
+        jours_depuis=jours_depuis_derniere(),
+        seuil_alerte=seuil,
+        disque=disque,
+        smtp_configure=bool(mail["host"] and mail["sender"]),
+        portail_configure=portail_configure(),
+        nb_users=User.query.count(),
+        nb_actifs=User.query.filter_by(actif=True).count(),
+        nb_admins=_nb_admins_actifs(),
+    )
+
+
+@bp.route("/sante/test-smtp", methods=["POST"])
+@login_required
+@require_perm("admin:rbac")
+def sante_test_smtp():
+    from app.services.instance_settings import envoyer_email_test
+
+    try:
+        envoyer_email_test(current_app.config, getattr(current_user, "email", ""))
+        flash(f"E-mail de test envoyé à {current_user.email} ✅ Vérifiez votre boîte.", "success")
+    except Exception as exc:  # noqa: BLE001
+        flash(f"Échec de l'envoi SMTP : {exc}", "danger")
+    return redirect(url_for("admin.sante_systeme"))
+
+
+@bp.route("/sante/test-portail", methods=["POST"])
+@login_required
+@require_perm("admin:rbac")
+def sante_test_portail():
+    from app.services import portail_apprenants as portail
+
+    if not portail.portail_configure():
+        flash("Portail des apprenants non configuré.", "warning")
+        return redirect(url_for("admin.sante_systeme"))
+    try:
+        ok = portail.health()
+        flash("Portail joignable ✅" if ok else "Portail joint mais réponse inattendue.", "success" if ok else "warning")
+    except Exception as exc:  # noqa: BLE001
+        flash(f"Portail injoignable : {exc}", "danger")
+    return redirect(url_for("admin.sante_systeme"))
 
 
 @bp.route("/import-excel", methods=["GET", "POST"])

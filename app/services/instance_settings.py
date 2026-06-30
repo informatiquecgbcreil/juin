@@ -51,6 +51,51 @@ def resolve_mail_settings(config: dict) -> dict:
     }
 
 
+def envoyer_email_test(config: dict, to: str) -> None:
+    """Envoie un e-mail de test via la configuration SMTP effective.
+
+    Lève une exception (message lisible) si la configuration est absente ou
+    si l'envoi échoue — utilisé par la page « Santé du système »."""
+    import smtplib
+    from email.message import EmailMessage
+
+    cfg = resolve_mail_settings(config)
+    host, sender = cfg["host"], cfg["sender"]
+    if not host or not sender:
+        raise RuntimeError("SMTP non configuré (hôte ou expéditeur manquant).")
+    if not to:
+        raise RuntimeError("Aucune adresse de destination (renseignez l'e-mail de votre compte).")
+
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = to
+    msg["Subject"] = "Test SMTP — " + (config.get("APP_NAME") or "Application")
+    msg.set_content(
+        "Ceci est un e-mail de test.\n\n"
+        "Si vous le recevez, la configuration SMTP de l'application fonctionne."
+    )
+
+    port = int(cfg["port"])
+    if port == 465:
+        server = smtplib.SMTP_SSL(host, port, timeout=10)
+        server.ehlo()
+    else:
+        server = smtplib.SMTP(host, port, timeout=10)
+        server.ehlo()
+        if cfg["use_tls"]:
+            server.starttls(timeout=10)
+            server.ehlo()
+    try:
+        if cfg["username"] and cfg["password"]:
+            server.login(cfg["username"], cfg["password"])
+        server.send_message(msg)
+    finally:
+        try:
+            server.quit()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def resolve_public_base_url(config: dict) -> str:
     """Retourne l'URL publique de l'application (DB prioritaire, fallback env)."""
     row = InstanceSettings.query.first()

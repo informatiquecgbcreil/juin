@@ -320,6 +320,65 @@ def list_subventions(year: int, scope: BilansScope) -> List[Dict[str, object]]:
     ]
 
 
+def compute_bilans_financeurs(year: int, scope: BilansScope) -> Dict[str, object]:
+    """Synthèse par financeur (subvention) pour l'exercice : montant accordé,
+    dépenses imputées, reste, taux de consommation, reste à ventiler, factures.
+
+    Une ligne par subvention visible dans le périmètre (scope)."""
+    q = (
+        db.session.query(Subvention)
+        .filter(Subvention.annee_exercice == year)
+        .filter(Subvention.est_archive.is_(False))
+        .order_by(Subvention.secteur, Subvention.nom)
+    )
+    q = _apply_secteur_filter(q, scope, Subvention.secteur)
+
+    rows = []
+    for sub in q.all():
+        accorde = float(sub.montant_attribue or 0.0)
+        if accorde <= 0:
+            accorde = float(sub.total_reel_lignes or 0.0)
+
+        depenses, nb_factures = (
+            db.session.query(
+                func.coalesce(func.sum(Depense.montant), 0.0),
+                func.count(Depense.id),
+            )
+            .join(LigneBudget, Depense.ligne_budget_id == LigneBudget.id)
+            .filter(LigneBudget.subvention_id == sub.id)
+            .filter(Depense.est_supprimee.is_(False))
+            .filter(Depense.statut == "valide")
+            .filter(func.coalesce(LigneBudget.nature, "charge") == "charge")
+            .one()
+        )
+        depenses = float(depenses or 0.0)
+        taux = (depenses / accorde * 100.0) if accorde > 0 else 0.0
+        # Reste à ventiler : montant reçu non encore réparti sur des lignes réelles.
+        a_ventiler = max(0.0, float(sub.montant_recu or 0.0) - float(sub.total_reel_lignes or 0.0))
+
+        rows.append(
+            {
+                "id": sub.id,
+                "secteur": sub.secteur,
+                "nom": sub.nom,
+                "accorde": round(accorde, 2),
+                "depenses": round(depenses, 2),
+                "reste": round(accorde - depenses, 2),
+                "taux": round(taux, 1),
+                "a_ventiler": round(a_ventiler, 2),
+                "nb_factures": int(nb_factures or 0),
+            }
+        )
+
+    totaux = {
+        "accorde": round(sum(r["accorde"] for r in rows), 2),
+        "depenses": round(sum(r["depenses"] for r in rows), 2),
+        "reste": round(sum(r["reste"] for r in rows), 2),
+        "a_ventiler": round(sum(r["a_ventiler"] for r in rows), 2),
+    }
+    return {"rows": rows, "totaux": totaux}
+
+
 def compute_bilan_secteur(year: int, secteur: str, scope: BilansScope) -> Dict[str, object]:
     """Bilan détaillé d'un secteur : tuiles + tableau lignes budgétaires + top dépenses."""
     if not secteur:

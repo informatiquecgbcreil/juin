@@ -605,6 +605,8 @@
                     {% endif %}
                     {% if can('admin:rbac') %}
                       <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
+                      <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">Santé système</a>
+                      <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Journal d'audit</a>
                     {% endif %}
                     {% if can('controle:view') %}
                       <a class="pill {% if ep == 'main.controle' %}active{% endif %}" href="{{ url_for('main.controle') }}">Contrôle</a>
@@ -718,6 +720,8 @@
                   {% endif %}
                   {% if can('admin:rbac') %}
                     <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
+                    <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">Santé système</a>
+                    <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Journal d'audit</a>
                     <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Référentiels</a>
                     <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Identité app</a>
                     <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>
@@ -746,6 +750,8 @@
                   <a class="pill {% if ep.startswith('admin.users') %}active{% endif %}" href="{{ url_for('admin.users') }}">Équipe</a>
                   {% if can('admin:rbac') %}
                     <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
+                    <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">Santé système</a>
+                    <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Journal d'audit</a>
                     <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Référentiels</a>
                     <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Identité app</a>
                     <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>

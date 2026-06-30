@@ -1125,6 +1125,8 @@ def export_rgpd(participant_id: int):
         p.id,
         getattr(current_user, "email", "?"),
     )
+    from app.services.audit import journaliser
+    journaliser("export.rgpd", cible=f"participant #{p.id}")
     nom = "".join(c if c.isalnum() else "-" for c in f"{p.nom}-{p.prenom}".lower()).strip("-")
     return send_file(
         sortie,
