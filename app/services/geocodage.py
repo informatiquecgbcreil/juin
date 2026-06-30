@@ -237,3 +237,51 @@ def synchroniser_geocodages_partenaires(limit: int = 50) -> dict:
     return _synchroniser(
         Partenaire, _requete_partenaire, lambda x: geocoder(x.adresse, None), limit
     )
+
+
+# --- Quartiers (centroïde, géocodé sur « nom, ville ») --------------------
+def nombre_quartiers_a_geocoder() -> int:
+    from app.models import Quartier
+
+    return Quartier.query.filter(
+        Quartier.latitude.is_(None), Quartier.geo_manuel.is_(False)
+    ).count()
+
+
+def synchroniser_geocodages_quartiers(force: bool = False) -> dict:
+    """Place chaque quartier (BAN sur « nom + ville »).
+
+    Respecte les placements manuels (``geo_manuel``) : ils ne sont jamais
+    écrasés. Sans ``force``, ne géocode que les quartiers sans coordonnées.
+    """
+    from app.models import Quartier
+
+    n_ok = n_vide = n_err = 0
+    erreur = None
+    for q in Quartier.query.all():
+        if q.geo_manuel:
+            continue
+        if q.latitude is not None and not force:
+            continue
+        try:
+            res = geocoder(q.nom, q.ville)
+        except GeocodageError as exc:
+            if exc.retryable:
+                n_err += 1
+                erreur = str(exc)
+                break
+            res = None
+        if res:
+            q.latitude = res["lat"]
+            q.longitude = res["lon"]
+            n_ok += 1
+        else:
+            n_vide += 1
+    db.session.commit()
+    return {
+        "localises": n_ok,
+        "sans_resultat": n_vide,
+        "erreurs": n_err,
+        "erreur": erreur,
+        "restants": nombre_quartiers_a_geocoder(),
+    }
