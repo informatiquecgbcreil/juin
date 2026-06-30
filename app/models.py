@@ -717,11 +717,35 @@ class ProjetActionAtelier(db.Model):
 
 
 # ---------- SUBVENTIONS / BUDGET ----------
+SUBVENTION_STATUTS = [
+    ("sollicitee", "Sollicitée"),
+    ("accordee", "Accordée"),
+    ("versee", "Versée"),
+    ("soldee", "Soldée"),
+    ("refusee", "Refusée"),
+]
+SUBVENTION_STATUTS_DICT = dict(SUBVENTION_STATUTS)
+
+
 class Subvention(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(200), nullable=False)
     secteur = db.Column(db.String(80), nullable=False)
     annee_exercice = db.Column(db.Integer, nullable=False, default=2025)
+
+    # Financeur (organisme qui verse) — distinct du nom du dispositif.
+    financeur = db.Column(db.String(200), nullable=True)
+    # Référence du dossier chez le financeur (n° convention, n° dossier...).
+    reference = db.Column(db.String(120), nullable=True)
+
+    # Cycle de vie du dossier (cf. SUBVENTION_STATUTS).
+    statut_cycle = db.Column(db.String(30), nullable=False, default="sollicitee")
+
+    # Échéances clés du dossier.
+    date_depot = db.Column(db.Date, nullable=True)            # dépôt de la demande
+    date_decision = db.Column(db.Date, nullable=True)         # notification / décision
+    date_versement_prevu = db.Column(db.Date, nullable=True)  # versement attendu
+    date_bilan_prevu = db.Column(db.Date, nullable=True)      # bilan / compte-rendu à rendre
 
     montant_demande = db.Column(db.Float, default=0.0)
     montant_attribue = db.Column(db.Float, default=0.0)
@@ -729,6 +753,10 @@ class Subvention(db.Model):
 
     est_archive = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=utcnow)
+
+    @property
+    def statut_label(self):
+        return SUBVENTION_STATUTS_DICT.get(self.statut_cycle or "sollicitee", self.statut_cycle or "—")
 
     lignes = db.relationship("LigneBudget", backref="source_sub", cascade="all, delete-orphan")
     depense_affectations = db.relationship("DepenseAffectation", back_populates="subvention", cascade="all, delete-orphan")
