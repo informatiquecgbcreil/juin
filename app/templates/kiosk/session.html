@@ -3,6 +3,10 @@
 {% block header_title %}{{ atelier.nom if atelier else 'Émargement' }}{% endblock %}
 {% block body %}
 
+  <div id="offlineBanner" class="k-card" style="display:none; background:#fde2e1; color:#7a1f1c; border:1px solid #f5b5b2;">
+    ⚠️ <strong>Hors connexion</strong> — la recherche utilise les noms déjà chargés. Attendez le retour de la connexion avant de valider une signature.
+  </div>
+
   <div class="k-card">
     <span class="k-chip">{{ session.secteur }}</span>
     <h1 class="k-card__title k-mt">{{ session_label }}</h1>
@@ -17,7 +21,7 @@
     <div class="k-card k-bigok">
       <div class="k-bigok__emoji">✅</div>
       <div class="k-bigok__title">{{ message_ok }}</div>
-      <p class="k-card__sub">Vous pouvez fermer cette page, ou émarger une autre personne.</p>
+      <p class="k-card__sub">{% if recu %}Reçu n° <strong>{{ recu }}</strong> · {% endif %}Vous pouvez fermer cette page, ou émarger une autre personne.</p>
     </div>
   {% endif %}
 
@@ -151,10 +155,32 @@
     chosen.classList.remove('is-empty');
   }
 
-  function showResults(list){
+  // Cache local des résultats déjà vus (résilience hors-ligne / réseau lent).
+  const CACHE_KEY = 'kiosk_search_cache_' + token;
+  function loadCache(){ try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch(e){ return []; } }
+  function saveCache(items){
+    try {
+      const map = {};
+      loadCache().concat(items || []).forEach(it => { if(it && it.id != null) map[it.id] = it; });
+      const merged = Object.keys(map).map(k => map[k]).slice(-500);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(merged));
+    } catch(e){}
+  }
+  function localSearch(q){
+    const ql = q.toLowerCase();
+    return loadCache().filter(it => (it.label || '').toLowerCase().indexOf(ql) >= 0).slice(0, 20);
+  }
+
+  function showResults(list, offline){
     results.innerHTML = '';
     if(!list.length){ results.style.display='none'; return; }
     results.style.display = 'flex';
+    if(offline){
+      const note = document.createElement('div');
+      note.className = 'k-hint';
+      note.textContent = '💾 Résultats hors-ligne (noms déjà chargés).';
+      results.appendChild(note);
+    }
     list.forEach(item => {
       const b = document.createElement('button');
       b.type='button';
@@ -178,12 +204,26 @@
     if(t) clearTimeout(t);
     if(q.length < 2){ showResults([]); return; }
     t = setTimeout(async () => {
-      const r = await fetch(`{{ url_for('kiosk.kiosk_search', token='__TOKEN__') }}`.replace('__TOKEN__', token) + `?q=${encodeURIComponent(q)}`);
-      if(!r.ok){ showResults([]); return; }
-      const data = await r.json();
-      showResults(data.results || []);
+      try {
+        const r = await fetch(`{{ url_for('kiosk.kiosk_search', token='__TOKEN__') }}`.replace('__TOKEN__', token) + `?q=${encodeURIComponent(q)}`);
+        if(!r.ok) throw new Error('http');
+        const data = await r.json();
+        const items = data.results || [];
+        saveCache(items);
+        showResults(items, false);
+      } catch(e){
+        // Réseau indisponible : on retombe sur le cache local.
+        showResults(localSearch(q), true);
+      }
     }, 250);
   });
+
+  // Indicateur hors-ligne
+  const offlineBanner = document.getElementById('offlineBanner');
+  function updateOnline(){ if(offlineBanner) offlineBanner.style.display = navigator.onLine ? 'none' : 'block'; }
+  window.addEventListener('online', updateOnline);
+  window.addEventListener('offline', updateOnline);
+  updateOnline();
 
   toggleNew.addEventListener('click', (e) => {
     e.preventDefault();
@@ -206,7 +246,13 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
   }
-  paintSignatureSurface();
+  function resizeCanvas(){
+    const cssW = Math.round(canvas.clientWidth);
+    if(cssW > 0 && canvas.width !== cssW){ canvas.width = cssW; }
+    paintSignatureSurface();
+  }
+  resizeCanvas();
+  window.addEventListener('resize', () => { clearTimeout(window.__sigRz); window.__sigRz = setTimeout(resizeCanvas, 200); });
 
   function pos(e){
     const r = canvas.getBoundingClientRect();
@@ -240,8 +286,17 @@
 
   document.getElementById('clearSig').addEventListener('click', paintSignatureSurface);
 
-  document.getElementById('emargeForm').addEventListener('submit', () => {
+  const emargeFormEl = document.getElementById('emargeForm');
+  const emargeSubmitBtn = emargeFormEl.querySelector('button[type="submit"]');
+  emargeFormEl.addEventListener('submit', (e) => {
+    if(!pid.value){
+      e.preventDefault();
+      alert('Touchez d’abord votre nom dans la liste.');
+      return;
+    }
     document.getElementById('signature_data').value = canvas.toDataURL('image/png');
+    // Garde anti-double-clic : on désactive le bouton après le 1er envoi.
+    if(emargeSubmitBtn){ emargeSubmitBtn.disabled = true; emargeSubmitBtn.textContent = 'Envoi…'; }
   });
 })();
 </script>
