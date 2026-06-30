@@ -23,6 +23,7 @@ from app.bilans.services import (
     compute_kpis,
     compute_bilan_secteur,
     compute_bilan_subvention,
+    compute_bilans_financeurs,
     compute_qualite_gestion,
     compute_stats_inventaire,
     compute_bilans_lourds,
@@ -547,6 +548,31 @@ def bilan_subvention():
         selected_subvention=selected,
         data=data,
         scope=scope,
+    )
+
+
+@bp.route("/bilans/financeurs")
+@login_required
+@require_perm("bilans:view")
+def bilans_financeurs():
+    scope = scope_for_user(current_user)
+    years = list_exercice_years(scope)
+    year_param = request.args.get("year")
+    try:
+        year = int(year_param) if year_param else years[0]
+    except (TypeError, ValueError):
+        year = years[0]
+    if year not in years:
+        years = sorted(set(list(years) + [year]), reverse=True)
+
+    data = compute_bilans_financeurs(year, scope)
+    return render_template(
+        "bilans_financeurs.html",
+        year=year,
+        years=years,
+        data=data,
+        scope=scope,
+        forbidden=False,
     )
 
 

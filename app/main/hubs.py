@@ -167,6 +167,7 @@ def hub_bilans():
             "primary_label": "Ouvrir bilans lourds",
             "primary_url": url_for("bilans.bilans_lourds", year=date.today().year),
             "secondary": [
+                {"label": "Bilans financeurs", "url": url_for("bilans.bilans_financeurs")},
                 {"label": "Bilan secteur", "url": url_for("bilans.bilan_secteur")},
                 {"label": "Bilan subvention", "url": url_for("bilans.bilan_subvention")},
                 {"label": "Qualité des données", "url": url_for("bilans.qualite")},
