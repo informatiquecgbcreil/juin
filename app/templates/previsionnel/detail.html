@@ -10,8 +10,21 @@
       <a class="btn" href="{{ url_for('previsionnel.index') }}">Retour</a>
       <a class="btn ok" href="{{ url_for('previsionnel.export_budget', budget_id=budget.id) }}">Exporter XLSX</a>
       <a class="btn" href="{{ url_for('previsionnel.export_realise', budget_id=budget.id) }}">Exporter réalisé</a>
+      {% if can_edit_budget %}
+      <form method="post" action="{{ url_for('previsionnel.duplicate', budget_id=budget.id) }}" class="inline" style="gap:6px;"
+            onsubmit="return confirm('Reconduire ce budget vers l\'année indiquée ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="in" type="number" name="annee_cible" value="{{ (budget.annee or 0) + 1 }}" style="width:100px;" title="Année cible">
+        <button class="btn" type="submit">🔁 Reconduire</button>
+      </form>
+      {% endif %}
     </div>
   </div>
+  {% if budget.statut == 'archive' %}
+    <div class="callout-soft" style="border-color: color-mix(in srgb, var(--warn) 55%, var(--border));">
+      Ce budget est <strong>archivé</strong> : verrouillé en écriture. Repassez le statut en « brouillon » ou « valide » pour le modifier.
+    </div>
+  {% endif %}
 </div>
 
 <div class="grid cards-3">

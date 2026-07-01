@@ -15,4 +15,5 @@ from app.main import (  # noqa: F401
     stats,
     subventions,
     suivi_rappels,
+    tresorerie,
 )

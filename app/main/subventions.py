@@ -176,10 +176,13 @@ def _compute_prorata(lignes, montant_cible: float):
 @require_perm("subventions:view")
 def subventions_list():
     secteurs = current_app.config.get("SECTEURS", [])
+    voir_archives = request.args.get("archives") == "1"
 
-    base_q = Subvention.query.filter_by(est_archive=False)
+    scope_q = Subvention.query
     if not can("scope:all_secteurs"):
-        base_q = base_q.filter(Subvention.secteur == current_user.secteur_assigne)
+        scope_q = scope_q.filter(Subvention.secteur == current_user.secteur_assigne)
+
+    base_q = scope_q.filter(Subvention.est_archive.is_(voir_archives))
 
     years = [
         y for (y,) in base_q.with_entities(Subvention.annee_exercice).distinct().order_by(Subvention.annee_exercice.desc()).all()
@@ -193,6 +196,7 @@ def subventions_list():
     subs_q = base_q.filter(Subvention.annee_exercice == selected_year)
     subs = subs_q.order_by(Subvention.annee_exercice.desc(), Subvention.nom.asc()).all()
 
+    nb_archives = scope_q.filter(Subvention.est_archive.is_(True)).count()
     default_secteur = current_user.secteur_assigne if not can("scope:all_secteurs") else (secteurs[0] if secteurs else None)
     categories_ref = _budget_categories_ref_for_secteur(default_secteur)
     alertes = alertes_echeances(subs)
@@ -205,6 +209,8 @@ def subventions_list():
         categories_ref=categories_ref,
         alertes=alertes,
         statuts=SUBVENTION_STATUTS,
+        voir_archives=voir_archives,
+        nb_archives=nb_archives,
     )
 
 
@@ -462,6 +468,93 @@ def subvention_delete(subvention_id):
         blocked_message=f"Impossible de supprimer la subvention « {sub.nom} » : elle est encore liée à d'autres données.",
     )
     return redirect(url_for("main.subventions_list"))
+
+
+@bp.route("/subvention/<int:subvention_id>/archiver", methods=["POST"])
+@login_required
+@require_perm("subventions:edit")
+def subvention_archive(subvention_id):
+    sub = db.get_or_404(Subvention, subvention_id)
+    if not can_see_secteur(sub.secteur):
+        abort(403)
+    sub.est_archive = True
+    db.session.commit()
+    journaliser("subvention.archive", cible=f"subvention#{sub.id}", details={"nom": sub.nom})
+    flash(f"Subvention « {sub.nom} » archivée.", "warning")
+    return redirect(url_for("main.subventions_list", annee=sub.annee_exercice))
+
+
+@bp.route("/subvention/<int:subvention_id>/restaurer", methods=["POST"])
+@login_required
+@require_perm("subventions:edit")
+def subvention_restore(subvention_id):
+    sub = db.get_or_404(Subvention, subvention_id)
+    if not can_see_secteur(sub.secteur):
+        abort(403)
+    sub.est_archive = False
+    db.session.commit()
+    journaliser("subvention.restaure", cible=f"subvention#{sub.id}", details={"nom": sub.nom})
+    flash(f"Subvention « {sub.nom} » restaurée.", "success")
+    return redirect(url_for("main.subventions_list", annee=sub.annee_exercice, archives=1))
+
+
+@bp.route("/subventions/reconduire", methods=["POST"])
+@login_required
+@require_perm("subventions:edit")
+def subventions_reconduire():
+    """Reconduit en masse les subventions d'une année vers l'année suivante.
+
+    Copie nom / secteur / financeur / référence / lignes budgétaires. Remet les
+    montants attribué / reçu à 0, le statut à « sollicitée » et efface les dates.
+    Ignore un dossier déjà présent dans l'année cible (même nom + financeur).
+    """
+    try:
+        annee_source = int(request.form.get("annee_source") or 0)
+        annee_cible = int(request.form.get("annee_cible") or 0)
+    except Exception:
+        flash("Années invalides.", "danger")
+        return redirect(url_for("main.subventions_list"))
+    if not annee_source or not annee_cible or annee_source == annee_cible:
+        flash("Choisis une année source et une année cible différentes.", "danger")
+        return redirect(url_for("main.subventions_list", annee=annee_source))
+
+    q = Subvention.query.filter_by(est_archive=False, annee_exercice=annee_source)
+    if not can("scope:all_secteurs"):
+        q = q.filter(Subvention.secteur == current_user.secteur_assigne)
+    sources = q.all()
+
+    # Dédoublonnage : dossiers déjà présents dans l'année cible.
+    existants = set()
+    for s in Subvention.query.filter_by(annee_exercice=annee_cible).all():
+        existants.add(((s.nom or "").strip().lower(), (s.financeur or "").strip().lower()))
+
+    cree = 0
+    for src in sources:
+        cle = ((src.nom or "").strip().lower(), (src.financeur or "").strip().lower())
+        if cle in existants:
+            continue
+        copie = Subvention(
+            nom=src.nom, secteur=src.secteur, annee_exercice=annee_cible,
+            financeur=src.financeur, reference=src.reference,
+            statut_cycle="sollicitee",
+            montant_demande=src.montant_demande, montant_attribue=0.0, montant_recu=0.0,
+        )
+        db.session.add(copie)
+        db.session.flush()
+        for l in src.lignes:
+            db.session.add(LigneBudget(
+                subvention_id=copie.id, nature=getattr(l, "nature", "charge"),
+                compte=l.compte, libelle=l.libelle,
+                montant_base=float(l.montant_base or 0), montant_reel=0.0,
+            ))
+        existants.add(cle)
+        cree += 1
+
+    db.session.commit()
+    journaliser("subvention.reconduire", cible=f"exercice#{annee_cible}",
+                details={"source": annee_source, "cible": annee_cible, "creees": cree})
+    flash(f"{cree} subvention(s) reconduite(s) de {annee_source} vers {annee_cible}.", "success")
+    return redirect(url_for("main.subventions_list", annee=annee_cible))
 
 
 # --------- Edit / Delete lignes ---------

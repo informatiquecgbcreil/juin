@@ -1059,6 +1059,46 @@ def index():
     )
 
 
+@bp.route("/<int:budget_id>/dupliquer", methods=["POST"])
+@login_required
+@require_perm("subventions:view")
+def duplicate(budget_id: int):
+    """Reconduit un budget prévisionnel vers une année cible (copie des lignes)."""
+    budget = db.get_or_404(BudgetPrevisionnel, budget_id)
+    _check_budget_scope(budget)
+    if not _can_edit():
+        abort(403)
+
+    annee_cible = _parse_int(request.form.get("annee_cible"), (budget.annee or date.today().year) + 1)
+    if annee_cible == budget.annee:
+        flash("Choisis une année cible différente de l'année du budget.", "danger")
+        return redirect(url_for("previsionnel.detail", budget_id=budget.id))
+
+    copie = BudgetPrevisionnel(
+        nom=f"{budget.nom} ({annee_cible})",
+        annee=annee_cible,
+        secteur=budget.secteur,
+        statut="brouillon",
+        notes=budget.notes,
+    )
+    db.session.add(copie)
+    db.session.flush()
+    for l in budget.lignes:
+        db.session.add(BudgetPrevisionnelLigne(
+            budget_id=copie.id,
+            nature=l.nature,
+            compte=l.compte,
+            libelle=l.libelle,
+            montant=float(l.montant or 0),
+            projet_id=l.projet_id,
+            commentaire=l.commentaire,
+            ordre=l.ordre,
+        ))
+    db.session.commit()
+    flash(f"Budget reconduit vers {annee_cible} (brouillon).", "success")
+    return redirect(url_for("previsionnel.detail", budget_id=copie.id))
+
+
 @bp.route("/<int:budget_id>", methods=["GET", "POST"])
 @login_required
 @require_perm("subventions:view")
@@ -1070,6 +1110,12 @@ def detail(budget_id: int):
         if not _can_edit():
             abort(403)
         action = request.form.get("action") or ""
+
+        # Un budget archivé est verrouillé en écriture : seule la mise à jour
+        # de l'en-tête (donc le changement de statut / la réouverture) reste permise.
+        if (budget.statut or "").strip() == "archive" and action != "update_budget":
+            flash("Ce budget prévisionnel est archivé : rouvrez-le (statut) avant de le modifier.", "danger")
+            return redirect(url_for("previsionnel.detail", budget_id=budget.id))
 
         if action == "update_budget":
             budget.nom = (request.form.get("nom") or budget.nom).strip()
