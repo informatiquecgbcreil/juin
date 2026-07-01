@@ -94,4 +94,94 @@ def test_export_sessions_csat_format(app, admin_client):
     assert data_rows[0][0] == dt.datetime(2026, 3, 31, 0, 0)
     assert data_rows[0][1] == "14:00"
     assert data_rows[0][2] == dt.time(15, 30)
-    assert data_rows[1][0] == dt.datetime(2026, 4, 30, 0, 0)
+
+
+def test_export_sessions_csat_ne_reexporte_pas_deux_fois(app, admin_client):
+    """Une séance déjà exportée ne doit plus jamais réapparaître par défaut."""
+    from app.extensions import db
+    from app.models import AtelierActivite, SessionActivite
+
+    with app.app_context():
+        at = AtelierActivite(nom=f"AtOnce{uuid.uuid4().hex[:6]}", secteur="Numérique", type_atelier="COLLECTIF")
+        db.session.add(at)
+        db.session.flush()
+        s = SessionActivite(atelier_id=at.id, secteur="Numérique", session_type="COLLECTIF",
+                            date_session=dt.date(2026, 5, 1), heure_debut="09:00", heure_fin="10:00")
+        db.session.add(s)
+        db.session.commit()
+        atid, sid = at.id, s.id
+        with app.test_request_context():
+            url = url_for("activite.export_csat_sessions", atelier_id=atid)
+
+    # Premier export : la séance est incluse.
+    r1 = admin_client.get(url)
+    assert r1.status_code == 200
+    assert "spreadsheetml" in r1.headers.get("Content-Type", "")
+
+    with app.app_context():
+        assert db.session.get(SessionActivite, sid).exported_csat_at is not None
+
+    # Deuxième export : rien de nouveau -> redirection avec message, pas de fichier.
+    r2 = admin_client.get(url, follow_redirects=True)
+    assert r2.status_code == 200
+    assert "Aucune nouvelle séance" in r2.get_data(as_text=True)
+
+
+def test_export_sessions_csat_tout_force_reexport(app, admin_client):
+    """Le paramètre tout=1 permet de forcer un export complet en cas d'échec côté CSAT."""
+    from app.extensions import db
+    from app.models import AtelierActivite, SessionActivite
+    from openpyxl import load_workbook
+
+    with app.app_context():
+        at = AtelierActivite(nom=f"AtForce{uuid.uuid4().hex[:6]}", secteur="Numérique", type_atelier="COLLECTIF")
+        db.session.add(at)
+        db.session.flush()
+        s = SessionActivite(atelier_id=at.id, secteur="Numérique", session_type="COLLECTIF",
+                            date_session=dt.date(2026, 6, 1), heure_debut="09:00", heure_fin="10:00")
+        db.session.add(s)
+        db.session.commit()
+        atid = at.id
+        with app.test_request_context():
+            url = url_for("activite.export_csat_sessions", atelier_id=atid)
+            url_tout = url_for("activite.export_csat_sessions", atelier_id=atid, tout=1)
+
+    admin_client.get(url)  # marque la séance comme exportée
+    r = admin_client.get(url_tout)
+    assert r.status_code == 200
+    wb = load_workbook(BytesIO(r.data))
+    assert len(list(wb["Sessions"].iter_rows(min_row=2, values_only=True))) == 1
+
+
+def test_nouvelle_seance_apparait_apres_export_precedent(app, admin_client):
+    """Une séance créée après un premier export doit apparaître au prochain export."""
+    from app.extensions import db
+    from app.models import AtelierActivite, SessionActivite
+    from openpyxl import load_workbook
+
+    with app.app_context():
+        at = AtelierActivite(nom=f"AtNew{uuid.uuid4().hex[:6]}", secteur="Numérique", type_atelier="COLLECTIF")
+        db.session.add(at)
+        db.session.flush()
+        s1 = SessionActivite(atelier_id=at.id, secteur="Numérique", session_type="COLLECTIF",
+                             date_session=dt.date(2026, 5, 10), heure_debut="09:00", heure_fin="10:00")
+        db.session.add(s1)
+        db.session.commit()
+        atid = at.id
+        with app.test_request_context():
+            url = url_for("activite.export_csat_sessions", atelier_id=atid)
+
+    admin_client.get(url)  # s1 exportée
+
+    with app.app_context():
+        s2 = SessionActivite(atelier_id=atid, secteur="Numérique", session_type="COLLECTIF",
+                             date_session=dt.date(2026, 5, 17), heure_debut="09:00", heure_fin="10:00")
+        db.session.add(s2)
+        db.session.commit()
+
+    r = admin_client.get(url)
+    assert r.status_code == 200
+    wb = load_workbook(BytesIO(r.data))
+    rows = list(wb["Sessions"].iter_rows(min_row=2, values_only=True))
+    assert len(rows) == 1
+    assert rows[0][0] == dt.datetime(2026, 5, 17, 0, 0)

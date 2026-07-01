@@ -258,6 +258,13 @@ def sessions(atelier_id: int):
             taux = round((nb / cap) * 100, 1)
         session_stats.append((s, nb, cap, taux))
 
+    nb_a_exporter_csat = (
+        SessionActivite.query
+        .filter_by(atelier_id=atelier.id, is_deleted=False)
+        .filter(SessionActivite.exported_csat_at.is_(None))
+        .count()
+    )
+
     return render_template(
         "activite/sessions.html",
         secteur=secteur,
@@ -266,6 +273,7 @@ def sessions(atelier_id: int):
         corbeille=corbeille,
         current_year=date.today().year,
         current_month=date.today().month,
+        nb_a_exporter_csat=nb_a_exporter_csat,
     )
 
 
@@ -289,6 +297,12 @@ def export_csat_sessions(atelier_id: int):
     Colonnes attendues par CSAT : session_date, session_debut, session_fin
     (heure de début en texte, heure de fin en valeur horaire, comme dans le
     modèle d'import fourni par CSAT).
+
+    Comme CSAT n'a pas d'API, on ne peut pas savoir ce qui y a déjà été saisi :
+    on trace donc côté ERP (``exported_csat_at``) les séances déjà transmises,
+    pour ne proposer par défaut que les NOUVELLES séances à chaque export et
+    éviter de régénérer tout l'historique (et donc des doublons dans CSAT).
+    Le paramètre ``tout=1`` permet de forcer un export complet si besoin.
     """
     from openpyxl import Workbook
 
@@ -297,11 +311,12 @@ def export_csat_sessions(atelier_id: int):
     if not _can_access_activity_secteur(atelier.secteur):
         return _deny_activity_access()
 
-    sessions_list = (
-        SessionActivite.query
-        .filter_by(atelier_id=atelier.id, is_deleted=False)
-        .all()
-    )
+    tout = request.args.get("tout") == "1"
+
+    sessions_q = SessionActivite.query.filter_by(atelier_id=atelier.id, is_deleted=False)
+    if not tout:
+        sessions_q = sessions_q.filter(SessionActivite.exported_csat_at.is_(None))
+    sessions_list = sessions_q.all()
 
     rows = []
     for s in sessions_list:
@@ -311,19 +326,29 @@ def export_csat_sessions(atelier_id: int):
             eff_date, eff_debut, eff_fin = s.rdv_date, s.rdv_debut, s.rdv_fin
         if not eff_date:
             continue
-        rows.append((eff_date, eff_debut or "", _parse_hhmm(eff_fin)))
-    rows.sort(key=lambda r: r[0])
+        rows.append((s, eff_date, eff_debut or "", _parse_hhmm(eff_fin)))
+    rows.sort(key=lambda r: r[1])
+
+    if not rows:
+        flash("Aucune nouvelle séance à exporter pour CSAT : tout est déjà à jour.", "info")
+        return redirect(url_for("activite.sessions", atelier_id=atelier.id))
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Sessions"
     ws.append(["session_date", "session_debut", "session_fin"])
-    for eff_date, eff_debut, eff_fin in rows:
+    for _s, eff_date, eff_debut, eff_fin in rows:
         ws.append([datetime.combine(eff_date, dt_time()), eff_debut, eff_fin])
 
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
+
+    now = utcnow()
+    for s, _eff_date, _eff_debut, _eff_fin in rows:
+        s.exported_csat_at = now
+    db.session.commit()
+
     filename = f"sessions_csat_{atelier.id}_{date.today().isoformat()}.xlsx"
     return send_file(
         buf,
