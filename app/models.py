@@ -1934,6 +1934,45 @@ class PasseportPieceJointe(db.Model):
     user = db.relationship("User")
 
 
+class BoussoleParticipation(db.Model):
+    """Position structurée de participation / pouvoir d'agir."""
+
+    __tablename__ = "boussole_participation"
+
+    id = db.Column(db.Integer, primary_key=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("session_activite.id", ondelete="SET NULL"), nullable=True, index=True)
+    secteur = db.Column(db.String(80), nullable=False, index=True)
+    action_label = db.Column(db.String(180), nullable=True, index=True)
+    date_observation = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    niveau = db.Column(db.Integer, nullable=False, index=True)
+    niveau_precedent = db.Column(db.Integer, nullable=True)
+    evolution = db.Column(db.String(20), nullable=False, default="stable", index=True)
+    jalon = db.Column(db.String(40), nullable=False, default="ajustement", index=True)
+    source = db.Column(db.String(40), nullable=False, default="pro", index=True)
+    statut_validation = db.Column(db.String(30), nullable=False, default="observee", index=True)
+    visibilite = db.Column(db.String(30), nullable=False, default="interne", index=True)
+    indicators_json = db.Column(db.Text, nullable=True)
+    presence_count_snapshot = db.Column(db.Integer, nullable=False, default=0)
+    remarque = db.Column(db.Text, nullable=True)
+    temoignage = db.Column(db.Text, nullable=True)
+    bilan = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    participant = db.relationship("Participant", backref=db.backref("boussole_positions", lazy="dynamic"))
+    session = db.relationship("SessionActivite")
+    user = db.relationship("User")
+
+    def indicators(self):
+        try:
+            raw = json.loads(self.indicators_json or "[]")
+        except Exception:
+            raw = []
+        return [str(item).strip() for item in raw if str(item or "").strip()]
+
+
 class ObjectifSuivi(db.Model):
     __tablename__ = "objectif_suivi"
 

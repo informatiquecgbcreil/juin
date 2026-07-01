@@ -115,6 +115,7 @@ def hub_activites():
             "primary_url": url_for("pedagogie.referentiels_list"),
             "secondary": [
                 {"label": "Suivi pédagogique", "url": url_for("pedagogie.suivi_pedagogique")},
+                {"label": "Boussole participation", "url": url_for("pedagogie.participation_collective")},
             ],
             "tag": "Compétences",
         })
@@ -554,6 +555,19 @@ def hub_ressources():
             "tag": "Réseau",
         })
 
+    if can("pedagogie:view"):
+        cards.append({
+            "title": "Boussole participation",
+            "subtitle": "Observer de façon visuelle et sectorisée la participation, le pouvoir d’agir et les initiatives habitantes.",
+            "primary_label": "Ouvrir la boussole",
+            "primary_url": url_for("pedagogie.participation_collective"),
+            "secondary": [
+                {"label": "Stats & bilans", "url": url_for("main.stats_bilans")} if can("stats:view") else None,
+                {"label": "Bilans lourds", "url": url_for("bilans.bilans_lourds", year=date.today().year)} if can("bilans:view") else None,
+            ],
+            "tag": "Pouvoir d’agir",
+        })
+
     if can("subventions:view"):
         cards.append({
             "title": "Générateur de budget prévisionnel",
@@ -573,8 +587,6 @@ def hub_ressources():
         intro="Les ressources utiles autour des projets : matériel, partenaires et outils de soutien.",
         cards=cards,
     )
-
-
 
 
 
