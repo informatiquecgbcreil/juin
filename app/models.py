@@ -1691,6 +1691,10 @@ class SessionActivite(db.Model):
     kiosk_token = db.Column(db.String(64), nullable=True, index=True)
     kiosk_opened_at = db.Column(db.DateTime, nullable=True)
 
+    # Pont manuel CSAT (portail sans API) : date de dernière inclusion dans
+    # l'export « Sessions ». NULL = jamais exportée, remonte dans le prochain export.
+    exported_csat_at = db.Column(db.DateTime, nullable=True)
+
     presences = db.relationship("PresenceActivite", backref="session", cascade="all, delete-orphan")
     competences = db.relationship(
         "Competence",

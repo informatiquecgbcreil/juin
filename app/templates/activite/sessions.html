@@ -20,7 +20,7 @@
               <a class="btn" href="{{ url_for('activite.session_bulk_new', atelier_id=atelier.id) }}">📅 Créer en série</a>
             {% endif %}
           {% endif %}
-          <a class="btn" href="{{ url_for('activite.export_csat_sessions', atelier_id=atelier.id) }}" title="Fichier Excel compatible avec l'import « Sessions » du portail CSAT (Centres Sociaux Acteurs des Transitions).">⬇ Exporter pour CSAT (xlsx)</a>
+          <a class="btn" href="{{ url_for('activite.export_csat_sessions', atelier_id=atelier.id) }}" title="Fichier Excel compatible avec l'import « Sessions » du portail CSAT (Centres Sociaux Acteurs des Transitions). N'inclut que les séances jamais exportées.">⬇ Exporter pour CSAT{% if nb_a_exporter_csat is not none %} ({{ nb_a_exporter_csat }} nouvelle{{ 's' if nb_a_exporter_csat != 1 else '' }}){% endif %}</a>
           <a class="btn" href="{{ url_for('activite.index') }}">Retour ateliers</a>
         </div>
       </div>
@@ -28,6 +28,12 @@
 
     <div class="card">
       <h2 style="margin-top:0;">Historique</h2>
+      {% if not corbeille %}
+        <p class="muted" style="font-size:13px;">
+          L'export CSAT ne reprend que les séances jamais transmises.
+          <a href="{{ url_for('activite.export_csat_sessions', atelier_id=atelier.id, tout=1) }}">Tout réexporter quand même</a> (au cas où l'import précédent aurait échoué côté CSAT).
+        </p>
+      {% endif %}
       <div class="tablewrap clean">
         <table>
           <thead>
