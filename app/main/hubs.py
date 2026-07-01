@@ -115,6 +115,7 @@ def hub_activites():
             "primary_url": url_for("pedagogie.referentiels_list"),
             "secondary": [
                 {"label": "Suivi pédagogique", "url": url_for("pedagogie.suivi_pedagogique")},
+                {"label": "Boussole participation", "url": url_for("pedagogie.participation_collective")},
             ],
             "tag": "Compétences",
         })
@@ -573,7 +574,6 @@ def hub_ressources():
         intro="Les ressources utiles autour des projets : matériel, partenaires et outils de soutien.",
         cards=cards,
     )
-
 
 
 

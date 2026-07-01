@@ -1,5 +1,6 @@
 import csv
 import datetime
+import json
 
 from app.utils.dates import utcnow
 import mimetypes
@@ -30,16 +31,32 @@ from app.models import (
     PedagogieModule,
     PlanProjetAtelierModule,
     PresenceActivite,
+    Participant,
     Projet,
     ProjetAtelier,
     Referentiel,
     SessionActivite,
+    BoussoleParticipation,
 )
 from app.rbac import require_perm
 
 from . import bp
 from app.utils.delete_guard import commit_delete
 from .services import compute_objectif_scores, participant_timeline, progression_portail
+from app.services.participation import (
+    INDICATOR_LABELS,
+    JALONS,
+    OBSERVABLE_INDICATORS,
+    PARTICIPATION_STEPS,
+    SOURCES,
+    evaluation_due,
+    indicator_labels,
+    latest_positions,
+    collective_stats,
+    normalize_level,
+    passport_summary,
+    presence_count,
+)
 
 
 PASSPORT_NOTE_CATEGORIES = {
@@ -1149,6 +1166,12 @@ def participant_passeport(participant_id: int):
     )
     if not sectors:
         sectors = ["Global"]
+    participation_latest, participation_timeline = passport_summary(participant_id)
+    participation_sectors = sorted({sec for (_pid, sec) in participation_latest.keys()})
+    sectors = sorted(set(sectors) | set(participation_sectors))
+    if selected_secteur and selected_secteur not in sectors:
+        sectors.append(selected_secteur)
+        sectors = sorted(sectors)
 
     notes_scope = [n for n in all_notes if (n.secteur or "") == selected_secteur] if selected_secteur else all_notes
     notes_by_cat = defaultdict(int)
@@ -1207,6 +1230,9 @@ def participant_passeport(participant_id: int):
             "nb_competences_validees": validated,
             "intensity": intensity,
         }
+        due, due_reason = evaluation_due(participant_id, sec if sec != "Global" else None)
+        summary[sec]["participation_due"] = due
+        summary[sec]["participation_due_reason"] = due_reason
 
     # --- Evaluation rapide (hors session ou rattachée) ---
     all_competences = (
@@ -1277,6 +1303,47 @@ def participant_passeport(participant_id: int):
         portail_competences=portail_competences,
         portail_comp_ids=set(portail_progress.keys()),
         portail_configure=portail_configure(),
+        participation_steps=PARTICIPATION_STEPS,
+        participation_latest=participation_latest,
+        participation_timeline=participation_timeline,
+        observable_indicators=OBSERVABLE_INDICATORS,
+        indicator_labels=INDICATOR_LABELS,
+        participation_sources=SOURCES,
+        participation_jalons=JALONS,
+        participation_indicator_labels=indicator_labels,
+    )
+
+
+@bp.route("/participation")
+@login_required
+@require_perm("pedagogie:view")
+def participation_collective():
+    """Vue collective sectorisée de la boussole de participation."""
+    from app.secteurs import get_secteur_labels
+
+    secteur = (request.args.get("secteur") or "").strip() or None
+    start_raw = (request.args.get("start") or "").strip()
+    end_raw = (request.args.get("end") or "").strip()
+    try:
+        start = datetime.date.fromisoformat(start_raw) if start_raw else None
+    except ValueError:
+        start = None
+    try:
+        end = datetime.date.fromisoformat(end_raw) if end_raw else None
+    except ValueError:
+        end = None
+
+    stats = collective_stats(secteur=secteur, start=start, end=end)
+    secteurs = get_secteur_labels(active_only=True)
+    return render_template(
+        "pedagogie/participation_collective.html",
+        stats=stats,
+        secteur=secteur or "",
+        secteurs=secteurs,
+        start=start_raw,
+        end=end_raw,
+        participation_steps=PARTICIPATION_STEPS,
+        participation_indicator_labels=indicator_labels,
     )
 
 
@@ -1461,6 +1528,64 @@ def participant_passeport_evaluation(participant_id: int):
     db.session.commit()
     flash("Évaluation enregistrée.", "success")
     return redirect(url_for("pedagogie.participant_passeport", participant_id=participant_id, secteur=secteur))
+
+
+@bp.route("/participant/<int:participant_id>/passeport/participation", methods=["POST"])
+@login_required
+@require_perm("pedagogie:view")
+def participant_passeport_participation(participant_id: int):
+    """Enregistre une position structurée de boussole de participation.
+
+    Les champs libres restent qualitatifs et ne servent pas aux statistiques.
+    """
+    db.get_or_404(Participant, participant_id)
+    secteur = (request.form.get("secteur") or "").strip() or "Global"
+    niveau = normalize_level(request.form.get("niveau"))
+    date_raw = (request.form.get("date_observation") or "").strip()
+    try:
+        date_observation = datetime.date.fromisoformat(date_raw) if date_raw else datetime.date.today()
+    except ValueError:
+        date_observation = datetime.date.today()
+
+    latest = latest_positions(participant_id=participant_id, secteur=secteur).get((participant_id, secteur))
+    niveau_precedent = latest.niveau if latest else None
+    if niveau_precedent is None:
+        evolution = "initiale"
+    elif niveau > niveau_precedent:
+        evolution = "progression"
+    elif niveau < niveau_precedent:
+        evolution = "changement"
+    else:
+        evolution = "stable"
+
+    allowed_indicators = set(INDICATOR_LABELS.keys())
+    indicators = [code for code in request.form.getlist("indicators") if code in allowed_indicators]
+
+    session_id = request.form.get("session_id", type=int) or None
+    row = BoussoleParticipation(
+        participant_id=participant_id,
+        session_id=session_id,
+        secteur=secteur,
+        action_label=(request.form.get("action_label") or "").strip() or None,
+        date_observation=date_observation,
+        niveau=niveau,
+        niveau_precedent=niveau_precedent,
+        evolution=evolution,
+        jalon=(request.form.get("jalon") or "ajustement").strip(),
+        source=(request.form.get("source") or "pro").strip(),
+        statut_validation=(request.form.get("statut_validation") or "observee").strip(),
+        visibilite=(request.form.get("visibilite") or "interne").strip(),
+        indicators_json=json.dumps(indicators, ensure_ascii=False),
+        presence_count_snapshot=presence_count(participant_id, secteur=secteur, until=date_observation),
+        remarque=(request.form.get("remarque") or "").strip() or None,
+        temoignage=(request.form.get("temoignage") or "").strip() or None,
+        bilan=(request.form.get("bilan") or "").strip() or None,
+        created_by=current_user.id,
+    )
+    db.session.add(row)
+    db.session.commit()
+    flash("Position de participation enregistrée (statistiques structurées + récit qualitatif séparé).", "success")
+    return redirect(url_for("pedagogie.participant_passeport", participant_id=participant_id, secteur=secteur, tab="participation"))
 
 
 # ============================================================

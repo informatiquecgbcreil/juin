@@ -57,6 +57,13 @@
 
   .passport-page .file-card { border:1px solid var(--border); border-radius:12px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; background:color-mix(in srgb, var(--surface) 92%, transparent); }
   .passport-page .file-meta { font-size:12px; color:var(--muted); }
+  .passport-page .hart-ladder { display:grid; grid-template-columns:repeat(4,minmax(140px,1fr)); gap:8px; }
+  @media (max-width: 900px){ .passport-page .hart-ladder{ grid-template-columns:1fr 1fr; } }
+  .passport-page .hart-step { border:1px solid var(--border); border-radius:14px; padding:10px; background:var(--surface); }
+  .passport-page .hart-step.active { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+  .passport-page .hart-num { font-weight:900; font-size:18px; }
+  .passport-page .checkbox-grid { display:grid; grid-template-columns:repeat(2,minmax(180px,1fr)); gap:8px; }
+  @media (max-width: 900px){ .passport-page .checkbox-grid{ grid-template-columns:1fr; } }
 </style>
 
 <div class="stack passport-page">
@@ -79,6 +86,7 @@
 
     <div class="passport-tabs" id="passportTabs">
       <button class="tabbtn" data-tab="overview">Vue d’ensemble</button>
+      <button class="tabbtn" data-tab="participation">Boussole participation</button>
       <button class="tabbtn" data-tab="evaluate">Évaluer</button>
       <button class="tabbtn" data-tab="skills">Compétences</button>
       <button class="tabbtn" data-tab="notes">Notes</button>
@@ -169,6 +177,147 @@
         {% endfor %}
         <div class="spacer"></div>
         <button class="btn" type="button" data-tablink="notes">Voir toutes les notes</button>
+      </div>
+    </div>
+  </div>
+
+  {# -----------------------------
+     TAB: PARTICIPATION / POUVOIR D'AGIR
+  ------------------------------ #}
+  <div class="card tabpanel" data-panel="participation">
+    {% set current_participation = participation_latest.get((participant.id, sec)) %}
+    <h2 style="margin-top:0;">🧭 Boussole participation & pouvoir d’agir ({{ sec }})</h2>
+    <p class="muted">
+      Les statistiques sont produites uniquement depuis les champs structurés
+      (secteur, étape, jalon, source, indices observables). Les remarques,
+      témoignages et bilans restent qualitatifs.
+    </p>
+
+    {% if s.participation_due %}
+      <div class="alert warn">Réévaluation conseillée : {{ s.participation_due_reason }}.</div>
+    {% else %}
+      <div class="muted">Rythme : {{ s.participation_due_reason }}.</div>
+    {% endif %}
+
+    <div class="spacer"></div>
+
+    <div class="hart-ladder">
+      {% for level, label, description in participation_steps %}
+        <div class="hart-step {% if current_participation and current_participation.niveau == level %}active{% endif %}">
+          <div class="hart-num">{{ level }}</div>
+          <strong>{{ label }}</strong>
+          <div class="muted" style="margin-top:4px;">{{ description }}</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="split">
+      <div class="ref-card">
+        <h3 class="ref-title" style="margin:0;">Nouvelle observation structurée</h3>
+        <div class="spacer"></div>
+        <form method="post" action="{{ url_for('pedagogie.participant_passeport_participation', participant_id=participant.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <label>Secteur</label>
+          <select class="in" name="secteur" required>
+            {% for sector in sectors %}
+              <option value="{{ sector }}" {% if sector == sec %}selected{% endif %}>{{ sector }}</option>
+            {% endfor %}
+          </select>
+
+          <div class="spacer"></div>
+          <label>Étape actuelle</label>
+          <select class="in" name="niveau" required>
+            {% for level, label, description in participation_steps %}
+              <option value="{{ level }}" {% if current_participation and current_participation.niveau == level %}selected{% endif %}>
+                {{ level }} · {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+
+          <div class="spacer"></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:180px;">
+              <label>Date</label>
+              <input class="in" type="date" name="date_observation" value="{{ current_participation.date_observation if current_participation else '' }}">
+            </div>
+            <div style="flex:1;min-width:180px;">
+              <label>Jalon</label>
+              <select class="in" name="jalon">
+                {% for code,label in participation_jalons.items() %}
+                  <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="spacer"></div>
+          <label>Action / activité concernée (optionnel)</label>
+          <input class="in" name="action_label" placeholder="Ex : sorties familles, atelier numérique, fête de quartier...">
+
+          <div class="spacer"></div>
+          <label>Source de l'observation</label>
+          <select class="in" name="source">
+            {% for code,label in participation_sources.items() %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+
+          <div class="spacer"></div>
+          <label>Indices observables pour les stats</label>
+          <div class="checkbox-grid">
+            {% for code,label in observable_indicators %}
+              <label class="note-cat"><input type="checkbox" name="indicators" value="{{ code }}"> {{ label }}</label>
+            {% endfor %}
+          </div>
+
+          <div class="spacer"></div>
+          <label>Remarque professionnelle (qualitatif)</label>
+          <textarea class="in" name="remarque" rows="2" placeholder="Faits observables, sans jugement de valeur."></textarea>
+
+          <div class="spacer"></div>
+          <label>Témoignage habitant (qualitatif)</label>
+          <textarea class="in" name="temoignage" rows="2" placeholder="Verbatim avec accord de la personne si réutilisation."></textarea>
+
+          <div class="spacer"></div>
+          <label>Bilan / contexte (qualitatif)</label>
+          <textarea class="in" name="bilan" rows="2"></textarea>
+
+          <div class="spacer"></div>
+          <button class="btn ok" type="submit">Enregistrer la position</button>
+        </form>
+      </div>
+
+      <div class="ref-card">
+        <h3 class="ref-title" style="margin:0;">Historique {{ sec }}</h3>
+        <div class="spacer"></div>
+        {% for row in participation_timeline if row.secteur == sec %}
+          <div class="note-item">
+            <div class="note-top">
+              <div class="note-date">{{ row.date_observation }}</div>
+              <div class="note-cat">Étape {{ row.niveau }} · {{ row.evolution }}</div>
+            </div>
+            <strong>{{ participation_steps[row.niveau - 1][1] if row.niveau >= 1 and row.niveau <= 8 else row.niveau }}</strong>
+            <div class="muted" style="margin-top:4px;">
+              {{ participation_jalons.get(row.jalon, row.jalon) }} · {{ participation_sources.get(row.source, row.source) }}
+              · {{ row.presence_count_snapshot }} présence(s) au moment de l'observation
+            </div>
+            {% set labels = participation_indicator_labels(row.indicators()) %}
+            {% if labels %}
+              <div class="pillrow">
+                {% for label in labels %}
+                  <span class="note-cat">{{ label }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if row.remarque %}<div style="margin-top:6px;">{{ row.remarque }}</div>{% endif %}
+            {% if row.temoignage %}<div class="muted" style="margin-top:6px;">“{{ row.temoignage }}”</div>{% endif %}
+          </div>
+        {% else %}
+          <div class="muted">Aucune position de participation sur ce secteur.</div>
+        {% endfor %}
       </div>
     </div>
   </div>

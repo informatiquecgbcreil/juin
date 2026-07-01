@@ -1,0 +1,76 @@
+{% extends 'layout.html' %}
+{% block body %}
+<div class="stack">
+  <div class="card">
+    <h1>🧭 Boussole participation & pouvoir d’agir</h1>
+    <p class="muted">Vue collective sectorisée. Les statistiques utilisent uniquement les champs structurés : étape, secteur, période, jalon, source et indices observables.</p>
+    <form method="get" class="row" style="gap:8px;align-items:end;flex-wrap:wrap;">
+      <div>
+        <label>Secteur</label>
+        <select class="in" name="secteur">
+          <option value="">Tous les secteurs</option>
+          {% for sec in secteurs %}
+            <option value="{{ sec }}" {% if secteur == sec %}selected{% endif %}>{{ sec }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Début</label>
+        <input class="in" type="date" name="start" value="{{ start }}">
+      </div>
+      <div>
+        <label>Fin</label>
+        <input class="in" type="date" name="end" value="{{ end }}">
+      </div>
+      <button class="btn ok" type="submit">Filtrer</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Répartition à l’instant T</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Étape</th><th>Libellé</th><th>Habitants</th></tr></thead>
+        <tbody>
+          {% for level,label,description in participation_steps %}
+            <tr>
+              <td><strong>{{ level }}</strong></td>
+              <td>{{ label }}<br><span class="muted">{{ description }}</span></td>
+              <td><strong>{{ stats.counts.get(level, 0) }}</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Détail par étage</h2>
+    {% for level,label,description in participation_steps %}
+      <details class="ref-card" {% if stats.counts.get(level, 0) %}open{% endif %}>
+        <summary><strong>{{ level }} · {{ label }}</strong> — {{ stats.counts.get(level, 0) }} habitant(s)</summary>
+        <div class="tablewrap" style="margin-top:10px;">
+          <table>
+            <thead><tr><th>Habitant</th><th>Secteur</th><th>Date</th><th>Indices structurés</th><th>Passeport</th></tr></thead>
+            <tbody>
+              {% for item in stats.participants_by_level.get(level, []) %}
+                {% set p = item.participant %}
+                {% set row = item.position %}
+                <tr>
+                  <td>{{ p.nom }} {{ p.prenom if p else 'Participant supprimé' }}</td>
+                  <td>{{ row.secteur }}</td>
+                  <td>{{ row.date_observation }}</td>
+                  <td>{{ participation_indicator_labels(row.indicators())|join(', ') }}</td>
+                  <td>{% if p %}<a class="btn" href="{{ url_for('pedagogie.participant_passeport', participant_id=p.id, secteur=row.secteur, tab='participation') }}">Ouvrir</a>{% endif %}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="5" class="muted">Aucun habitant.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
