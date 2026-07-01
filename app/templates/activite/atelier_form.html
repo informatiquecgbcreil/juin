@@ -8,6 +8,17 @@
       </h1>
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if not atelier and peut_choisir_secteur %}
+          <div style="margin-bottom:12px;">
+            <label>Secteur de l'activité</label>
+            <select class="in" name="secteur" required>
+              <option value="">— Choisir un secteur —</option>
+              {% for s in secteurs_disponibles %}
+                <option value="{{ s }}" {% if s == secteur %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
         <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
           <div>
             <label>Nom</label>

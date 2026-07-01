@@ -15,8 +15,23 @@
           <div class="ui-subtitle muted">Choisissez un atelier puis ouvrez la feuille du jour. Les réglages plus avancés restent accessibles plus bas.</div>
         </div>
         <div class="ui-actions section-actions">
+          {% if peut_choisir_secteur and secteurs_disponibles %}
+            <form method="get" action="{{ url_for('activite.index') }}" class="inline-actions">
+              {% if corbeille %}<input type="hidden" name="corbeille" value="1">{% endif %}
+              {% if show_inactive %}<input type="hidden" name="inactifs" value="1">{% endif %}
+              <label class="field-stack slim"><span>Secteur</span>
+                <select class="in" name="secteur" onchange="this.form.submit()">
+                  <option value="">Tous les secteurs</option>
+                  {% for s in secteurs_disponibles %}
+                    <option value="{{ s }}" {% if s == secteur %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <noscript><button class="btn" type="submit">Changer</button></noscript>
+            </form>
+          {% endif %}
           <a class="btn" href="{{ url_for('activite.participants') }}">Voir les participants inscrits</a>
-          <a class="btn ok" href="{{ url_for('activite.atelier_new') }}">Ajouter un atelier</a>
+          <a class="btn ok" href="{{ url_for('activite.atelier_new', secteur=secteur or None) }}">Ajouter un atelier</a>
           <details class="nav-more">
             <summary class="btn">Options avancées</summary>
             <div class="nav-more-panel" style="left:auto; right:0; min-width:260px;">

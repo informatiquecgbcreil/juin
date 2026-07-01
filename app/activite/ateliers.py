@@ -70,6 +70,8 @@ def index():
         if not show_inactive:
             q = q.filter(AtelierActivite.is_active.is_(True))
     ateliers = q.order_by(AtelierActivite.nom.asc()).all()
+    from app.activite.helpers import _available_secteur_labels
+    peut_choisir_secteur = _is_admin_global() or _has_all_secteurs_scope()
     return render_template(
         "activite/index.html",
         secteur=secteur,
@@ -77,6 +79,8 @@ def index():
         is_admin_global=_is_admin_global(),
         corbeille=corbeille,
         show_inactive=show_inactive,
+        peut_choisir_secteur=peut_choisir_secteur,
+        secteurs_disponibles=_available_secteur_labels() if peut_choisir_secteur else [],
     )
 
 
@@ -87,13 +91,27 @@ def index():
 @login_required
 def atelier_new():
     require_perm("ateliers:edit")(lambda: None)()
-    secteur = _ensure_activity_secteur_context()
-    if not secteur:
+    from app.activite.helpers import _available_secteur_labels
+
+    peut_choisir_secteur = _is_admin_global() or _has_all_secteurs_scope()
+    secteurs_disponibles = _available_secteur_labels() if peut_choisir_secteur else []
+    secteur = _user_secteur()
+
+    if request.method == "POST" and peut_choisir_secteur:
+        # Un profil à portée globale (ex. direction sans secteur assigné)
+        # choisit le secteur dans le formulaire, à chaque création.
+        form_secteur = (request.form.get("secteur") or "").strip()
+        if form_secteur and (not secteurs_disponibles or form_secteur in secteurs_disponibles):
+            secteur = form_secteur
+
+    if not secteur and not peut_choisir_secteur:
+        flash("Aucun secteur n'est associé à votre compte.", "warning")
         return redirect(url_for("activite.index"))
+
     if request.method == "POST":
         nom = (request.form.get("nom") or "").strip()
-        if not nom:
-            flash("Le nom de l'activité est obligatoire.", "danger")
+        if not nom or not secteur:
+            flash("Le nom de l'activité est obligatoire." if secteur else "Choisis le secteur de l'activité.", "danger")
             referentiels = _load_referentiels()
             return render_template(
                 "activite/atelier_form.html",
@@ -101,6 +119,8 @@ def atelier_new():
                 atelier=None,
                 referentiels=referentiels,
                 selected_competences=set(),
+                peut_choisir_secteur=peut_choisir_secteur,
+                secteurs_disponibles=secteurs_disponibles,
                 **_atelier_model_context(secteur),
             )
 
@@ -146,7 +166,9 @@ def atelier_new():
         return redirect(url_for("activite.index"))
 
     referentiels = _load_referentiels()
-    ateliers_continuite = AtelierActivite.query.filter(AtelierActivite.secteur == secteur, AtelierActivite.is_deleted.is_(False)).order_by(AtelierActivite.nom.asc()).all()
+    ateliers_continuite = []
+    if secteur:
+        ateliers_continuite = AtelierActivite.query.filter(AtelierActivite.secteur == secteur, AtelierActivite.is_deleted.is_(False)).order_by(AtelierActivite.nom.asc()).all()
     return render_template(
         "activite/atelier_form.html",
         secteur=secteur,
@@ -154,6 +176,8 @@ def atelier_new():
         referentiels=referentiels,
         selected_competences=set(),
         ateliers_continuite=ateliers_continuite,
+        peut_choisir_secteur=peut_choisir_secteur,
+        secteurs_disponibles=secteurs_disponibles,
         **_atelier_model_context(secteur),
     )
 
