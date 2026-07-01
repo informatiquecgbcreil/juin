@@ -566,6 +566,16 @@ def hub_ressources():
             "tag": "Budget",
         })
 
+    if can("participants:view"):
+        cards.append({
+            "title": "Échelle de Hart — participation",
+            "subtitle": "Pyramide de la participation des habitants : répartition par étage, évolution entre périodes, détail par participant. Alimentée par l'émargement.",
+            "primary_label": "Ouvrir la pyramide",
+            "primary_url": url_for("main.hart_collectif"),
+            "secondary": [],
+            "tag": "Participation",
+        })
+
     _hub_forbidden_if_empty(cards)
     return render_template(
         "hub_ressources.html",

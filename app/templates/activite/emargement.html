@@ -162,6 +162,40 @@
     </div>
   </section>
 
+  {% if hart_dues %}
+  <section class="section-card" id="hart-dues" style="border-color: color-mix(in srgb, var(--warn,#f59e0b) 55%, var(--border));">
+    <h2 style="margin-top:0;">🪜 Échelle de Hart — {{ hart_dues|length }} évaluation(s) à poser</h2>
+    <p class="muted" style="margin-top:-6px;">Première venue = évaluation initiale ; ensuite proposée toutes les 5 séances. Positionne le participant, recueille un témoignage si possible.</p>
+    {% for due in hart_dues %}
+      <details style="border-top:1px solid var(--border); padding:8px 0;">
+        <summary style="cursor:pointer;">
+          <strong>{{ due.participant.prenom }} {{ due.participant.nom }}</strong>
+          — {{ 'première venue (évaluation initiale)' if due.motif == 'initiale' else ('suivi : ' ~ due.nb_seances ~ ' séances depuis la dernière évaluation') }}
+          {% if due.derniere %}<span class="muted">(dernier niveau : {{ due.derniere.niveau }})</span>{% endif %}
+        </summary>
+        <form method="post" action="{{ url_for('main.hart_evaluer', participant_id=due.participant.id) }}" class="row" style="gap:8px; flex-wrap:wrap; align-items:flex-end; margin-top:8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ url_for('activite.emargement', session_id=session.id) }}#hart-dues">
+          <input type="hidden" name="type_evaluation" value="{{ 'initiale' if due.motif == 'initiale' else 'suivi' }}">
+          <input type="hidden" name="secteur" value="{{ session.secteur }}">
+          <label class="field-stack"><span>Niveau</span>
+            <select class="in" name="niveau" required>
+              <option value="">—</option>
+              {% for n, lib, desc, part, coul in hart_niveaux %}
+                <option value="{{ n }}" title="{{ desc }}" {% if due.derniere and due.derniere.niveau == n %}selected{% endif %}>{{ n }} · {{ lib }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field-stack" style="flex:1 1 220px;"><span>Témoignage (optionnel)</span><input class="in" name="temoignage" placeholder="Sa parole, telle quelle…"></label>
+          <label class="field-stack" style="flex:1 1 220px;"><span>Remarque pro (optionnel)</span><input class="in" name="remarque_pro"></label>
+          <button class="btn ok" type="submit">Positionner</button>
+          <a class="btn" href="{{ url_for('pedagogie.participant_passeport', participant_id=due.participant.id) }}#hart">Passeport</a>
+        </form>
+      </details>
+    {% endfor %}
+  </section>
+  {% endif %}
+
 <section class="section-card">
   <div class="section-head">
     <div>

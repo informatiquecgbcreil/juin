@@ -2418,3 +2418,45 @@ class PortailCompetenceMap(db.Model):
     __table_args__ = (
         db.UniqueConstraint("activity", "competence_id", name="uq_portail_competence_map"),
     )
+
+
+# ---------- ÉCHELLE DE HART (participation des habitants) ----------
+
+HART_TYPES_EVALUATION = [
+    ("initiale", "Première venue"),
+    ("suivi", "Suivi (toutes les 5 séances)"),
+    ("mi_parcours", "Mi-parcours"),
+    ("fin_parcours", "Fin de parcours"),
+]
+HART_TYPES_DICT = dict(HART_TYPES_EVALUATION)
+
+
+class HartEvaluation(db.Model):
+    """Positionnement d'un participant sur l'échelle de Hart (1 à 8).
+
+    L'échelle mesure le degré de participation des habitants (référence
+    fédération des centres sociaux / agrément CAF - éducation populaire).
+    Les niveaux 1-3 relèvent de la non-participation, 4-8 de la participation
+    effective. L'évaluation est déclenchée par l'émargement : première venue,
+    puis toutes les 5 séances ; le professionnel peut aussi poser une
+    évaluation de mi-parcours ou de fin de parcours à tout moment.
+    """
+    __tablename__ = "hart_evaluation"
+
+    id = db.Column(db.Integer, primary_key=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), nullable=False, index=True)
+    niveau = db.Column(db.Integer, nullable=False)  # 1..8
+    type_evaluation = db.Column(db.String(20), nullable=False, default="suivi", index=True)
+    date_evaluation = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    secteur = db.Column(db.String(80), nullable=True, index=True)
+    temoignage = db.Column(db.Text, nullable=True)      # parole du participant
+    remarque_pro = db.Column(db.Text, nullable=True)    # observation du professionnel
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    participant = db.relationship("Participant", backref=db.backref("hart_evaluations", cascade="all, delete-orphan", order_by="HartEvaluation.date_evaluation.asc(), HartEvaluation.id.asc()"))
+    user = db.relationship("User")
+
+    @property
+    def type_label(self):
+        return HART_TYPES_DICT.get(self.type_evaluation or "suivi", self.type_evaluation or "—")

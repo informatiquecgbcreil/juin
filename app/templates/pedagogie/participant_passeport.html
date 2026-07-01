@@ -171,6 +171,81 @@
         <button class="btn" type="button" data-tablink="notes">Voir toutes les notes</button>
       </div>
     </div>
+
+    <div class="spacer"></div>
+
+    {# ----------- Échelle de Hart (participation) ----------- #}
+    <div class="ref-card" id="hart">
+      <div class="ref-head">
+        <h3 class="ref-title">🪜 Échelle de Hart — participation</h3>
+        <div class="ref-meta">
+          {% if hart_evaluations %}
+            Position actuelle : <strong>niveau {{ hart_evaluations[-1].niveau }}</strong> ({{ hart_evaluations[-1].type_label }}, {{ hart_evaluations[-1].date_evaluation.strftime('%d/%m/%Y') }})
+          {% else %}
+            Jamais positionné
+          {% endif %}
+        </div>
+      </div>
+
+      {% if hart_due %}
+        <div class="callout-soft" style="border-color: color-mix(in srgb, var(--warn,#f59e0b) 55%, var(--border)); margin-top:8px;">
+          <strong>Évaluation {{ 'initiale (première venue)' if hart_due.motif == 'initiale' else 'de suivi' }} à poser</strong>
+          {% if hart_due.motif != 'initiale' %} — {{ hart_due.nb_seances }} séance(s) depuis la dernière évaluation.{% endif %}
+        </div>
+      {% endif %}
+
+      {# Frise des évaluations : un point coloré par évaluation, du plus ancien au plus récent #}
+      {% if hart_evaluations %}
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;">
+          {% for ev in hart_evaluations %}
+            <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"
+                 title="{{ ev.type_label }} · {{ ev.date_evaluation.strftime('%d/%m/%Y') }}{% if ev.temoignage %} · « {{ ev.temoignage }} »{% endif %}{% if ev.remarque_pro %} · Pro : {{ ev.remarque_pro }}{% endif %}">
+              <div style="width:34px; border-radius:8px 8px 4px 4px; background: {{ hart_couleurs.get(ev.niveau, '#888') }}; height: {{ 14 + ev.niveau * 8 }}px; display:flex; align-items:flex-start; justify-content:center; color:#fff; font-weight:900;">{{ ev.niveau }}</div>
+              <small class="muted">{{ ev.date_evaluation.strftime('%d/%m') }}<br>{{ ev.type_label.split(' ')[0] }}</small>
+              <form method="post" action="{{ url_for('main.hart_evaluation_supprimer', evaluation_id=ev.id) }}" onsubmit="return confirm('Supprimer cette évaluation ?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id) }}#hart">
+                <button class="btn danger" type="submit" style="padding:0 6px; font-size:11px;">🗑</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+        {% set last_temoignage = (hart_evaluations | selectattr('temoignage') | list | last) %}
+        {% if last_temoignage %}
+          <p style="margin:10px 0 0 0;"><em>« {{ last_temoignage.temoignage }} »</em> <span class="muted">— témoignage du {{ last_temoignage.date_evaluation.strftime('%d/%m/%Y') }}</span></p>
+        {% endif %}
+      {% endif %}
+
+      <div class="spacer"></div>
+      <details {% if hart_due %}open{% endif %}>
+        <summary style="cursor:pointer; font-weight:700;">➕ Poser une évaluation</summary>
+        <form method="post" action="{{ url_for('main.hart_evaluer', participant_id=participant.id) }}" class="stack" style="margin-top:10px; gap:10px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id) }}#hart">
+          <div class="row" style="gap:10px; flex-wrap:wrap;">
+            <label class="field-stack"><span>Niveau</span>
+              <select class="in" name="niveau" required>
+                <option value="">— Choisir —</option>
+                {% for n, lib, desc, part, coul in hart_niveaux %}
+                  <option value="{{ n }}" title="{{ desc }}">{{ n }} · {{ lib }}{{ '' if part else ' (non-participation)' }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field-stack"><span>Type</span>
+              <select class="in" name="type_evaluation">
+                {% for val, lab in hart_types %}
+                  <option value="{{ val }}" {% if hart_due and hart_due.motif == val %}selected{% endif %}>{{ lab }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field-stack"><span>Date</span><input class="in" type="date" name="date_evaluation"></label>
+          </div>
+          <label class="field-stack"><span>Témoignage du participant (optionnel)</span><textarea class="in" name="temoignage" rows="2" placeholder="Sa parole, telle quelle…"></textarea></label>
+          <label class="field-stack"><span>Remarque du professionnel (optionnel)</span><textarea class="in" name="remarque_pro" rows="2"></textarea></label>
+          <div><button class="btn ok" type="submit">Enregistrer l'évaluation</button></div>
+        </form>
+      </details>
+    </div>
   </div>
 
   {# -----------------------------

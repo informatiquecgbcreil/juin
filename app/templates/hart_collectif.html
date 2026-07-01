@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+{% block body %}
+<style>
+  .hart-pyramide { display:flex; flex-direction:column-reverse; gap:6px; max-width:860px; margin:0 auto; }
+  .hart-etage { display:grid; grid-template-columns: 44px 1fr 90px; gap:10px; align-items:center; }
+  .hart-num { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+              font-weight:900; color:#fff; font-size:16px; }
+  .hart-barre-wrap { position:relative; height:44px; border-radius:10px;
+                     background: color-mix(in srgb, var(--border) 40%, transparent); overflow:hidden; }
+  .hart-barre { height:100%; border-radius:10px; display:flex; align-items:center; padding:0 12px;
+                color:#fff; font-weight:800; min-width:fit-content; transition:width .35s; white-space:nowrap; }
+  .hart-barre small { font-weight:600; opacity:.9; margin-left:8px; }
+  .hart-count { text-align:right; font-weight:900; font-variant-numeric:tabular-nums; }
+  .hart-count .delta-up { color: var(--ok,#2e7d32); font-size:12px; }
+  .hart-count .delta-down { color: var(--danger,#dc2626); font-size:12px; }
+  .hart-sep { text-align:center; font-weight:800; letter-spacing:.06em; margin:4px 0; opacity:.75; }
+  .hart-etage a { color:inherit; text-decoration:none; display:block; }
+  .hart-etage a:hover .hart-barre-wrap { outline:2px solid var(--accent,#2563eb); }
+  .hart-detail-row { display:flex; justify-content:space-between; gap:8px; align-items:center;
+                     padding:6px 8px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  @media print { .no-print { display:none !important; } }
+</style>
+
+<div class="page-shell wide-shell stack">
+  <div class="page-header">
+    <div class="page-title-wrap">
+      <h1 class="page-title">🪜 Échelle de Hart — participation des habitants</h1>
+      <p class="page-subtitle">
+        {% if stats.secteur %}Secteur <strong>{{ stats.secteur }}</strong>{% else %}Tous secteurs{% endif %}
+        · habitants ayant au moins une participation du {{ stats.date_from.strftime('%d/%m/%Y') }} au {{ stats.date_to.strftime('%d/%m/%Y') }}.
+        Niveau retenu : dernière évaluation connue à la fin de période (instant T).
+      </p>
+    </div>
+    <div class="hero-actions no-print">
+      <button class="btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+    </div>
+  </div>
+
+  <section class="section-card no-print">
+    <form method="get" class="filters-grid" style="align-items:end;">
+      {% if portee_globale %}
+      <label class="field-stack"><span>Secteur</span>
+        <select class="in" name="secteur">
+          <option value="">Tous</option>
+          {% for s in secteurs %}<option value="{{ s }}" {% if s == secteur %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endif %}
+      <label class="field-stack"><span>Année</span><input class="in" type="number" name="annee" min="2000" max="2100" value="{{ annee or '' }}" placeholder="{{ date_from.year }}"></label>
+      <label class="field-stack"><span>ou du</span><input class="in" type="date" name="from" value="{{ request.args.get('from','') }}"></label>
+      <label class="field-stack"><span>au</span><input class="in" type="date" name="to" value="{{ request.args.get('to','') }}"></label>
+      <label class="ui-checkline" style="align-self:center;"><input type="checkbox" name="comparer" value="1" {% if comparer %}checked{% endif %}> Comparer (N-1 par défaut)</label>
+      {% if comparer %}
+        <label class="field-stack"><span>Comparé : du</span><input class="in" type="date" name="cmp_from" value="{{ request.args.get('cmp_from','') }}"></label>
+        <label class="field-stack"><span>au</span><input class="in" type="date" name="cmp_to" value="{{ request.args.get('cmp_to','') }}"></label>
+      {% endif %}
+      <button class="btn ok" type="submit">Afficher</button>
+    </form>
+  </section>
+
+  <div class="kpi-grid-modern">
+    <div class="kpi-box"><div class="muted">Habitants actifs</div><strong>{{ stats.total_actifs }}</strong></div>
+    <div class="kpi-box"><div class="muted">Positionnés</div><strong>{{ stats.total_evalues }}</strong>
+      {% if cmp_ctx and cmp_ctx.delta_evalues %}<span class="{{ 'delta-up' if cmp_ctx.delta_evalues > 0 else 'delta-down' }}">({{ '%+d'|format(cmp_ctx.delta_evalues) }})</span>{% endif %}</div>
+    <div class="kpi-box"><div class="muted">Niveau moyen</div>
+      <strong>{% if stats.moyenne is not none %}{{ stats.moyenne }}/8{% else %}—{% endif %}</strong>
+      {% if cmp_ctx and cmp_ctx.delta_moyenne is not none %}
+        <span class="{{ 'delta-up' if cmp_ctx.delta_moyenne >= 0 else 'delta-down' }}" style="font-size:13px;">
+          {{ '%+.2f'|format(cmp_ctx.delta_moyenne) }} vs période comparée</span>
+      {% endif %}
+    </div>
+    <div class="kpi-box"><div class="muted">En participation effective (≥ 4)</div>
+      <strong>{% if stats.taux_participation is not none %}{{ stats.taux_participation }}%{% else %}—{% endif %}</strong></div>
+  </div>
+
+  <section class="section-card">
+    <h2 class="section-title">La pyramide</h2>
+    <div class="hart-pyramide">
+      {# column-reverse : niveau 1 en bas, niveau 8 au sommet #}
+      {% for d in stats.detail %}
+        {% if d.niveau == 4 %}<div class="hart-sep">— PARTICIPATION EFFECTIVE ↑ · non-participation ↓ —</div>{% endif %}
+        <div class="hart-etage">
+          <span class="hart-num" style="background: {{ d.couleur }};">{{ d.niveau }}</span>
+          <a href="{{ url_for('main.hart_collectif', **dict(request.args, niveau=d.niveau)) }}#detail" title="{{ d.description }}">
+            <div class="hart-barre-wrap">
+              <div class="hart-barre" style="background: {{ d.couleur }}; width: {{ (d.count / max_count * 100) if max_count else 0 }}%;">
+                {{ d.libelle }}<small>{{ d.description }}</small>
+              </div>
+            </div>
+          </a>
+          <span class="hart-count">{{ d.count }}
+            {% if cmp_ctx %}
+              {% set dv = cmp_ctx.deltas.get(d.niveau, 0) %}
+              {% if dv > 0 %}<span class="delta-up">▲{{ dv }}</span>{% elif dv < 0 %}<span class="delta-down">▼{{ -dv }}</span>{% endif %}
+            {% endif %}
+          </span>
+        </div>
+      {% endfor %}
+    </div>
+    {% if stats.non_evalues %}
+      <div class="callout-soft" style="margin-top:14px;">
+        <strong>{{ stats.non_evalues|length }} habitant(s) actifs jamais positionnés.</strong>
+        L'évaluation initiale se fait à la première venue (bandeau sur l'émargement), puis toutes les {{ seuil_seances }} séances.
+        <details><summary>Voir la liste</summary>
+          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+            {% for p in stats.non_evalues %}
+              <a class="pill" href="{{ url_for('pedagogie.participant_passeport', participant_id=p.id) }}">{{ p.prenom }} {{ p.nom }}</a>
+            {% endfor %}
+          </div>
+        </details>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if niveau_detail %}
+    {% set d = (stats.detail | selectattr('niveau', 'equalto', niveau_detail) | list | first) %}
+    {% if d %}
+    <section class="section-card" id="detail">
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <h2 style="margin:0;"><span class="hart-num" style="display:inline-flex; background:{{ d.couleur }};">{{ d.niveau }}</span> {{ d.libelle }} — {{ d.count }} habitant(s)</h2>
+          <p class="muted">{{ d.description }}</p>
+        </div>
+        <a class="btn no-print" href="{{ url_for('main.hart_collectif', **dict(request.args, niveau=None)) }}">Fermer le détail</a>
+      </div>
+      {% for row in d.evaluations %}
+        <div class="hart-detail-row">
+          <div>
+            <a href="{{ url_for('pedagogie.participant_passeport', participant_id=row.participant.id) }}"><strong>{{ row.participant.prenom }} {{ row.participant.nom }}</strong></a>
+            <span class="muted">— {{ row.evaluation.type_label }} · {{ row.evaluation.date_evaluation.strftime('%d/%m/%Y') }}{% if row.evaluation.secteur %} · {{ row.evaluation.secteur }}{% endif %}</span>
+          </div>
+          {% if row.evaluation.temoignage %}<em class="muted">« {{ row.evaluation.temoignage }} »</em>{% endif %}
+          <a class="btn no-print" href="{{ url_for('pedagogie.participant_passeport', participant_id=row.participant.id) }}">Passeport</a>
+        </div>
+      {% else %}
+        <div class="quick-empty"><strong>Aucun habitant à cet étage sur la période.</strong></div>
+      {% endfor %}
+    </section>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -10,6 +10,7 @@ from app.main import (  # noqa: F401
     comparaison,
     controle,
     dashboard,
+    hart,
     hubs,
     qualite_donnees,
     recherche,

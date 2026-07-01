@@ -526,6 +526,11 @@ def emargement(session_id: int):
     )
     conso_period_start, conso_period_end = conso_period_ctx.get("start"), conso_period_ctx.get("end")
 
+    # Échelle de Hart : évaluations dues pour les présents (première venue,
+    # puis toutes les N séances). L'émargement pilote le déclenchement.
+    from app.services import hart as hart_service
+    hart_dues = hart_service.evaluations_dues_pour_session(s)
+
     return render_template(
         "activite/emargement.html",
         secteur=secteur,
@@ -554,6 +559,8 @@ def emargement(session_id: int):
         conso_period_mode=conso_period_args["period_mode"],
         conso_period_start_value=conso_period_args["period_start"],
         conso_period_end_value=conso_period_args["period_end"],
+        hart_dues=hart_dues,
+        hart_niveaux=hart_service.HART_NIVEAUX,
     )
 
 
