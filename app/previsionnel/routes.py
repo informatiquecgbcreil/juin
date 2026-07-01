@@ -1774,7 +1774,8 @@ def generateur():
             db.session.flush()
             for lig in lignes:
                 db.session.add(LigneBudget(
-                    subvention_id=sub.id, nature=lig["nature"], compte=lig["compte"],
+                    subvention_id=sub.id, nature=lig["nature"],
+                    compte=_safe_ligne_budget_compte(lig["compte"]),
                     libelle=lig["libelle"], montant_base=lig["montant"], montant_reel=0.0,
                 ))
             db.session.commit()
@@ -1798,7 +1799,8 @@ def generateur():
             db.session.flush()
             for i, lig in enumerate(lignes, start=1):
                 db.session.add(BudgetPrevisionnelLigne(
-                    budget_id=budget.id, nature=lig["nature"], compte=lig["compte"],
+                    budget_id=budget.id, nature=lig["nature"],
+                    compte=_safe_ligne_budget_compte(lig["compte"]),
                     libelle=lig["libelle"], montant=lig["montant"], projet_id=projet_id, ordre=i,
                 ))
             db.session.commit()

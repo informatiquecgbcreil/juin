@@ -122,11 +122,15 @@
         </label>
       </div>
       <input type="hidden" name="budget_nom" id="budgetNomMirror">
+      {# L'action est portée par un champ caché (et non par le name/value du bouton) :
+         un gestionnaire JS global désactive le bouton de soumission, or un bouton
+         désactivé n'envoie pas son name/value — l'action serait alors perdue (HTTP 400). #}
+      <input type="hidden" name="action" id="cerfaAction" value="export_xlsx">
       <div class="inline-actions" style="margin-top:12px;">
-        <button class="btn ok" type="submit" name="action" value="export_xlsx">⬇ Exporter en Excel</button>
+        <button class="btn ok" type="submit" onclick="document.getElementById('cerfaAction').value='export_xlsx'">⬇ Exporter en Excel</button>
         {% if can_edit_budget %}
-          <button class="btn" type="submit" name="action" value="to_subvention">→ Créer une subvention</button>
-          <button class="btn" type="submit" name="action" value="to_previsionnel">→ Créer un budget prévisionnel</button>
+          <button class="btn" type="submit" onclick="document.getElementById('cerfaAction').value='to_subvention'">→ Créer une subvention</button>
+          <button class="btn" type="submit" onclick="document.getElementById('cerfaAction').value='to_previsionnel'">→ Créer un budget prévisionnel</button>
         {% endif %}
         <button class="btn" type="button" onclick="window.print()">🖨️ Imprimer</button>
       </div>
@@ -137,15 +141,23 @@
 
 <script>
 (function(){
+  // Reproduit fidèlement app/previsionnel/cerfa.py:parse_amount côté serveur,
+  // pour que le total affiché corresponde exactement à ce qui sera enregistré.
   function parseAmount(raw){
-    raw = (raw||'').toString().replace(/\s/g,'').replace(',', '.');
+    raw = (raw||'').toString().replace(/\s/g,'').replace(/,/g,'.');
     if(!raw) return 0;
-    var v = parseFloat(raw);
-    if(!isNaN(v) && /^[0-9.]+$/.test(raw)) return v;
-    if(/^[0-9.+]+$/.test(raw)){
-      return raw.split('+').reduce(function(a,p){ var n=parseFloat(p); return a+(isNaN(n)?0:n); },0);
+    if(/^[0-9]*\.?[0-9]+$/.test(raw)) return parseFloat(raw);   // nombre simple
+    if(/^[0-9.+]+$/.test(raw)){                                 // somme « a+b+c »
+      var parts = raw.split('+'), total = 0, any = false;
+      for(var i=0;i<parts.length;i++){
+        if(parts[i]==='') continue;
+        var n = Number(parts[i]);
+        if(isNaN(n)) return 0;   // une partie invalide -> 0, comme le serveur
+        total += n; any = true;
+      }
+      return any ? total : 0;
     }
-    return isNaN(v)?0:v;
+    return 0;   // texte parasite (ex. « 100abc », « 1,000.50 ») -> 0
   }
   function fmt(n){ return (Math.round(n*100)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
@@ -181,9 +193,20 @@
     eqEl.className = Math.abs(eq) < 0.005 ? 'eq-ok' : 'eq-bad';
   }
   inputs.forEach(function(inp){ inp.addEventListener('input', recompute); });
-  if(subvNom && budgetMirror){
-    document.getElementById('cerfaForm').addEventListener('submit', function(){ budgetMirror.value = subvNom.value; });
-  }
+  var form = document.getElementById('cerfaForm');
+  form.addEventListener('submit', function(){
+    if(subvNom && budgetMirror){ budgetMirror.value = subvNom.value; }
+    // L'export déclenche un téléchargement sans recharger la page : on réactive
+    // les boutons désactivés par le gestionnaire global pour ne pas les laisser
+    // bloqués sur « Enregistrement… ».
+    setTimeout(function(){
+      form.querySelectorAll('button[type="submit"]').forEach(function(b){
+        b.disabled = false; b.classList.remove('is-pending');
+        if(b.dataset.originalText){ b.innerHTML = b.dataset.originalText; }
+        delete b.dataset.pendingApplied;
+      });
+    }, 2500);
+  });
   recompute();
 })();
 </script>

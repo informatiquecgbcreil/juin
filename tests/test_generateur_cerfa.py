@@ -22,9 +22,13 @@ def test_parse_amount():
     from app.previsionnel.cerfa import parse_amount
     assert parse_amount("500") == 500.0
     assert parse_amount("1 200,50") == 1200.5
+    assert parse_amount("1 000,50") == 1000.5      # format FR (espace milliers, virgule décimale)
     assert parse_amount("220+144+270") == 634.0
     assert parse_amount("") == 0.0
     assert parse_amount("=DANGER()") == 0.0
+    assert parse_amount("100abc") == 0.0           # texte parasite -> 0 (aligné avec le JS)
+    assert parse_amount("1,000.50") == 0.0         # format anglo ambigu -> 0
+    assert parse_amount("5+3+x") == 0.0
     assert parse_amount(None) == 0.0
 
 
@@ -73,6 +77,11 @@ def test_page_generateur_rendue(app, admin_client):
     assert "60 - Achat" in body
     assert "74 - Subventions d" in body   # apostrophe échappée par Jinja
     assert "CONTRIBUTIONS VOLONTAIRES" in body.upper()
+    # L'action DOIT être portée par un champ caché : un gestionnaire JS global
+    # désactive le bouton de soumission, et un bouton désactivé n'envoie pas son
+    # name/value (sinon l'action est perdue -> HTTP 400 à l'export).
+    assert 'name="action"' in body and 'id="cerfaAction"' in body
+    assert 'type="submit" name="action"' not in body   # pas d'action portée par le bouton seul
 
 
 def test_export_xlsx(app, admin_client):
@@ -133,6 +142,9 @@ def test_envoi_vers_subvention(app, admin_client):
         produits = sum(l.montant_base for l in lignes if l.nature == "produit")
         assert charges == 1700.0
         assert produits == 13000.0
+        # compte normalisé pour tenir dans VARCHAR(20) (sinon plantage PostgreSQL)
+        assert all(len(l.compte) <= 20 for l in lignes)
+        assert any(l.compte == "74" for l in lignes)   # code comptable, pas le libellé long
 
 
 def test_envoi_vers_previsionnel_avec_projet(app, admin_client):
@@ -159,6 +171,21 @@ def test_envoi_vers_previsionnel_avec_projet(app, admin_client):
         lignes = BudgetPrevisionnelLigne.query.filter_by(budget_id=budget.id).all()
         assert len(lignes) == 4
         assert all(l.projet_id == pid for l in lignes)
+        assert all(len(l.compte) <= 20 for l in lignes)   # tient dans VARCHAR(20)
+
+
+def test_export_xlsx_secteur_caractere_interdit(app, admin_client):
+    """Un secteur contenant un caractère interdit d'onglet Excel (/ : etc.)
+    ne doit pas faire planter l'export."""
+    from openpyxl import load_workbook
+    with app.app_context():
+        with app.test_request_context():
+            url = url_for("previsionnel.generateur")
+    r = admin_client.post(url, data={"action": "export_xlsx", "organisme": "C",
+                                     "exercice": "2026", "secteur": "A/B:C*?", **_sample_values()})
+    assert r.status_code == 200
+    wb = load_workbook(BytesIO(r.data))
+    assert not any(ch in wb.active.title for ch in r"[]:*?/\\")
 
 
 def test_envoi_previsionnel_refuse_projet_autre_secteur(app, admin_client):

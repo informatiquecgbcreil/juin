@@ -13,6 +13,7 @@ Aucune écriture en base ici : logique pure, testable isolément.
 """
 from __future__ import annotations
 
+import re
 from io import BytesIO
 
 
@@ -254,7 +255,9 @@ def build_cerfa_workbook(values: dict[str, float], *, organisme: str, exercice, 
 
     wb = Workbook()
     ws = wb.active
-    ws.title = (secteur or "Budget")[:31]
+    # openpyxl interdit les caractères []:*?/\ dans un titre d'onglet.
+    titre = re.sub(r"[\[\]:*?/\\]", " ", (secteur or "Budget")).strip()[:31]
+    ws.title = titre or "Budget"
 
     bold = Font(bold=True)
     head_fill = PatternFill(fill_type="solid", fgColor="C6E0B4")
