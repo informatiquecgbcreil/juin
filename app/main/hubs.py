@@ -554,6 +554,18 @@ def hub_ressources():
             "tag": "Réseau",
         })
 
+    if can("subventions:view"):
+        cards.append({
+            "title": "Générateur de budget prévisionnel",
+            "subtitle": "Saisir un compte de résultat prévisionnel (modèle CERFA / CAF-FADO), l'exporter en Excel ou l'envoyer vers une subvention ou un projet.",
+            "primary_label": "Ouvrir le générateur",
+            "primary_url": url_for("previsionnel.generateur"),
+            "secondary": [
+                {"label": "Prévisionnels & demandes", "url": url_for("previsionnel.index")},
+            ],
+            "tag": "Budget",
+        })
+
     _hub_forbidden_if_empty(cards)
     return render_template(
         "hub_ressources.html",

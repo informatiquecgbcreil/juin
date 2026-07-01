@@ -1704,3 +1704,132 @@ def export_appel(appel_id: int):
     wb.save(bio)
     bio.seek(0)
     return send_file(bio, as_attachment=True, download_name=f"budget_appel_projet_{appel.id}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ---------------------------------------------------------------------------
+# Générateur de budget prévisionnel (modèle CERFA / CAF-FADO)
+# ---------------------------------------------------------------------------
+
+@bp.route("/generateur", methods=["GET", "POST"])
+@login_required
+@require_perm("subventions:view")
+def generateur():
+    """Saisie d'un budget prévisionnel au format associatif (charges 60→69,
+    produits 70→79 + ressources propres, contributions 86/87), avec export
+    Excel ou envoi vers une subvention / un budget prévisionnel de projet."""
+    from flask import current_app
+    from app.previsionnel import cerfa
+    from app.services.audit import journaliser
+
+    secteurs = _allowed_secteurs()
+
+    def _resolved_secteur(raw: str | None) -> str | None:
+        raw = (raw or "").strip()
+        if not _is_all_scope():
+            return getattr(current_user, "secteur_assigne", None)
+        if raw and raw in secteurs:
+            return raw
+        return raw or (secteurs[0] if secteurs else None)
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip()
+        organisme = (request.form.get("organisme") or current_app.config.get("APP_NAME") or "").strip()
+        try:
+            exercice = int(request.form.get("exercice") or date.today().year)
+        except Exception:
+            exercice = date.today().year
+        secteur = _resolved_secteur(request.form.get("secteur"))
+        values = cerfa.values_from_form(request.form)
+
+        if action == "export_xlsx":
+            wb = cerfa.build_cerfa_workbook(values, organisme=organisme, exercice=exercice, secteur=secteur)
+            bio = BytesIO()
+            wb.save(bio)
+            bio.seek(0)
+            safe = re.sub(r"[^A-Za-z0-9_-]+", "_", (secteur or "budget"))
+            return send_file(
+                bio,
+                as_attachment=True,
+                download_name=f"budget_previsionnel_{safe}_{exercice}.xlsx",
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+        # les envois modifient la base : contrôle d'édition
+        if not _can_edit():
+            abort(403)
+        if not secteur:
+            flash("Sélectionne un secteur.", "danger")
+            return redirect(url_for("previsionnel.generateur"))
+
+        lignes = cerfa.lignes_budget(values)
+
+        if action == "to_subvention":
+            if not lignes:
+                flash("Aucun montant saisi : rien à envoyer vers une subvention.", "warning")
+                return redirect(url_for("previsionnel.generateur"))
+            nom = (request.form.get("subvention_nom") or f"Budget prévisionnel {secteur} {exercice}").strip()
+            sub = Subvention(nom=nom, secteur=secteur, annee_exercice=exercice,
+                             montant_demande=0.0, montant_attribue=0.0, montant_recu=0.0)
+            db.session.add(sub)
+            db.session.flush()
+            for lig in lignes:
+                db.session.add(LigneBudget(
+                    subvention_id=sub.id, nature=lig["nature"], compte=lig["compte"],
+                    libelle=lig["libelle"], montant_base=lig["montant"], montant_reel=0.0,
+                ))
+            db.session.commit()
+            journaliser("budget.generateur_subvention", cible=f"subvention#{sub.id}",
+                        details={"secteur": secteur, "exercice": exercice, "lignes": len(lignes)})
+            flash(f"Budget envoyé vers la subvention « {sub.nom} » ({len(lignes)} lignes).", "success")
+            return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
+
+        if action == "to_previsionnel":
+            if not lignes:
+                flash("Aucun montant saisi : rien à envoyer vers un budget prévisionnel.", "warning")
+                return redirect(url_for("previsionnel.generateur"))
+            projet_id = _parse_int(request.form.get("projet_id"), 0) or None
+            if projet_id:
+                projet = db.get_or_404(Projet, projet_id)
+                if projet.secteur != secteur:
+                    abort(400)
+            nom = (request.form.get("budget_nom") or f"Budget prévisionnel {secteur} {exercice}").strip()
+            budget = BudgetPrevisionnel(nom=nom, annee=exercice, secteur=secteur, statut="brouillon")
+            db.session.add(budget)
+            db.session.flush()
+            for i, lig in enumerate(lignes, start=1):
+                db.session.add(BudgetPrevisionnelLigne(
+                    budget_id=budget.id, nature=lig["nature"], compte=lig["compte"],
+                    libelle=lig["libelle"], montant=lig["montant"], projet_id=projet_id, ordre=i,
+                ))
+            db.session.commit()
+            journaliser("budget.generateur_previsionnel", cible=f"budget_previsionnel#{budget.id}",
+                        details={"secteur": secteur, "exercice": exercice, "lignes": len(lignes),
+                                 "projet_id": projet_id})
+            flash(f"Budget prévisionnel « {budget.nom} » créé ({len(lignes)} lignes).", "success")
+            return redirect(url_for("previsionnel.detail", budget_id=budget.id))
+
+        abort(400)
+
+    # GET
+    default_secteur = _resolved_secteur(request.args.get("secteur"))
+    projets_q = Projet.query.filter(Projet.is_archive.is_(False))
+    if not _is_all_scope():
+        projets_q = projets_q.filter(Projet.secteur == getattr(current_user, "secteur_assigne", None))
+    elif default_secteur:
+        projets_q = projets_q.filter(Projet.secteur == default_secteur)
+    projets = projets_q.order_by(Projet.nom.asc()).all()
+
+    from flask import current_app
+    return render_template(
+        "previsionnel/generateur.html",
+        charges=cerfa.CERFA_CHARGES,
+        produits=cerfa.CERFA_PRODUITS,
+        contrib_emplois=cerfa.CERFA_CONTRIB_EMPLOIS,
+        contrib_ressources=cerfa.CERFA_CONTRIB_RESSOURCES,
+        secteurs=secteurs,
+        selected_secteur=default_secteur,
+        projets=projets,
+        exercice=date.today().year,
+        organisme_default=current_app.config.get("APP_NAME") or "",
+        can_edit_budget=_can_edit(),
+    )

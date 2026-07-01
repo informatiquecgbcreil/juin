@@ -669,7 +669,8 @@
                     <a class="pill {% if ep == 'projets.finance_secteur' %}active{% endif %}" href="{{ url_for('projets.finance_secteur') }}">Pilotage annuel</a>
                   {% endif %}
                   {% if can('subventions:view') %}
-                    <a class="pill {% if ep.startswith('previsionnel.') %}active{% endif %}" href="{{ url_for('previsionnel.index') }}">Prévisionnels &amp; demandes</a>
+                    <a class="pill {% if ep.startswith('previsionnel.') and ep != 'previsionnel.generateur' %}active{% endif %}" href="{{ url_for('previsionnel.index') }}">Prévisionnels &amp; demandes</a>
+                    <a class="pill {% if ep == 'previsionnel.generateur' %}active{% endif %}" href="{{ url_for('previsionnel.generateur') }}">Générateur de budget</a>
                     <a class="pill {% if ep.startswith('main.subventions') %}active{% endif %}" href="{{ url_for('main.subventions_list') }}">Enveloppes</a>
                   {% endif %}
                   {% if can('depenses:view') %}
