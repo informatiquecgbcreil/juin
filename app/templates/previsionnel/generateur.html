@@ -1,0 +1,190 @@
+{% extends "layout.html" %}
+{% block body %}
+<style>
+  .cerfa-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  @media (max-width: 1100px){ .cerfa-grid { grid-template-columns:1fr; } }
+  .cerfa-col h3 { margin:0 0 6px 0; }
+  .cerfa-compte { margin-top:12px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .cerfa-compte__head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; font-weight:800; }
+  .cerfa-compte.charge .cerfa-compte__head { background: color-mix(in srgb, #2e7d32 15%, transparent); }
+  .cerfa-compte.produit .cerfa-compte__head { background: color-mix(in srgb, #2563eb 15%, transparent); }
+  .cerfa-line { display:grid; grid-template-columns:1fr 130px; gap:8px; align-items:center; padding:4px 10px; }
+  .cerfa-line input { text-align:right; }
+  .cerfa-sub { font-variant-numeric:tabular-nums; }
+  .cerfa-totline { display:flex; justify-content:space-between; padding:8px 10px; font-weight:800; }
+  .eq-ok { color: var(--ok,#2e7d32); } .eq-bad { color: var(--danger,#dc2626); }
+  @media print { .no-print { display:none !important; } }
+</style>
+
+<div class="page-shell wide-shell stack">
+  <div class="page-header">
+    <div class="page-title-wrap">
+      <h1 class="page-title">Générateur de budget prévisionnel</h1>
+      <p class="page-subtitle">Saisis un compte de résultat prévisionnel (modèle associatif type CERFA / CAF-FADO), puis exporte-le en Excel ou envoie-le vers une subvention ou un budget de projet.</p>
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('previsionnel.generateur') }}" id="cerfaForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="section-card">
+      <div class="form-grid-3">
+        <label class="field-stack"><span>Organisme</span><input class="in" name="organisme" value="{{ organisme_default }}"></label>
+        <label class="field-stack"><span>Exercice</span><input class="in" name="exercice" type="number" min="2000" max="2100" value="{{ exercice }}"></label>
+        <label class="field-stack"><span>Secteur</span>
+          <select class="in" name="secteur">
+            {% for s in secteurs %}<option value="{{ s }}" {% if s == selected_secteur %}selected{% endif %}>{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="context-strip" style="margin-top:12px;">
+        <span class="context-pill">Total charges : <strong id="tCharges">0,00</strong> €</span>
+        <span class="context-pill">Total produits : <strong id="tProduits">0,00</strong> €</span>
+        <span class="context-pill">Équilibre : <strong id="tEquilibre" class="eq-ok">0,00</strong> €</span>
+      </div>
+    </section>
+
+    <div class="cerfa-grid">
+      <div class="cerfa-col">
+        <h3>Charges</h3>
+        {% for compte in charges %}
+          <div class="cerfa-compte charge">
+            <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|charge">0,00 €</span></div>
+            {% for cat in compte.categories %}
+              <div class="cerfa-line">
+                <label>{{ cat.libelle }}</label>
+                <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="charge" placeholder="0">
+              </div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <div class="cerfa-totline" style="background:color-mix(in srgb,#2e7d32 18%,transparent); border-radius:10px; margin-top:12px;">
+          <span>TOTAL DES CHARGES</span><span><strong id="tChargesBloc">0,00</strong> €</span>
+        </div>
+      </div>
+
+      <div class="cerfa-col">
+        <h3>Produits</h3>
+        {% for compte in produits %}
+          <div class="cerfa-compte produit">
+            <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|produit">0,00 €</span></div>
+            {% for cat in compte.categories %}
+              <div class="cerfa-line">
+                <label>{{ cat.libelle }}</label>
+                <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="produit" placeholder="0">
+              </div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <div class="cerfa-totline" style="background:color-mix(in srgb,#2563eb 18%,transparent); border-radius:10px; margin-top:12px;">
+          <span>TOTAL DES PRODUITS</span><span><strong id="tProduitsBloc">0,00</strong> €</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="section-card">
+      <h3 class="section-title">Contributions volontaires en nature</h3>
+      <div class="cerfa-grid">
+        <div class="cerfa-col">
+          {% for compte in contrib_emplois %}
+            <div class="cerfa-compte charge">
+              <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|emploi">0,00 €</span></div>
+              {% for cat in compte.categories %}
+                <div class="cerfa-line"><label>{{ cat.libelle }}</label>
+                  <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="emploi" placeholder="0"></div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+        <div class="cerfa-col">
+          {% for compte in contrib_ressources %}
+            <div class="cerfa-compte produit">
+              <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|ressource">0,00 €</span></div>
+              {% for cat in compte.categories %}
+                <div class="cerfa-line"><label>{{ cat.libelle }}</label>
+                  <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="ressource" placeholder="0"></div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card no-print">
+      <h3 class="section-title">Exporter ou envoyer</h3>
+      <div class="form-grid-2">
+        <label class="field-stack"><span>Nom (si envoi vers subvention / budget)</span><input class="in" name="subvention_nom" placeholder="Ex : Budget prévisionnel Numérique 2026"></label>
+        <label class="field-stack"><span>Projet à rattacher (budget prévisionnel)</span>
+          <select class="in" name="projet_id">
+            <option value="">— Aucun —</option>
+            {% for p in projets %}<option value="{{ p.id }}">{{ p.secteur }} — {{ p.nom }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <input type="hidden" name="budget_nom" id="budgetNomMirror">
+      <div class="inline-actions" style="margin-top:12px;">
+        <button class="btn ok" type="submit" name="action" value="export_xlsx">⬇ Exporter en Excel</button>
+        {% if can_edit_budget %}
+          <button class="btn" type="submit" name="action" value="to_subvention">→ Créer une subvention</button>
+          <button class="btn" type="submit" name="action" value="to_previsionnel">→ Créer un budget prévisionnel</button>
+        {% endif %}
+        <button class="btn" type="button" onclick="window.print()">🖨️ Imprimer</button>
+      </div>
+      <p class="muted" style="font-size:12px; margin-top:8px;">Les contributions volontaires (86/87) figurent dans l'export Excel mais ne sont pas envoyées vers une subvention ou un budget (ce ne sont pas des flux financiers réels).</p>
+    </section>
+  </form>
+</div>
+
+<script>
+(function(){
+  function parseAmount(raw){
+    raw = (raw||'').toString().replace(/\s/g,'').replace(',', '.');
+    if(!raw) return 0;
+    var v = parseFloat(raw);
+    if(!isNaN(v) && /^[0-9.]+$/.test(raw)) return v;
+    if(/^[0-9.+]+$/.test(raw)){
+      return raw.split('+').reduce(function(a,p){ var n=parseFloat(p); return a+(isNaN(n)?0:n); },0);
+    }
+    return isNaN(v)?0:v;
+  }
+  function fmt(n){ return (Math.round(n*100)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  var inputs = Array.prototype.slice.call(document.querySelectorAll('.cerfa-amount'));
+  var budgetMirror = document.getElementById('budgetNomMirror');
+  var subvNom = document.querySelector('input[name="subvention_nom"]');
+
+  function recompute(){
+    var subtotals = {};      // "code|section" -> sum
+    var sections = {charge:0, produit:0, emploi:0, ressource:0};
+    inputs.forEach(function(inp){
+      var val = parseAmount(inp.value);
+      var code = inp.getAttribute('data-compte');
+      var sec = inp.getAttribute('data-section');
+      var k = code+'|'+sec;
+      subtotals[k] = (subtotals[k]||0) + val;
+      sections[sec] += val;
+    });
+    document.querySelectorAll('[data-subtotal]').forEach(function(el){
+      var k = el.getAttribute('data-subtotal');
+      el.textContent = fmt(subtotals[k]||0) + ' €';
+    });
+    var totalCharges = sections.charge, totalProduits = sections.produit;
+    var tgCharges = totalCharges + sections.emploi;
+    var tgProduits = totalProduits + sections.ressource;
+    var eq = tgProduits - tgCharges;
+    document.getElementById('tCharges').textContent = fmt(totalCharges);
+    document.getElementById('tProduits').textContent = fmt(totalProduits);
+    document.getElementById('tChargesBloc').textContent = fmt(totalCharges);
+    document.getElementById('tProduitsBloc').textContent = fmt(totalProduits);
+    var eqEl = document.getElementById('tEquilibre');
+    eqEl.textContent = fmt(eq);
+    eqEl.className = Math.abs(eq) < 0.005 ? 'eq-ok' : 'eq-bad';
+  }
+  inputs.forEach(function(inp){ inp.addEventListener('input', recompute); });
+  if(subvNom && budgetMirror){
+    document.getElementById('cerfaForm').addEventListener('submit', function(){ budgetMirror.value = subvNom.value; });
+  }
+  recompute();
+})();
+</script>
+{% endblock %}
