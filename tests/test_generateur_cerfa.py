@@ -77,6 +77,11 @@ def test_page_generateur_rendue(app, admin_client):
     assert "60 - Achat" in body
     assert "74 - Subventions d" in body   # apostrophe échappée par Jinja
     assert "CONTRIBUTIONS VOLONTAIRES" in body.upper()
+    # L'action DOIT être portée par un champ caché : un gestionnaire JS global
+    # désactive le bouton de soumission, et un bouton désactivé n'envoie pas son
+    # name/value (sinon l'action est perdue -> HTTP 400 à l'export).
+    assert 'name="action"' in body and 'id="cerfaAction"' in body
+    assert 'type="submit" name="action"' not in body   # pas d'action portée par le bouton seul
 
 
 def test_export_xlsx(app, admin_client):
