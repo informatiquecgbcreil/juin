@@ -19,6 +19,7 @@ from app.models import (
     Depense,
     Projet,
     SubventionProjet,
+    AuditLog,
 )
 from app.previsionnel.referentiel import BudgetCategorieReferentiel, BudgetCompteReferentiel
 from app.services.audit import journaliser
@@ -468,6 +469,28 @@ def subvention_delete(subvention_id):
         blocked_message=f"Impossible de supprimer la subvention « {sub.nom} » : elle est encore liée à d'autres données.",
     )
     return redirect(url_for("main.subventions_list"))
+
+
+@bp.route("/subvention/<int:subvention_id>/historique")
+@login_required
+@require_perm("subventions:view")
+def subvention_historique(subvention_id):
+    """Historique d'audit d'un dossier (créations, changements de statut/montants)."""
+    sub = db.get_or_404(Subvention, subvention_id)
+    if not can_see_secteur(sub.secteur):
+        abort(403)
+    import json as _json
+    entrees = (AuditLog.query
+               .filter(AuditLog.cible == f"subvention#{sub.id}")
+               .order_by(AuditLog.created_at.desc()).all())
+    lignes = []
+    for e in entrees:
+        try:
+            details = _json.loads(e.details) if e.details else {}
+        except Exception:
+            details = {}
+        lignes.append({"entry": e, "details": details})
+    return render_template("subvention_historique.html", sub=sub, lignes=lignes)
 
 
 @bp.route("/subvention/<int:subvention_id>/archiver", methods=["POST"])

@@ -16,7 +16,9 @@
         <option value="">Toutes</option>
         {% for a in actions %}<option value="{{ a }}" {% if a == action %}selected{% endif %}>{{ a }}</option>{% endfor %}
       </select>
-      <noscript><button class="btn" type="submit">Filtrer</button></noscript>
+      <label class="muted">Cible</label>
+      <input class="in" name="cible" value="{{ cible or '' }}" placeholder="ex : subvention#12">
+      <button class="btn" type="submit">Filtrer</button>
     </form>
   </div>
 

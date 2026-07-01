@@ -17,6 +17,7 @@ from app.models import (
     ChargeProjet,
     ProduitProjet,
     ProjetAction,
+    ProjetJalon,
     OrientationAccesDroit,
     SuiviRappel,
 )
@@ -32,6 +33,8 @@ SUIVI_TYPE_ORDER = {
     "action": 2,
     "indicateur": 3,
     "budget": 4,
+    "jalon": 5,
+    "rgpd": 6,
 }
 
 SUIVI_ORIENTATION_STATUTS = {
@@ -664,6 +667,66 @@ def suivi_rappels():
                 )
                 budget_count += 1
 
+        # Jalons de projet (échéancier de pilotage)
+        jalon_count = 0
+        for projet in projects:
+            if jalon_count >= 80:
+                break
+            for jal in sorted(getattr(projet, "jalons", []) or [], key=lambda j: (j.date_echeance or date.max)):
+                if jalon_count >= 80:
+                    break
+                if jal.statut == "fait":
+                    continue
+                due = jal.date_echeance
+                if due and due < today:
+                    tone, bucket = "danger", "now"
+                elif due and due <= soon:
+                    tone, bucket = "warn", "soon"
+                elif due:
+                    tone, bucket = "info", "watch"
+                else:
+                    continue  # jalon sans échéance : rien à suivre dans le temps
+                _suivi_add_item(
+                    items,
+                    kind="jalon",
+                    type_label="Jalon",
+                    tone=tone,
+                    title=jal.libelle,
+                    subtitle=f"Échéance du projet {projet.nom}",
+                    meta=[projet.nom],
+                    due_date=due,
+                    secteur=projet.secteur,
+                    url=url_for("projets.projet_jalons", projet_id=projet.id),
+                    action_label="Ouvrir l'échéancier",
+                    bucket=bucket,
+                    today=today,
+                )
+                jalon_count += 1
+
+    # RGPD : participants inactifs en attente d'anonymisation (vue direction).
+    if can("scope:all_secteurs") and not secteur_filter:
+        try:
+            from app.services.purge_rgpd import participants_inactifs
+            nb_rgpd = len(participants_inactifs())
+        except Exception:
+            nb_rgpd = 0
+        if nb_rgpd:
+            _suivi_add_item(
+                items,
+                kind="rgpd",
+                type_label="RGPD",
+                tone="warn",
+                title=f"{nb_rgpd} participant(s) à anonymiser",
+                subtitle="Fiches inactives au-delà du délai de conservation.",
+                meta=["Conformité RGPD"],
+                due_date=None,
+                secteur="Tous secteurs",
+                url=url_for("main.purge_rgpd"),
+                action_label="Ouvrir la purge RGPD",
+                bucket="soon",
+                today=today,
+            )
+
     items.sort(key=_suivi_sort_key)
 
     filtered_items = []
@@ -713,6 +776,8 @@ def suivi_rappels():
         {"key": "action", "label": "Fiches actions", "count": sum(1 for item in filtered_items if item["kind"] == "action")},
         {"key": "indicateur", "label": "Indicateurs", "count": sum(1 for item in filtered_items if item["kind"] == "indicateur")},
         {"key": "budget", "label": "Budget", "count": sum(1 for item in filtered_items if item["kind"] == "budget")},
+        {"key": "jalon", "label": "Jalons", "count": sum(1 for item in filtered_items if item["kind"] == "jalon")},
+        {"key": "rgpd", "label": "RGPD", "count": sum(1 for item in filtered_items if item["kind"] == "rgpd")},
     ]
     secteurs = current_app.config.get("SECTEURS", []) or []
     if can("scope:all_secteurs") and not secteurs:

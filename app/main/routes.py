@@ -7,6 +7,7 @@ from app.main.common import bp  # noqa: F401
 
 from app.main import (  # noqa: F401
     bilan_global,
+    comparaison,
     controle,
     dashboard,
     hubs,

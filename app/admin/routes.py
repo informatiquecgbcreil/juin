@@ -697,12 +697,15 @@ def journal_audit():
     from app.models import AuditLog
 
     action = (request.args.get("action") or "").strip()
+    cible = (request.args.get("cible") or "").strip()
     q = AuditLog.query
     if action:
         q = q.filter(AuditLog.action == action)
+    if cible:
+        q = q.filter(AuditLog.cible.ilike(f"%{cible}%"))
     entrees = q.order_by(AuditLog.created_at.desc()).limit(300).all()
     actions = [a for (a,) in db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()]
-    return render_template("admin_journal.html", entrees=entrees, actions=actions, action=action)
+    return render_template("admin_journal.html", entrees=entrees, actions=actions, action=action, cible=cible)
 
 
 @bp.route("/sante")
