@@ -79,6 +79,7 @@
 
     <div class="passport-tabs" id="passportTabs">
       <button class="tabbtn" data-tab="overview">Vue d’ensemble</button>
+      <button class="tabbtn" data-tab="participation">🪜 Participation</button>
       <button class="tabbtn" data-tab="evaluate">Évaluer</button>
       <button class="tabbtn" data-tab="skills">Compétences</button>
       <button class="tabbtn" data-tab="notes">Notes</button>
@@ -172,10 +173,13 @@
       </div>
     </div>
 
-    <div class="spacer"></div>
+  </div>
 
-    {# ----------- Échelle de Hart (participation) ----------- #}
-    <div class="ref-card" id="hart">
+  {# -----------------------------
+     TAB: PARTICIPATION (échelle de Hart)
+  ------------------------------ #}
+  <div class="card tabpanel" data-panel="participation">
+    <div class="ref-card" id="hart" style="border:none; box-shadow:none; padding:0;">
       <div class="ref-head">
         <h3 class="ref-title">🪜 Mon escalier de la participation <span class="muted" style="font-weight:400; font-size:12px;">(échelle de Hart)</span></h3>
         <div class="ref-meta">
@@ -232,7 +236,7 @@
                   <span class="hart-trace" title="Passé par ici : {{ ev.type_label }} · {{ ev.date_evaluation.strftime('%d/%m/%Y') }}{% if ev.temoignage %} · « {{ ev.temoignage }} »{% endif %}">👣</span>
                 {% endfor %}
               </div>
-              <div class="hart-step-block" style="background: {{ niv.couleur }}; height: {{ 26 + niv.niveau * 11 }}px;">
+              <div class="hart-step-block" style="background: {{ niv.couleur }}; height: {{ 44 + niv.niveau * 11 }}px;">
                 <span class="hart-step-emoji">{{ niv.emoji }}</span>
                 <span>{{ niv.niveau }}</span>
               </div>
@@ -263,7 +267,7 @@
                     <td>
                       <form method="post" action="{{ url_for('main.hart_evaluation_supprimer', evaluation_id=ev.id) }}" onsubmit="return confirm('Supprimer cette évaluation ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id) }}#hart">
+                        <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id, tab='participation') }}">
                         <button class="btn danger" type="submit" style="padding:0 6px; font-size:11px;">🗑</button>
                       </form>
                     </td>
@@ -280,7 +284,7 @@
         <summary style="cursor:pointer; font-weight:700;">➕ Poser une évaluation</summary>
         <form method="post" action="{{ url_for('main.hart_evaluer', participant_id=participant.id) }}" class="stack" style="margin-top:10px; gap:10px;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id) }}#hart">
+          <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id, tab='participation') }}">
           <div class="row" style="gap:10px; flex-wrap:wrap;">
             <label class="field-stack"><span>Étape sur l'escalier</span>
               <select class="in" name="niveau" required>

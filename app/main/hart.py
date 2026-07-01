@@ -135,7 +135,7 @@ def hart_evaluer(participant_id: int):
     journaliser("hart.evaluation", cible=f"participant#{participant.id}",
                 details={"niveau": niveau, "type": type_evaluation})
     flash(f"Évaluation Hart enregistrée : {hart_service.niveau_label(niveau)} ({ev.type_label}).", "success")
-    return redirect(request.form.get("next") or url_for("pedagogie.participant_passeport", participant_id=participant.id))
+    return redirect(request.form.get("next") or url_for("pedagogie.participant_passeport", participant_id=participant.id, tab="participation"))
 
 
 @bp.route("/hart/evaluation/<int:evaluation_id>/supprimer", methods=["POST"])
@@ -148,4 +148,4 @@ def hart_evaluation_supprimer(evaluation_id: int):
     db.session.commit()
     journaliser("hart.evaluation_suppr", cible=f"participant#{pid}", details={"evaluation": evaluation_id})
     flash("Évaluation supprimée.", "warning")
-    return redirect(request.form.get("next") or url_for("pedagogie.participant_passeport", participant_id=pid))
+    return redirect(request.form.get("next") or url_for("pedagogie.participant_passeport", participant_id=pid, tab="participation"))
