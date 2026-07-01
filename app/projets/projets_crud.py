@@ -1,13 +1,16 @@
 import os
 import json
+from io import BytesIO
+from datetime import date
 
 from app.utils.dates import utcnow
-from flask import render_template, request, redirect, url_for, flash, abort, current_app
+from flask import render_template, request, redirect, url_for, flash, abort, current_app, send_file
 from flask_login import login_required, current_user
 from app.rbac import require_perm, can, can_access_secteur
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
+from app.services.audit import journaliser
 from app.services.storage import ensure_upload_subdir, media_relpath, send_media_file
 from app.services.indicators import (
     INDICATOR_PACKS,
@@ -31,6 +34,7 @@ from app.models import (
     ProjetJournalEntry,
     ProjetAction,
     ProjetActionAtelier,
+    ProjetJalon,
     Competence,
     Objectif,
     objectif_competence,
@@ -213,13 +217,194 @@ def allowed_cr(filename: str) -> bool:
 @login_required
 @require_perm("projets:view")
 def projets_list():
-    q = Projet.query
+    voir_archives = request.args.get("archives") == "1"
+    q = Projet.query.filter(Projet.is_archive.is_(True) if voir_archives else Projet.is_archive.is_(False))
     if not can("scope:all_secteurs"):
         q = q.filter(Projet.secteur == current_user.secteur_assigne)
 
     projets = q.order_by(Projet.created_at.desc()).all()
+
+    # Compteur d'archives pour proposer le basculement.
+    arch_q = Projet.query.filter(Projet.is_archive.is_(True))
+    if not can("scope:all_secteurs"):
+        arch_q = arch_q.filter(Projet.secteur == current_user.secteur_assigne)
+    nb_archives = arch_q.count()
+
     secteurs = current_app.config.get("SECTEURS", [])
-    return render_template("projets_list.html", projets=projets, secteurs=secteurs)
+    return render_template("projets_list.html", projets=projets, secteurs=secteurs,
+                           voir_archives=voir_archives, nb_archives=nb_archives)
+
+
+@bp.route("/projets/export.xlsx")
+@login_required
+@require_perm("projets:view")
+def projets_export_xlsx():
+    from openpyxl import Workbook
+
+    voir_archives = request.args.get("archives") == "1"
+    q = Projet.query.filter(Projet.is_archive.is_(True) if voir_archives else Projet.is_archive.is_(False))
+    if not can("scope:all_secteurs"):
+        q = q.filter(Projet.secteur == current_user.secteur_assigne)
+    projets = q.order_by(Projet.secteur.asc(), Projet.nom.asc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Projets"
+    ws.append(["Secteur", "Projet", "Demandé (€)", "Accordé (€)", "Reçu (€)",
+               "Engagé (€)", "Reste (€)", "Compte-rendu", "Archivé"])
+    for p in projets:
+        ws.append([
+            p.secteur, p.nom,
+            round(float(p.total_demande or 0), 2),
+            round(float(p.total_attribue or 0), 2),
+            round(float(p.total_recu or 0), 2),
+            round(float(p.total_engage or 0), 2),
+            round(float(p.total_reste or 0), 2),
+            "Oui" if p.cr_filename else "Non",
+            "Oui" if p.is_archive else "Non",
+        ])
+    for col, width in zip("ABCDEFGHI", (16, 38, 13, 13, 13, 13, 13, 13, 9)):
+        ws.column_dimensions[col].width = width
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf, as_attachment=True, download_name="projets.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@bp.route("/projets/<int:projet_id>/archiver", methods=["POST"])
+@login_required
+@require_perm("projets:edit")
+def projets_archive(projet_id: int):
+    projet = db.get_or_404(Projet, projet_id)
+    if not can_access_secteur(getattr(projet, "secteur", None)):
+        abort(403)
+    projet.is_archive = True
+    projet.archived_at = utcnow()
+    db.session.commit()
+    journaliser("projet.archive", cible=f"projet#{projet.id}", details={"nom": projet.nom})
+    flash(f"Projet « {projet.nom} » archivé. Il reste consultable dans les archives.", "warning")
+    return redirect(url_for("projets.projets_list"))
+
+
+@bp.route("/projets/<int:projet_id>/restaurer", methods=["POST"])
+@login_required
+@require_perm("projets:edit")
+def projets_restore(projet_id: int):
+    projet = db.get_or_404(Projet, projet_id)
+    if not can_access_secteur(getattr(projet, "secteur", None)):
+        abort(403)
+    projet.is_archive = False
+    projet.archived_at = None
+    db.session.commit()
+    journaliser("projet.restaure", cible=f"projet#{projet.id}", details={"nom": projet.nom})
+    flash(f"Projet « {projet.nom} » restauré.", "success")
+    return redirect(url_for("projets.projets_list", archives=1))
+
+
+@bp.route("/projets/<int:projet_id>/dupliquer", methods=["POST"])
+@login_required
+@require_perm("projets:edit")
+def projets_duplicate(projet_id: int):
+    """Reconduit un projet : copie structure, actions, indicateurs et liens ateliers.
+
+    Les réponses, dépenses et subventions ne sont PAS copiées (nouvel exercice).
+    """
+    src = db.get_or_404(Projet, projet_id)
+    if not can_access_secteur(getattr(src, "secteur", None)):
+        abort(403)
+
+    copie = Projet(nom=f"{src.nom} (reconduction)", secteur=src.secteur, description=src.description)
+    db.session.add(copie)
+    db.session.flush()
+
+    # Liens ateliers
+    for link in ProjetAtelier.query.filter_by(projet_id=src.id).all():
+        db.session.add(ProjetAtelier(projet_id=copie.id, atelier_id=link.atelier_id))
+    # Indicateurs (sans historique de valeurs)
+    for ind in ProjetIndicateur.query.filter_by(projet_id=src.id).all():
+        db.session.add(ProjetIndicateur(projet_id=copie.id, code=ind.code, label=ind.label,
+                                        is_active=ind.is_active, params_json=ind.params_json))
+    # Actions (sans liens ateliers spécifiques pour rester simple et sûr)
+    for act in ProjetAction.query.filter_by(projet_id=src.id).all():
+        db.session.add(ProjetAction(
+            projet_id=copie.id, titre=act.titre, categorie=act.categorie, statut="prevue",
+            referent=act.referent, lieu=act.lieu, public_vise=act.public_vise,
+            territoire=act.territoire, objectifs=act.objectifs, description=act.description,
+            partenaires_text=act.partenaires_text,
+        ))
+    # Jalons (réinitialisés à faire, sans date)
+    for jal in ProjetJalon.query.filter_by(projet_id=src.id).all():
+        db.session.add(ProjetJalon(projet_id=copie.id, libelle=jal.libelle, statut="a_faire", ordre=jal.ordre))
+
+    db.session.commit()
+    journaliser("projet.duplique", cible=f"projet#{copie.id}", details={"source": src.id, "nom": copie.nom})
+    flash("Projet reconduit. Adapte le nom, les dates et le budget du nouvel exercice.", "success")
+    return redirect(url_for("projets.projets_edit", projet_id=copie.id))
+
+
+@bp.route("/projets/<int:projet_id>/jalons", methods=["GET", "POST"])
+@login_required
+@require_perm("projets:view")
+def projet_jalons(projet_id: int):
+    p = db.get_or_404(Projet, projet_id)
+    if not can_access_secteur(p.secteur):
+        abort(403)
+
+    if request.method == "POST":
+        if not can("projets:edit"):
+            abort(403)
+        action = request.form.get("action") or ""
+
+        if action == "add":
+            libelle = (request.form.get("libelle") or "").strip()
+            if not libelle:
+                flash("Le libellé du jalon est obligatoire.", "danger")
+                return redirect(url_for("projets.projet_jalons", projet_id=p.id))
+            d = (request.form.get("date_echeance") or "").strip()
+            try:
+                d_val = date.fromisoformat(d) if d else None
+            except Exception:
+                d_val = None
+            try:
+                ordre = int(request.form.get("ordre") or 0)
+            except Exception:
+                ordre = 0
+            db.session.add(ProjetJalon(projet_id=p.id, libelle=libelle, date_echeance=d_val, ordre=ordre))
+            db.session.commit()
+            flash("Jalon ajouté.", "success")
+            return redirect(url_for("projets.projet_jalons", projet_id=p.id))
+
+        if action == "toggle":
+            jid = int(request.form.get("jalon_id") or 0)
+            jal = db.get_or_404(ProjetJalon, jid)
+            if jal.projet_id != p.id:
+                abort(400)
+            jal.statut = "a_faire" if jal.statut == "fait" else "fait"
+            db.session.commit()
+            return redirect(url_for("projets.projet_jalons", projet_id=p.id))
+
+        if action == "delete":
+            jid = int(request.form.get("jalon_id") or 0)
+            jal = db.get_or_404(ProjetJalon, jid)
+            if jal.projet_id != p.id:
+                abort(400)
+            db.session.delete(jal)
+            db.session.commit()
+            flash("Jalon supprimé.", "warning")
+            return redirect(url_for("projets.projet_jalons", projet_id=p.id))
+
+        abort(400)
+
+    jalons = (ProjetJalon.query.filter_by(projet_id=p.id)
+              .order_by(ProjetJalon.statut.asc(), ProjetJalon.ordre.asc(), ProjetJalon.date_echeance.asc()).all())
+    today = date.today()
+    en_retard = sum(1 for j in jalons if j.statut != "fait" and j.date_echeance and j.date_echeance < today)
+    return render_template("projets_jalons.html", projet=p, jalons=jalons, today=today,
+                           en_retard=en_retard, can_edit=can("projets:edit"))
 
 @bp.route("/projets/new", methods=["GET", "POST"])
 @login_required
@@ -575,18 +760,22 @@ def projets_delete(projet_id: int):
         except Exception:
             cr_relpath = None
 
+        projet_nom = projet.nom
         db.session.delete(projet)
-        if commit_delete(
+        supprime = commit_delete(
             f"le projet « {projet.nom} »",
             "Projet supprimé définitivement.",
             success_category="warning",
             blocked_message=f"Impossible de supprimer le projet « {projet.nom} » : il est encore utilisé ailleurs.",
-        ) and cr_relpath:
-            try:
-                if os.path.exists(cr_relpath):
-                    os.remove(cr_relpath)
-            except Exception:
-                pass
+        )
+        if supprime:
+            journaliser("projet.delete", cible=f"projet#{projet_id}", details={"nom": projet_nom})
+            if cr_relpath:
+                try:
+                    if os.path.exists(cr_relpath):
+                        os.remove(cr_relpath)
+                except Exception:
+                    pass
     except Exception as e:
         db.session.rollback()
         flash(f"Suppression impossible : {e}", "danger")

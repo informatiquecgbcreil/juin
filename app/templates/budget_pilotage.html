@@ -9,8 +9,11 @@
       <div>
         <h1 class="monster-title">Pilotage de la subvention</h1>
         <p class="card-subtitle" style="margin:6px 0 0 0;">
-          <strong>{{ sub.financeur }}</strong> — Secteur : <strong>{{ sub.secteur }}</strong>
-          {% if sub.annee %} — Année : <strong>{{ sub.annee }}</strong>{% endif %}
+          <strong>{{ sub.nom }}</strong>
+          {% if sub.financeur %} — Financeur : <strong>{{ sub.financeur }}</strong>{% endif %}
+          — Secteur : <strong>{{ sub.secteur }}</strong>
+          {% if sub.annee_exercice %} — Exercice : <strong>{{ sub.annee_exercice }}</strong>{% endif %}
+          — <span class="status-badge" data-status="{{ sub.statut_cycle }}">{{ sub.statut_label }}</span>
         </p>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -44,6 +47,52 @@
         <div class="finance-kpi"><div class="finance-kpi__label">Attribué {{ ux.tooltip("Le montant accordé par le financeur (notification ou convention). Peut être inférieur au demandé.") }}</div><div class="finance-kpi__value">{{ (sub.montant_attribue or 0)|float|round(2) }}€</div></div>
         <div class="finance-kpi"><div class="finance-kpi__label">Reçu {{ ux.tooltip("Le montant réellement arrivé sur le compte bancaire à ce jour (les versements arrivent souvent en plusieurs fois).") }}</div><div class="finance-kpi__value">{{ (sub.montant_recu or 0)|float|round(2) }}€</div></div>
         <div class="finance-kpi"><div class="finance-kpi__label">Base lignes {{ ux.tooltip("La somme des lignes de budget créées ci-dessous. Elle doit normalement correspondre au montant attribué.") }}</div><div class="finance-kpi__value">{{ (total_base or 0)|float|round(2) }}€</div></div>
+      </div>
+    </div>
+
+    <div style="padding: 0 16px 18px 16px;">
+      <div class="monster-card">
+        <div class="card-header"><h3 class="card-title" style="margin:0;">Dossier &amp; cycle de vie</h3></div>
+        <div style="padding: 0 16px 16px 16px;">
+          <form method="POST" action="{{ url_for('main.subvention_pilotage', subvention_id=sub.id) }}" class="finance-form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update_dossier">
+
+            <label>
+              <div style="font-size:12px; color:var(--muted); font-weight:700;">Financeur</div>
+              <input name="financeur" value="{{ sub.financeur or '' }}" placeholder="ex : CAF, Région, Ville…" style="width:100%;">
+            </label>
+            <label>
+              <div style="font-size:12px; color:var(--muted); font-weight:700;">Référence dossier</div>
+              <input name="reference" value="{{ sub.reference or '' }}" placeholder="n° convention / dossier" style="width:100%;">
+            </label>
+            <label>
+              <div style="font-size:12px; color:var(--muted); font-weight:700;">Statut du cycle</div>
+              <select name="statut_cycle" style="width:100%;">
+                {% for val, lib in statuts %}
+                  <option value="{{ val }}" {% if (sub.statut_cycle or 'sollicitee') == val %}selected{% endif %}>{{ lib }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <div style="font-size:12px; color:var(--muted); font-weight:700;">Date de dépôt</div>
+              <input name="date_depot" type="date" value="{{ sub.date_depot.isoformat() if sub.date_depot else '' }}" style="width:100%;">
+            </label>
+            <label>
+              <div style="font-size:12px; color:var(--muted); font-weight:700;">Date de décision</div>
+              <input name="date_decision" type="date" value="{{ sub.date_decision.isoformat() if sub.date_decision else '' }}" style="width:100%;">
+            </label>
+            <label>
+              <div style="font-size:12px; color:var(--muted); font-weight:700;">Versement attendu</div>
+              <input name="date_versement_prevu" type="date" value="{{ sub.date_versement_prevu.isoformat() if sub.date_versement_prevu else '' }}" style="width:100%;">
+            </label>
+            <label>
+              <div style="font-size:12px; color:var(--muted); font-weight:700;">Bilan à rendre</div>
+              <input name="date_bilan_prevu" type="date" value="{{ sub.date_bilan_prevu.isoformat() if sub.date_bilan_prevu else '' }}" style="width:100%;">
+            </label>
+            <button class="btn ok" type="submit">Enregistrer le dossier</button>
+          </form>
+        </div>
       </div>
     </div>
 

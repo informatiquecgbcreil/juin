@@ -353,6 +353,10 @@ class Projet(db.Model):
     cr_filename = db.Column(db.String(255), nullable=True)
     cr_original_name = db.Column(db.String(255), nullable=True)
 
+    # Archivage (soft-delete) : un projet archivé sort des listes sans être détruit.
+    is_archive = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=utcnow)
 
     subventions = db.relationship("SubventionProjet", back_populates="projet", cascade="all, delete-orphan")
@@ -651,6 +655,28 @@ class ProjetIndicateur(db.Model):
             return {}
 
 
+class ProjetIndicateurValeur(db.Model):
+    """Historique des valeurs saisies pour un indicateur (qui / quand / combien).
+
+    Permet de tracer l'évolution d'un indicateur manuel et de répondre aux
+    exigences d'audit (RGPD, contrôle financeur) : aucune valeur n'est écrasée
+    sans laisser de trace.
+    """
+    __tablename__ = "projet_indicateur_valeur"
+
+    id = db.Column(db.Integer, primary_key=True)
+    indicateur_id = db.Column(db.Integer, db.ForeignKey("projet_indicateur.id", ondelete="CASCADE"), nullable=False, index=True)
+    date_releve = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    valeur = db.Column(db.Float, nullable=True)
+    source = db.Column(db.String(30), nullable=False, default="manual")  # manual | stats
+    commentaire = db.Column(db.Text, nullable=True)
+    saisie_par_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    saisie_le = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+
+    indicateur = db.relationship("ProjetIndicateur", backref=db.backref("historique", cascade="all, delete-orphan", order_by="ProjetIndicateurValeur.saisie_le.desc()"))
+    user = db.relationship("User")
+
+
 class ProjetJournalEntry(db.Model):
     __tablename__ = "projet_journal_entry"
 
@@ -714,14 +740,53 @@ class ProjetActionAtelier(db.Model):
     )
 
 
+class ProjetJalon(db.Model):
+    """Échéance / jalon d'un projet (échéancier de pilotage)."""
+    __tablename__ = "projet_jalon"
+
+    id = db.Column(db.Integer, primary_key=True)
+    projet_id = db.Column(db.Integer, db.ForeignKey("projet.id", ondelete="CASCADE"), nullable=False, index=True)
+    libelle = db.Column(db.String(200), nullable=False)
+    date_echeance = db.Column(db.Date, nullable=True, index=True)
+    statut = db.Column(db.String(20), nullable=False, default="a_faire")  # a_faire | fait
+    ordre = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    projet = db.relationship("Projet", backref=db.backref("jalons", cascade="all, delete-orphan", order_by="ProjetJalon.ordre.asc(), ProjetJalon.date_echeance.asc()"))
+
+
 
 
 # ---------- SUBVENTIONS / BUDGET ----------
+SUBVENTION_STATUTS = [
+    ("sollicitee", "Sollicitée"),
+    ("accordee", "Accordée"),
+    ("versee", "Versée"),
+    ("soldee", "Soldée"),
+    ("refusee", "Refusée"),
+]
+SUBVENTION_STATUTS_DICT = dict(SUBVENTION_STATUTS)
+
+
 class Subvention(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(200), nullable=False)
     secteur = db.Column(db.String(80), nullable=False)
     annee_exercice = db.Column(db.Integer, nullable=False, default=2025)
+
+    # Financeur (organisme qui verse) — distinct du nom du dispositif.
+    financeur = db.Column(db.String(200), nullable=True)
+    # Référence du dossier chez le financeur (n° convention, n° dossier...).
+    reference = db.Column(db.String(120), nullable=True)
+
+    # Cycle de vie du dossier (cf. SUBVENTION_STATUTS).
+    statut_cycle = db.Column(db.String(30), nullable=False, default="sollicitee")
+
+    # Échéances clés du dossier.
+    date_depot = db.Column(db.Date, nullable=True)            # dépôt de la demande
+    date_decision = db.Column(db.Date, nullable=True)         # notification / décision
+    date_versement_prevu = db.Column(db.Date, nullable=True)  # versement attendu
+    date_bilan_prevu = db.Column(db.Date, nullable=True)      # bilan / compte-rendu à rendre
 
     montant_demande = db.Column(db.Float, default=0.0)
     montant_attribue = db.Column(db.Float, default=0.0)
@@ -729,6 +794,10 @@ class Subvention(db.Model):
 
     est_archive = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=utcnow)
+
+    @property
+    def statut_label(self):
+        return SUBVENTION_STATUTS_DICT.get(self.statut_cycle or "sollicitee", self.statut_cycle or "—")
 
     lignes = db.relationship("LigneBudget", backref="source_sub", cascade="all, delete-orphan")
     depense_affectations = db.relationship("DepenseAffectation", back_populates="subvention", cascade="all, delete-orphan")
@@ -1149,14 +1218,33 @@ class SuiviRappel(db.Model):
     user = db.relationship("User")
 
 
+QUESTIONNAIRE_TYPES = [
+    ("autre", "Autre"),
+    ("satisfaction", "Satisfaction"),
+    ("avant", "Avant (état initial)"),
+    ("apres", "Après (état final)"),
+]
+QUESTIONNAIRE_TYPES_DICT = dict(QUESTIONNAIRE_TYPES)
+
+
 class Questionnaire(db.Model):
     __tablename__ = "questionnaire"
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(180), nullable=False)
     description = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    # Nature du questionnaire (satisfaction / avant / après…) pour le dépouillement.
+    type_questionnaire = db.Column(db.String(30), nullable=False, default="autre")
+    # Rattachement optionnel à un projet (mesure d'impact d'un projet).
+    projet_id = db.Column(db.Integer, db.ForeignKey("projet.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+    projet = db.relationship("Projet")
+
+    @property
+    def type_label(self):
+        return QUESTIONNAIRE_TYPES_DICT.get(self.type_questionnaire or "autre", self.type_questionnaire or "—")
 
     secteurs = db.relationship("QuestionnaireSecteur", backref="questionnaire", cascade="all, delete-orphan")
     ateliers = db.relationship("QuestionnaireAtelier", backref="questionnaire", cascade="all, delete-orphan")

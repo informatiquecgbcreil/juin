@@ -31,6 +31,8 @@
           <button class="btn" type="submit">Afficher</button>
         </form>
         <span class="context-pill">Création rapide disponible ci-dessous</span>
+        <a class="btn" href="{{ url_for('main.subventions_par_financeur', annee=selected_year) }}">Vue par financeur</a>
+        <a class="btn" href="{{ url_for('main.export_subventions_xlsx', annee=selected_year) }}">⬇ Export Excel</a>
         <a class="btn" href="{{ url_for('budget.depenses_list') }}">Dépenses</a>
         <a class="btn" href="{{ url_for('previsionnel.referentiel') }}">Référentiel budgétaire</a>
       </div>
@@ -46,6 +48,22 @@
       <span class="context-pill">Reçu / attribué : {{ '%.0f'|format(pct_recu_sur_attribue) }}%</span>
     </div>
   </section>
+
+  {% if alertes and alertes|length %}
+  <section class="section-card" style="border-color: color-mix(in srgb, var(--warn) 55%, var(--border));">
+    <div class="page-header">
+      <div class="page-title-wrap"><h2>⏰ Échéances à surveiller</h2><p class="muted">Versements attendus, bilans à rendre et dossiers en attente de décision.</p></div>
+    </div>
+    <ul style="margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px;">
+      {% for a in alertes %}
+        <li>
+          <span class="status-badge {{ 'status-danger' if a.niveau == 'danger' else 'status-warning' }}">{{ 'Retard' if a.niveau == 'danger' else 'Bientôt' }}</span>
+          <a href="{{ url_for('main.subvention_pilotage', subvention_id=a.sub.id) }}"><strong>{{ a.sub.financeur or a.sub.nom }}</strong></a> — {{ a.message }}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 
   <div class="monster-grid">
     <section class="section-card">
@@ -70,6 +88,16 @@
         <div class="form-grid-2">
           <label class="field-stack"><span>Nom</span><input class="in" name="nom" required placeholder="Ex : Politique de la Ville / P147"></label>
           <label class="field-stack"><span>Année exercice</span><input class="in" name="annee_exercice" type="number" value="{{ selected_year or 2026 }}"></label>
+        </div>
+        <div class="spacer"></div>
+        <div class="form-grid-3">
+          <label class="field-stack"><span>Financeur</span><input class="in" name="financeur" placeholder="Ex : CAF, Région, Ville…"></label>
+          <label class="field-stack"><span>Statut</span>
+            <select class="in" name="statut_cycle">
+              {% for val, lib in statuts %}<option value="{{ val }}">{{ lib }}</option>{% endfor %}
+            </select>
+          </label>
+          <label class="field-stack"><span>Versement attendu</span><input class="in" name="date_versement_prevu" type="date"></label>
         </div>
         <div class="spacer"></div>
         <div class="form-grid-3">
@@ -123,29 +151,31 @@
     </div>
     <div class="tablewrap clean">
       <table class="js-sortable" class="compact-table">
-        <thead><tr><th>Nom</th><th>Secteur</th><th>Exercice</th><th>Demandé</th><th>Attribué</th><th>Reçu</th><th>Suivi</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Nom</th><th>Financeur</th><th>Secteur</th><th>Exercice</th><th>Statut</th><th>Demandé</th><th>Attribué</th><th>Reçu</th><th>Suivi</th><th>Actions</th></tr></thead>
         <tbody>
           {% for s in subs %}
             {% set pct = ((s.montant_recu or 0) / (s.montant_attribue or 0) * 100) if (s.montant_attribue or 0) else 0 %}
-            <tr class="subvRow" data-search="{{ (s.nom ~ ' ' ~ s.secteur ~ ' ' ~ s.annee_exercice)|lower }}" data-year="{{ s.annee_exercice }}" data-secteur="{{ s.secteur }}">
-              <td><strong>{{ s.nom }}</strong></td><td>{{ s.secteur }}</td><td>{{ s.annee_exercice }}</td><td>{{ "%.2f"|format(s.montant_demande or 0) }}€</td><td>{{ "%.2f"|format(s.montant_attribue or 0) }}€</td><td><strong>{{ "%.2f"|format(s.montant_recu or 0) }}€</strong></td>
+            <tr class="subvRow" data-search="{{ (s.nom ~ ' ' ~ (s.financeur or '') ~ ' ' ~ s.secteur ~ ' ' ~ s.annee_exercice)|lower }}" data-year="{{ s.annee_exercice }}" data-secteur="{{ s.secteur }}">
+              <td><strong>{{ s.nom }}</strong></td><td>{{ s.financeur or '—' }}</td><td>{{ s.secteur }}</td><td>{{ s.annee_exercice }}</td><td><span class="status-badge" data-status="{{ s.statut_cycle }}">{{ s.statut_label }}</span></td><td>{{ "%.2f"|format(s.montant_demande or 0) }}€</td><td>{{ "%.2f"|format(s.montant_attribue or 0) }}€</td><td><strong>{{ "%.2f"|format(s.montant_recu or 0) }}€</strong></td>
               <td style="min-width:220px;"><div class="progress-shell"><div class="progress-fill {{ 'is-ok' if pct >= 80 else ('is-warn' if pct >= 30 else 'is-danger') }}" style="width:{{ pct }}%;">{{ "%.0f"|format(pct) }}%</div></div><div class="muted">reçu / attribué</div></td>
               <td><div class="inline-actions"><span class="status-badge {{ "status-success" if pct >= 80 else ("status-warning" if pct >= 30 else "status-danger") }}">{{ "%.0f"|format(pct) }}% reçu</span><a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=s.id) }}">Ouvrir</a><a class="btn" href="{{ url_for('main.subvention_bilan', subvention_id=s.id) }}">Bilan</a></div></td>
             </tr>
           {% endfor %}
-          {% if subs|length == 0 %}<tr><td colspan="8"><div class="quick-empty"><strong>Aucune subvention n’est enregistrée pour le moment.</strong>Créez une subvention pour démarrer le suivi financier.</div></td></tr>{% endif %}
+          {% if subs|length == 0 %}<tr><td colspan="10"><div class="quick-empty"><strong>Aucune subvention n’est enregistrée pour le moment.</strong>Créez une subvention pour démarrer le suivi financier.</div></td></tr>{% endif %}
         </tbody>
       </table>
     </div>
     <div class="responsive-card-list" aria-label="Liste des subventions (vue compacte)">
       {% for s in subs %}
         {% set pct = ((s.montant_recu or 0) / (s.montant_attribue or 0) * 100) if (s.montant_attribue or 0) else 0 %}
-        <article class="responsive-card subvFilterItem" data-search="{{ (s.nom ~ ' ' ~ s.secteur ~ ' ' ~ s.annee_exercice)|lower }}" data-year="{{ s.annee_exercice }}" data-secteur="{{ s.secteur }}">
+        <article class="responsive-card subvFilterItem" data-search="{{ (s.nom ~ ' ' ~ (s.financeur or '') ~ ' ' ~ s.secteur ~ ' ' ~ s.annee_exercice)|lower }}" data-year="{{ s.annee_exercice }}" data-secteur="{{ s.secteur }}">
           <header class="responsive-card__head">
             <strong>{{ s.nom }}</strong>
             <span class="chip">{{ s.annee_exercice }}</span>
           </header>
           <dl class="responsive-card__grid">
+            <div><dt>Financeur</dt><dd>{{ s.financeur or '—' }}</dd></div>
+            <div><dt>Statut</dt><dd><span class="status-badge" data-status="{{ s.statut_cycle }}">{{ s.statut_label }}</span></dd></div>
             <div><dt>Secteur</dt><dd>{{ s.secteur }}</dd></div>
             <div><dt>Demandé</dt><dd>{{ "%.2f"|format(s.montant_demande or 0) }}€</dd></div>
             <div><dt>Attribué</dt><dd>{{ "%.2f"|format(s.montant_attribue or 0) }}€</dd></div>

@@ -1,6 +1,6 @@
 import csv
-from io import StringIO
-from datetime import date
+from io import StringIO, BytesIO
+from datetime import date, timedelta
 
 
 from flask import (
@@ -13,16 +13,23 @@ from app.rbac import require_perm, can
 from app.extensions import db
 from app.models import (
     Subvention,
+    SUBVENTION_STATUTS,
+    SUBVENTION_STATUTS_DICT,
     LigneBudget,
     Depense,
     Projet,
     SubventionProjet,
 )
 from app.previsionnel.referentiel import BudgetCategorieReferentiel, BudgetCompteReferentiel
+from app.services.audit import journaliser
 
 
 from app.main.common import bp, can_see_secteur
 from app.utils.delete_guard import commit_delete
+
+# Horizon (en jours) au-delà duquel une échéance n'est plus signalée comme « proche ».
+ECHEANCE_HORIZON_JOURS = 30
+
 
 def _parse_money(value, default=0.0) -> float:
     raw = str(value or "").replace(" ", "").replace(",", ".")
@@ -30,6 +37,62 @@ def _parse_money(value, default=0.0) -> float:
         return float(raw) if raw else float(default)
     except Exception:
         return float(default)
+
+
+def _parse_date(value):
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except Exception:
+        return None
+
+
+def alertes_echeances(subs, today=None, horizon_jours: int = ECHEANCE_HORIZON_JOURS):
+    """Construit les alertes d'échéance pour une liste de subventions.
+
+    Retourne une liste de dicts ``{sub, niveau, message}`` triée par gravité.
+    ``niveau`` ∈ {"danger", "warning"}. Ne touche jamais la base.
+    """
+    if today is None:
+        today = date.today()
+    alertes = []
+    for s in subs:
+        statut = s.statut_cycle or "sollicitee"
+        if statut in ("soldee", "refusee"):
+            continue
+
+        # Versement attendu dépassé alors que tout n'est pas reçu.
+        dvp = s.date_versement_prevu
+        recu = float(s.montant_recu or 0)
+        attribue = float(s.montant_attribue or 0)
+        if dvp and recu < attribue:
+            if dvp < today:
+                alertes.append({"sub": s, "niveau": "danger",
+                                "message": f"Versement attendu le {dvp.strftime('%d/%m/%Y')} non soldé ({recu:.0f}€ reçus sur {attribue:.0f}€ attribués)."})
+            elif dvp <= today + timedelta(days=horizon_jours):
+                alertes.append({"sub": s, "niveau": "warning",
+                                "message": f"Versement attendu le {dvp.strftime('%d/%m/%Y')} (dans {(dvp - today).days} j)."})
+
+        # Bilan / compte-rendu à rendre au financeur.
+        dbp = s.date_bilan_prevu
+        if dbp:
+            if dbp < today:
+                alertes.append({"sub": s, "niveau": "danger",
+                                "message": f"Bilan à rendre depuis le {dbp.strftime('%d/%m/%Y')} (dépassé)."})
+            elif dbp <= today + timedelta(days=horizon_jours):
+                alertes.append({"sub": s, "niveau": "warning",
+                                "message": f"Bilan à rendre le {dbp.strftime('%d/%m/%Y')} (dans {(dbp - today).days} j)."})
+
+        # Dossier déposé mais sans décision depuis longtemps.
+        if statut == "sollicitee" and s.date_depot and not s.date_decision:
+            if s.date_depot < today - timedelta(days=120):
+                alertes.append({"sub": s, "niveau": "warning",
+                                "message": f"Demande déposée le {s.date_depot.strftime('%d/%m/%Y')} toujours sans décision (plus de 4 mois)."})
+
+    alertes.sort(key=lambda a: 0 if a["niveau"] == "danger" else 1)
+    return alertes
 
 
 def _ref_scope_query(query, model, secteur: str | None):
@@ -132,6 +195,7 @@ def subventions_list():
 
     default_secteur = current_user.secteur_assigne if not can("scope:all_secteurs") else (secteurs[0] if secteurs else None)
     categories_ref = _budget_categories_ref_for_secteur(default_secteur)
+    alertes = alertes_echeances(subs)
     return render_template(
         "subventions_list.html",
         subs=subs,
@@ -139,6 +203,8 @@ def subventions_list():
         selected_year=selected_year,
         available_years=years,
         categories_ref=categories_ref,
+        alertes=alertes,
+        statuts=SUBVENTION_STATUTS,
     )
 
 
@@ -154,6 +220,11 @@ def subvention_create():
     montant_attribue = float(request.form.get("montant_attribue") or 0)
     montant_recu = float(request.form.get("montant_recu") or 0)
 
+    financeur = (request.form.get("financeur") or "").strip() or None
+    statut = (request.form.get("statut_cycle") or "sollicitee").strip()
+    if statut not in SUBVENTION_STATUTS_DICT:
+        statut = "sollicitee"
+
     if not can("scope:all_secteurs"):
         secteur = current_user.secteur_assigne
 
@@ -168,6 +239,11 @@ def subvention_create():
         nom=nom,
         secteur=secteur,
         annee_exercice=annee,
+        financeur=financeur,
+        statut_cycle=statut,
+        date_depot=_parse_date(request.form.get("date_depot")),
+        date_versement_prevu=_parse_date(request.form.get("date_versement_prevu")),
+        date_bilan_prevu=_parse_date(request.form.get("date_bilan_prevu")),
         montant_demande=montant_demande,
         montant_attribue=montant_attribue,
         montant_recu=montant_recu,
@@ -191,6 +267,8 @@ def subvention_create():
             ))
 
     db.session.commit()
+    journaliser("subvention.create", cible=f"subvention#{s.id}",
+                details={"nom": s.nom, "secteur": s.secteur, "financeur": s.financeur})
 
     flash("Subvention créée.", "success")
     return redirect(url_for("main.subvention_pilotage", subvention_id=s.id))
@@ -216,7 +294,29 @@ def subvention_pilotage(subvention_id):
             sub.montant_attribue = float(request.form.get("montant_attribue") or 0)
             sub.montant_recu = float(request.form.get("montant_recu") or 0)
             db.session.commit()
+            journaliser("subvention.montants", cible=f"subvention#{sub.id}",
+                        details={"demande": sub.montant_demande, "attribue": sub.montant_attribue, "recu": sub.montant_recu})
             flash("Montants mis à jour.", "success")
+            return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
+
+        # --- Dossier : financeur, cycle, échéances ---
+        if action == "update_dossier":
+            sub.financeur = (request.form.get("financeur") or "").strip() or None
+            sub.reference = (request.form.get("reference") or "").strip() or None
+            statut = (request.form.get("statut_cycle") or "sollicitee").strip()
+            if statut not in SUBVENTION_STATUTS_DICT:
+                statut = sub.statut_cycle or "sollicitee"
+            ancien_statut = sub.statut_cycle
+            sub.statut_cycle = statut
+            sub.date_depot = _parse_date(request.form.get("date_depot"))
+            sub.date_decision = _parse_date(request.form.get("date_decision"))
+            sub.date_versement_prevu = _parse_date(request.form.get("date_versement_prevu"))
+            sub.date_bilan_prevu = _parse_date(request.form.get("date_bilan_prevu"))
+            db.session.commit()
+            journaliser("subvention.dossier", cible=f"subvention#{sub.id}",
+                        details={"financeur": sub.financeur, "statut": sub.statut_cycle,
+                                 "ancien_statut": ancien_statut})
+            flash("Dossier mis à jour.", "success")
             return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
 
         # --- Ajouter une ligne ---
@@ -328,6 +428,10 @@ def subvention_pilotage(subvention_id):
     if reel_lignes > 0 and engage > reel_lignes:
         warnings.append("Attention : engagé > total lignes réel (dépenses au-dessus de l'enveloppe ventilée).")
 
+    # Échéances propres à ce dossier (versement / bilan / décision en attente).
+    for a in alertes_echeances([sub]):
+        warnings.append(a["message"])
+
     return render_template(
         "budget_pilotage.html",
         sub=sub,
@@ -337,6 +441,7 @@ def subvention_pilotage(subvention_id):
         theor_recu=theor_recu,
         theor_attribue=theor_attribue,
         warnings=warnings,
+        statuts=SUBVENTION_STATUTS,
         categories_ref=_budget_categories_ref_for_secteur(sub.secteur),
     )
 
@@ -640,6 +745,132 @@ def subvention_bilan(subvention_id: int):
         max_total=max_total,
     )
 
+
+
+# --------- Vue consolidée par financeur ---------
+@bp.route("/subventions/par-financeur")
+@login_required
+@require_perm("subventions:view")
+def subventions_par_financeur():
+    base_q = Subvention.query.filter_by(est_archive=False)
+    if not can("scope:all_secteurs"):
+        base_q = base_q.filter(Subvention.secteur == current_user.secteur_assigne)
+
+    years = [
+        y for (y,) in base_q.with_entities(Subvention.annee_exercice).distinct().order_by(Subvention.annee_exercice.desc()).all()
+        if y is not None
+    ]
+    try:
+        selected_year = int(request.args.get("annee") or (years[0] if years else date.today().year))
+    except Exception:
+        selected_year = years[0] if years else date.today().year
+
+    subs = base_q.filter(Subvention.annee_exercice == selected_year).all()
+
+    groupes = {}
+    for s in subs:
+        cle = (s.financeur or "").strip() or "— Non renseigné —"
+        g = groupes.setdefault(cle, {
+            "financeur": cle, "nb": 0,
+            "demande": 0.0, "attribue": 0.0, "recu": 0.0, "subs": [],
+        })
+        g["nb"] += 1
+        g["demande"] += float(s.montant_demande or 0)
+        g["attribue"] += float(s.montant_attribue or 0)
+        g["recu"] += float(s.montant_recu or 0)
+        g["subs"].append(s)
+
+    groupes = sorted(groupes.values(), key=lambda g: (-g["attribue"], g["financeur"].lower()))
+    totaux = {
+        "demande": round(sum(g["demande"] for g in groupes), 2),
+        "attribue": round(sum(g["attribue"] for g in groupes), 2),
+        "recu": round(sum(g["recu"] for g in groupes), 2),
+        "nb": sum(g["nb"] for g in groupes),
+    }
+    return render_template(
+        "subventions_par_financeur.html",
+        groupes=groupes,
+        totaux=totaux,
+        selected_year=selected_year,
+        available_years=years,
+    )
+
+
+# --------- Export Excel de la liste des subventions ---------
+@bp.route("/export/subventions.xlsx")
+@login_required
+@require_perm("subventions:view")
+def export_subventions_xlsx():
+    from openpyxl import Workbook
+
+    base_q = Subvention.query.filter_by(est_archive=False)
+    if not can("scope:all_secteurs"):
+        base_q = base_q.filter(Subvention.secteur == current_user.secteur_assigne)
+
+    annee = request.args.get("annee")
+    if annee:
+        try:
+            base_q = base_q.filter(Subvention.annee_exercice == int(annee))
+        except Exception:
+            pass
+
+    subs = base_q.order_by(Subvention.annee_exercice.desc(), Subvention.financeur.asc(), Subvention.nom.asc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Subventions"
+    entetes = [
+        "Financeur", "Dossier", "Référence", "Secteur", "Exercice", "Statut",
+        "Demandé (€)", "Attribué (€)", "Reçu (€)", "Reste à recevoir (€)",
+        "Dépôt", "Décision", "Versement prévu", "Bilan prévu",
+    ]
+    ws.append(entetes)
+
+    def _d(v):
+        return v.strftime("%d/%m/%Y") if v else ""
+
+    for s in subs:
+        attribue = float(s.montant_attribue or 0)
+        recu = float(s.montant_recu or 0)
+        ws.append([
+            s.financeur or "",
+            s.nom,
+            s.reference or "",
+            s.secteur,
+            s.annee_exercice,
+            SUBVENTION_STATUTS_DICT.get(s.statut_cycle or "sollicitee", s.statut_cycle or ""),
+            round(float(s.montant_demande or 0), 2),
+            round(attribue, 2),
+            round(recu, 2),
+            round(attribue - recu, 2),
+            _d(s.date_depot),
+            _d(s.date_decision),
+            _d(s.date_versement_prevu),
+            _d(s.date_bilan_prevu),
+        ])
+
+    # Ligne de totaux
+    ws.append([])
+    ws.append([
+        "TOTAL", "", "", "", "", "",
+        round(sum(float(s.montant_demande or 0) for s in subs), 2),
+        round(sum(float(s.montant_attribue or 0) for s in subs), 2),
+        round(sum(float(s.montant_recu or 0) for s in subs), 2),
+        round(sum(float(s.montant_attribue or 0) - float(s.montant_recu or 0) for s in subs), 2),
+    ])
+
+    for col, width in zip("ABCDEFGHIJKLMN", (26, 28, 16, 16, 10, 12, 13, 13, 13, 16, 12, 12, 14, 12)):
+        ws.column_dimensions[col].width = width
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    suffixe = f"_{annee}" if annee else ""
+    return Response(
+        buf.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=subventions{suffixe}.xlsx"},
+    )
 
 
 # ---------------------------------------------------------------------

@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import csv
 import json
-from io import StringIO
+from io import StringIO, BytesIO
 
-from flask import render_template, request, redirect, url_for, flash, Response
+from flask import render_template, request, redirect, url_for, flash, Response, abort, send_file
 from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import (
     Questionnaire,
+    QUESTIONNAIRE_TYPES,
+    QUESTIONNAIRE_TYPES_DICT,
     QuestionnaireSecteur,
     QuestionnaireAtelier,
     Question,
@@ -19,11 +21,32 @@ from app.models import (
     SessionActivite,
     PresenceActivite,
     Participant,
+    Projet,
 )
+from app.questionnaires.stats import compute_questionnaire_stats, compute_projet_comparison
 from app.utils.delete_guard import commit_delete
 from app.rbac import require_perm
 
 from . import bp
+
+
+def _selected_type() -> str:
+    t = (request.values.get("type_questionnaire") or "autre").strip()
+    return t if t in QUESTIONNAIRE_TYPES_DICT else "autre"
+
+
+def _selected_projet_id():
+    raw = (request.values.get("projet_id") or "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except Exception:
+        return None
+
+
+def _projets_for_select():
+    return Projet.query.order_by(Projet.secteur.asc(), Projet.nom.asc()).all()
 
 
 QUESTION_TYPES = [
@@ -99,6 +122,8 @@ def create():
             nom=nom,
             description=(request.form.get("description") or "").strip() or None,
             is_active=request.form.get("is_active") == "1",
+            type_questionnaire=_selected_type(),
+            projet_id=_selected_projet_id(),
         )
         db.session.add(questionnaire)
         db.session.flush()
@@ -120,6 +145,8 @@ def create():
         ateliers_selected=[],
         questions=[],
         question_types=QUESTION_TYPES,
+        questionnaire_types=QUESTIONNAIRE_TYPES,
+        projets=_projets_for_select(),
     )
 
 
@@ -139,6 +166,8 @@ def edit(questionnaire_id: int):
         questionnaire.nom = nom
         questionnaire.description = (request.form.get("description") or "").strip() or None
         questionnaire.is_active = request.form.get("is_active") == "1"
+        questionnaire.type_questionnaire = _selected_type()
+        questionnaire.projet_id = _selected_projet_id()
 
         QuestionnaireSecteur.query.filter_by(questionnaire_id=questionnaire.id).delete()
         QuestionnaireAtelier.query.filter_by(questionnaire_id=questionnaire.id).delete()
@@ -167,6 +196,8 @@ def edit(questionnaire_id: int):
         ateliers_selected=ateliers_selected,
         questions=questions,
         question_types=QUESTION_TYPES,
+        questionnaire_types=QUESTIONNAIRE_TYPES,
+        projets=_projets_for_select(),
     )
 
 
@@ -175,11 +206,12 @@ def edit(questionnaire_id: int):
 @require_perm("questionnaires:delete")
 def delete(questionnaire_id: int):
     questionnaire = db.get_or_404(Questionnaire, questionnaire_id)
+    nom = questionnaire.nom
     db.session.delete(questionnaire)
     commit_delete(
-        f"le questionnaire « {questionnaire.titre} »",
+        f"le questionnaire « {nom} »",
         "Questionnaire supprimé.",
-        blocked_message=f"Impossible de supprimer le questionnaire « {questionnaire.titre} » : il est encore utilisé ailleurs.",
+        blocked_message=f"Impossible de supprimer le questionnaire « {nom} » : il est encore utilisé ailleurs.",
     )
     return redirect(url_for("questionnaires.index"))
 
@@ -395,3 +427,117 @@ def export_csv(questionnaire_id: int):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename=questionnaire_{questionnaire.id}.csv"},
     )
+
+
+@bp.route("/<int:questionnaire_id>/statistiques")
+@login_required
+@require_perm("questionnaires:view")
+def statistiques(questionnaire_id: int):
+    questionnaire = db.get_or_404(Questionnaire, questionnaire_id)
+    stats = compute_questionnaire_stats(questionnaire)
+    comparaison = compute_projet_comparison(questionnaire.projet) if questionnaire.projet_id else None
+    return render_template(
+        "questionnaires/stats.html",
+        questionnaire=questionnaire,
+        stats=stats,
+        comparaison=comparaison,
+    )
+
+
+@bp.route("/<int:questionnaire_id>/export.xlsx")
+@login_required
+@require_perm("questionnaires:export")
+def export_xlsx(questionnaire_id: int):
+    """Export pivot : une ligne par réponse, une colonne par question."""
+    from openpyxl import Workbook
+
+    questionnaire = db.get_or_404(Questionnaire, questionnaire_id)
+    questions = (
+        Question.query.filter_by(questionnaire_id=questionnaire.id)
+        .order_by(Question.position.asc(), Question.id.asc())
+        .all()
+    )
+
+    groups = (
+        QuestionnaireResponseGroup.query
+        .filter_by(questionnaire_id=questionnaire.id)
+        .order_by(QuestionnaireResponseGroup.created_at.asc())
+        .all()
+    )
+    group_ids = [g.id for g in groups]
+    # Index réponses : (group_id, question_id) -> valeur lisible
+    valeurs = {}
+    if group_ids:
+        for r in (QuestionResponse.query
+                  .filter(QuestionResponse.response_group_id.in_(group_ids)).all()):
+            if r.value_number is not None:
+                v = r.value_number
+            elif r.value_json:
+                try:
+                    v = ", ".join(str(x) for x in json.loads(r.value_json))
+                except Exception:
+                    v = r.value_json
+            else:
+                v = r.value_text or ""
+            valeurs[(r.response_group_id, r.question_id)] = v
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Réponses"
+    entetes = ["Date", "Participant", "Séance", "Secteur"] + [q.label for q in questions]
+    ws.append(entetes)
+    for g in groups:
+        ligne = [
+            g.created_at.strftime("%d/%m/%Y %H:%M") if g.created_at else "",
+            g.participant_id or "Anonyme",
+            g.session_id or "",
+            g.secteur or "",
+        ]
+        for q in questions:
+            ligne.append(valeurs.get((g.id, q.id), ""))
+        ws.append(ligne)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"questionnaire_{questionnaire.id}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@bp.route("/<int:questionnaire_id>/dupliquer", methods=["POST"])
+@login_required
+@require_perm("questionnaires:edit")
+def duplicate(questionnaire_id: int):
+    """Duplique un questionnaire (structure + questions + ciblage), sans les réponses."""
+    src = db.get_or_404(Questionnaire, questionnaire_id)
+    copie = Questionnaire(
+        nom=f"{src.nom} (copie)",
+        description=src.description,
+        is_active=False,
+        type_questionnaire=src.type_questionnaire,
+        projet_id=src.projet_id,
+    )
+    db.session.add(copie)
+    db.session.flush()
+
+    for s in src.secteurs:
+        db.session.add(QuestionnaireSecteur(questionnaire_id=copie.id, secteur=s.secteur))
+    for a in src.ateliers:
+        db.session.add(QuestionnaireAtelier(questionnaire_id=copie.id, atelier_id=a.atelier_id))
+    for q in src.questions:
+        db.session.add(Question(
+            questionnaire_id=copie.id,
+            label=q.label,
+            kind=q.kind,
+            is_required=q.is_required,
+            position=q.position,
+            options_json=q.options_json,
+        ))
+
+    db.session.commit()
+    flash("Questionnaire dupliqué (désactivé par défaut).", "success")
+    return redirect(url_for("questionnaires.edit", questionnaire_id=copie.id))
