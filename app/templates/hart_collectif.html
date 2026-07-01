@@ -5,11 +5,13 @@
   .hart-etage { display:grid; grid-template-columns: 44px 1fr 90px; gap:10px; align-items:center; }
   .hart-num { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
               font-weight:900; color:#fff; font-size:16px; }
-  .hart-barre-wrap { position:relative; height:44px; border-radius:10px;
+  .hart-barre-wrap { position:relative; height:52px; border-radius:12px;
                      background: color-mix(in srgb, var(--border) 40%, transparent); overflow:hidden; }
-  .hart-barre { height:100%; border-radius:10px; display:flex; align-items:center; padding:0 12px;
+  .hart-barre { height:30px; border-radius:12px 12px 0 12px; display:flex; align-items:center; padding:0 12px;
                 color:#fff; font-weight:800; min-width:fit-content; transition:width .35s; white-space:nowrap; }
   .hart-barre small { font-weight:600; opacity:.9; margin-left:8px; }
+  .hart-gens { position:absolute; left:12px; bottom:0; font-size:15px; letter-spacing:-3px; white-space:nowrap; }
+  .hart-num { font-size:19px; }
   .hart-count { text-align:right; font-weight:900; font-variant-numeric:tabular-nums; }
   .hart-count .delta-up { color: var(--ok,#2e7d32); font-size:12px; }
   .hart-count .delta-down { color: var(--danger,#dc2626); font-size:12px; }
@@ -24,7 +26,7 @@
 <div class="page-shell wide-shell stack">
   <div class="page-header">
     <div class="page-title-wrap">
-      <h1 class="page-title">🪜 Échelle de Hart — participation des habitants</h1>
+      <h1 class="page-title">🪜 L'escalier de la participation <span class="muted" style="font-weight:400; font-size:15px;">(échelle de Hart)</span></h1>
       <p class="page-subtitle">
         {% if stats.secteur %}Secteur <strong>{{ stats.secteur }}</strong>{% else %}Tous secteurs{% endif %}
         · habitants ayant au moins une participation du {{ stats.date_from.strftime('%d/%m/%Y') }} au {{ stats.date_to.strftime('%d/%m/%Y') }}.
@@ -74,18 +76,21 @@
   </div>
 
   <section class="section-card">
-    <h2 class="section-title">La pyramide</h2>
+    <h2 class="section-title">La montée des marches</h2>
     <div class="hart-pyramide">
       {# column-reverse : niveau 1 en bas, niveau 8 au sommet #}
       {% for d in stats.detail %}
         {% if d.niveau == 4 %}<div class="hart-sep">— PARTICIPATION EFFECTIVE ↑ · non-participation ↓ —</div>{% endif %}
         <div class="hart-etage">
-          <span class="hart-num" style="background: {{ d.couleur }};">{{ d.niveau }}</span>
-          <a href="{{ url_for('main.hart_collectif', **dict(request.args, niveau=d.niveau)) }}#detail" title="{{ d.description }}">
+          <span class="hart-num" style="background: {{ d.couleur }};">{{ d.emoji }}</span>
+          <a href="{{ url_for('main.hart_collectif', **dict(request.args, niveau=d.niveau)) }}#detail" title="Échelle de Hart, barreau {{ d.niveau }} : {{ d.libelle }} — {{ d.description }}">
             <div class="hart-barre-wrap">
               <div class="hart-barre" style="background: {{ d.couleur }}; width: {{ (d.count / max_count * 100) if max_count else 0 }}%;">
-                {{ d.libelle }}<small>{{ d.description }}</small>
+                {{ d.niveau }} · {{ d.habitant }}<small>{{ d.libelle }}</small>
               </div>
+              {% if d.count %}
+                <div class="hart-gens" aria-hidden="true">{% for _ in range([d.count, 18] | min) %}🧍{% endfor %}{% if d.count > 18 %} +{{ d.count - 18 }}{% endif %}</div>
+              {% endif %}
             </div>
           </a>
           <span class="hart-count">{{ d.count }}
@@ -118,8 +123,8 @@
     <section class="section-card" id="detail">
       <div class="page-header">
         <div class="page-title-wrap">
-          <h2 style="margin:0;"><span class="hart-num" style="display:inline-flex; background:{{ d.couleur }};">{{ d.niveau }}</span> {{ d.libelle }} — {{ d.count }} habitant(s)</h2>
-          <p class="muted">{{ d.description }}</p>
+          <h2 style="margin:0;"><span class="hart-num" style="display:inline-flex; background:{{ d.couleur }};">{{ d.emoji }}</span> Marche {{ d.niveau }} · « {{ d.habitant }} » — {{ d.count }} habitant(s)</h2>
+          <p class="muted">Échelle de Hart : {{ d.libelle }} — {{ d.description }}</p>
         </div>
         <a class="btn no-print" href="{{ url_for('main.hart_collectif', **dict(request.args, niveau=None)) }}">Fermer le détail</a>
       </div>

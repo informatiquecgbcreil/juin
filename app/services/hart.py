@@ -29,19 +29,36 @@ from app.models import (
 # Toutes les N séances, une évaluation de suivi est proposée.
 HART_SEUIL_SEANCES = 5
 
-# (niveau, libellé, description courte, participation effective ?, couleur)
+# Référentiel des 8 barreaux. « habitant » = formulation chaleureuse à la
+# première personne, utilisée à l'écran ; « libelle » = terme officiel de
+# l'échelle de Hart, conservé pour les bilans institutionnels (CAF, fédé).
 HART_NIVEAUX = [
-    (1, "Manipulation", "Les habitants sont présents mais instrumentalisés.", False, "#c0392b"),
-    (2, "Décoration", "Les habitants « décorent » l'action sans la comprendre.", False, "#d35400"),
-    (3, "Participation symbolique", "Consultés pour la forme, sans influence réelle.", False, "#e67e22"),
-    (4, "Désignés mais informés", "Rôle assigné, compris et accepté.", True, "#f1c40f"),
-    (5, "Consultés et informés", "Avis sollicité et réellement pris en compte.", True, "#9acd32"),
-    (6, "Décisions partagées (initiative pros)", "Projet initié par les professionnels, décidé ensemble.", True, "#27ae60"),
-    (7, "Initiative et direction habitants", "Projet initié et conduit par les habitants.", True, "#1e8449"),
-    (8, "Initiative habitants, décisions partagées", "Projet des habitants, professionnels en appui.", True, "#145a32"),
+    {"niveau": 1, "emoji": "🚪", "habitant": "On me fait venir",
+     "libelle": "Manipulation", "participation": False, "couleur": "#e2795c",
+     "description": "Présent, mais sans comprendre ni choisir."},
+    {"niveau": 2, "emoji": "🪑", "habitant": "Je suis là, sans plus",
+     "libelle": "Décoration", "participation": False, "couleur": "#eb9d5f",
+     "description": "Présent pour « faire joli », sans rôle réel."},
+    {"niveau": 3, "emoji": "📣", "habitant": "On m'écoute… pour la forme",
+     "libelle": "Participation symbolique", "participation": False, "couleur": "#f2bd6b",
+     "description": "Consulté, mais l'avis ne change rien."},
+    {"niveau": 4, "emoji": "🙋", "habitant": "J'ai un rôle et je sais pourquoi",
+     "libelle": "Désigné mais informé", "participation": True, "couleur": "#e9d26e",
+     "description": "Un vrai rôle, compris et accepté."},
+    {"niveau": 5, "emoji": "💬", "habitant": "Mon avis compte",
+     "libelle": "Consulté et informé", "participation": True, "couleur": "#b5cf6d",
+     "description": "L'avis est demandé et vraiment pris en compte."},
+    {"niveau": 6, "emoji": "🤝", "habitant": "On décide ensemble",
+     "libelle": "Décisions partagées (initiative pros)", "participation": True, "couleur": "#7cbf74",
+     "description": "Projet lancé par l'équipe, décidé avec les habitants."},
+    {"niveau": 7, "emoji": "🚀", "habitant": "Je porte le projet",
+     "libelle": "Initiative et direction habitants", "participation": True, "couleur": "#4da96f",
+     "description": "Projet imaginé et conduit par les habitants."},
+    {"niveau": 8, "emoji": "🌟", "habitant": "Mon projet, on le fait ensemble",
+     "libelle": "Initiative habitants, décisions partagées", "participation": True, "couleur": "#2e8b64",
+     "description": "Projet des habitants, professionnels en appui."},
 ]
-HART_NIVEAUX_DICT = {n: {"libelle": lib, "description": desc, "participation": part, "couleur": coul}
-                     for (n, lib, desc, part, coul) in HART_NIVEAUX}
+HART_NIVEAUX_DICT = {d["niveau"]: d for d in HART_NIVEAUX}
 
 
 def niveau_label(niveau: int) -> str:
@@ -143,7 +160,7 @@ def stats_collectives(secteur: str | None, date_from: date, date_to: date) -> di
     pids = _participants_actifs(secteur, date_from, date_to)
     dernieres = _derniere_evaluation_avant(pids, date_to)
 
-    etages = {n: [] for (n, *_rest) in HART_NIVEAUX}
+    etages = {d["niveau"]: [] for d in HART_NIVEAUX}
     non_evalues = []
     for pid in pids:
         ev = dernieres.get(pid)
@@ -164,12 +181,12 @@ def stats_collectives(secteur: str | None, date_from: date, date_to: date) -> di
     taux_participation = round(nb_participation / len(niveaux) * 100, 1) if niveaux else None
 
     detail = []
-    for (n, lib, desc, part, coul) in HART_NIVEAUX:
+    for niv in HART_NIVEAUX:
+        n = niv["niveau"]
         evs = sorted(etages[n], key=lambda e: ((participants_map.get(e.participant_id).nom or "").lower()
                                                if participants_map.get(e.participant_id) else ""))
         detail.append({
-            "niveau": n, "libelle": lib, "description": desc,
-            "participation": part, "couleur": coul,
+            **niv,
             "count": len(evs),
             "evaluations": [{"participant": participants_map.get(e.participant_id), "evaluation": e} for e in evs],
         })

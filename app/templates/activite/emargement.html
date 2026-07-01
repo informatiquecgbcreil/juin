@@ -178,11 +178,11 @@
           <input type="hidden" name="next" value="{{ url_for('activite.emargement', session_id=session.id) }}#hart-dues">
           <input type="hidden" name="type_evaluation" value="{{ 'initiale' if due.motif == 'initiale' else 'suivi' }}">
           <input type="hidden" name="secteur" value="{{ session.secteur }}">
-          <label class="field-stack"><span>Niveau</span>
+          <label class="field-stack"><span>Étape</span>
             <select class="in" name="niveau" required>
               <option value="">—</option>
-              {% for n, lib, desc, part, coul in hart_niveaux %}
-                <option value="{{ n }}" title="{{ desc }}" {% if due.derniere and due.derniere.niveau == n %}selected{% endif %}>{{ n }} · {{ lib }}</option>
+              {% for niv in hart_niveaux %}
+                <option value="{{ niv.niveau }}" title="{{ niv.libelle }} — {{ niv.description }}" {% if due.derniere and due.derniere.niveau == niv.niveau %}selected{% endif %}>{{ niv.niveau }} {{ niv.emoji }} {{ niv.habitant }}</option>
               {% endfor %}
             </select>
           </label>

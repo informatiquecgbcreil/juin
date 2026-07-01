@@ -177,12 +177,13 @@
     {# ----------- Échelle de Hart (participation) ----------- #}
     <div class="ref-card" id="hart">
       <div class="ref-head">
-        <h3 class="ref-title">🪜 Échelle de Hart — participation</h3>
+        <h3 class="ref-title">🪜 Mon escalier de la participation <span class="muted" style="font-weight:400; font-size:12px;">(échelle de Hart)</span></h3>
         <div class="ref-meta">
           {% if hart_evaluations %}
-            Position actuelle : <strong>niveau {{ hart_evaluations[-1].niveau }}</strong> ({{ hart_evaluations[-1].type_label }}, {{ hart_evaluations[-1].date_evaluation.strftime('%d/%m/%Y') }})
+            Aujourd'hui : <strong>niveau {{ hart_evaluations[-1].niveau }} — {{ (hart_niveaux | selectattr('niveau', 'equalto', hart_evaluations[-1].niveau) | list | first).habitant }}</strong>
+            ({{ hart_evaluations[-1].type_label }}, {{ hart_evaluations[-1].date_evaluation.strftime('%d/%m/%Y') }})
           {% else %}
-            Jamais positionné
+            Pas encore sur l'escalier
           {% endif %}
         </div>
       </div>
@@ -194,26 +195,84 @@
         </div>
       {% endif %}
 
-      {# Frise des évaluations : un point coloré par évaluation, du plus ancien au plus récent #}
-      {% if hart_evaluations %}
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;">
-          {% for ev in hart_evaluations %}
-            <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"
-                 title="{{ ev.type_label }} · {{ ev.date_evaluation.strftime('%d/%m/%Y') }}{% if ev.temoignage %} · « {{ ev.temoignage }} »{% endif %}{% if ev.remarque_pro %} · Pro : {{ ev.remarque_pro }}{% endif %}">
-              <div style="width:34px; border-radius:8px 8px 4px 4px; background: {{ hart_couleurs.get(ev.niveau, '#888') }}; height: {{ 14 + ev.niveau * 8 }}px; display:flex; align-items:flex-start; justify-content:center; color:#fff; font-weight:900;">{{ ev.niveau }}</div>
-              <small class="muted">{{ ev.date_evaluation.strftime('%d/%m') }}<br>{{ ev.type_label.split(' ')[0] }}</small>
-              <form method="post" action="{{ url_for('main.hart_evaluation_supprimer', evaluation_id=ev.id) }}" onsubmit="return confirm('Supprimer cette évaluation ?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id) }}#hart">
-                <button class="btn danger" type="submit" style="padding:0 6px; font-size:11px;">🗑</button>
-              </form>
+      {# ---- Mon escalier de la participation : scène ludique ---- #}
+      <style>
+        .hart-scene { margin-top:14px; overflow-x:auto; padding-bottom:4px; }
+        .hart-steps { display:flex; align-items:flex-end; gap:4px; min-width:640px; }
+        .hart-step { flex:1 1 0; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+        .hart-step-above { min-height:74px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:2px; }
+        .hart-avatar { font-size:30px; line-height:1; filter:drop-shadow(0 3px 3px rgba(0,0,0,.25)); animation:hartBob 2.4s ease-in-out infinite; }
+        @keyframes hartBob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }
+        .hart-bulle { background:#fff; color:#222; border:2px solid #f2bd6b; border-radius:14px; padding:5px 10px;
+                      font-size:12px; font-style:italic; max-width:180px; text-align:center; position:relative; margin-bottom:4px;
+                      box-shadow:0 2px 6px rgba(0,0,0,.12); }
+        .hart-bulle::after { content:""; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+                             border:5px solid transparent; border-top-color:#f2bd6b; }
+        .hart-trace { font-size:13px; cursor:help; opacity:.85; }
+        .hart-step-block { width:100%; border-radius:12px 12px 0 0; display:flex; flex-direction:column; align-items:center;
+                           justify-content:flex-start; padding-top:6px; color:#fff; font-weight:900;
+                           box-shadow: inset 0 -6px 0 rgba(0,0,0,.12); }
+        .hart-step.is-here .hart-step-block { outline:3px solid #fff; outline-offset:-5px; }
+        .hart-step-emoji { font-size:20px; }
+        .hart-step-label { font-size:10.5px; text-align:center; margin-top:5px; line-height:1.25; min-height:40px; font-weight:700; }
+        .hart-sol { height:10px; border-radius:6px; background:linear-gradient(90deg,#8d6e63,#a1887f); margin-top:-2px; }
+      </style>
+      {% set position = hart_evaluations[-1] if hart_evaluations else None %}
+      {% set last_temoignage = (hart_evaluations | selectattr('temoignage') | list | last) if hart_evaluations else None %}
+      <div class="hart-scene">
+        <div class="hart-steps">
+          {% for niv in hart_niveaux %}
+            <div class="hart-step {% if position and position.niveau == niv.niveau %}is-here{% endif %}">
+              <div class="hart-step-above">
+                {% if position and position.niveau == niv.niveau %}
+                  {% if last_temoignage %}<div class="hart-bulle">« {{ last_temoignage.temoignage }} »</div>{% endif %}
+                  <div class="hart-avatar" title="{{ participant.prenom }} est ici : {{ niv.habitant }} ({{ position.type_label }}, {{ position.date_evaluation.strftime('%d/%m/%Y') }})">🧗</div>
+                {% endif %}
+                {% for ev in hart_evaluations[:-1] if ev.niveau == niv.niveau %}
+                  <span class="hart-trace" title="Passé par ici : {{ ev.type_label }} · {{ ev.date_evaluation.strftime('%d/%m/%Y') }}{% if ev.temoignage %} · « {{ ev.temoignage }} »{% endif %}">👣</span>
+                {% endfor %}
+              </div>
+              <div class="hart-step-block" style="background: {{ niv.couleur }}; height: {{ 26 + niv.niveau * 11 }}px;">
+                <span class="hart-step-emoji">{{ niv.emoji }}</span>
+                <span>{{ niv.niveau }}</span>
+              </div>
+              <div class="hart-step-label" title="Échelle de Hart : {{ niv.libelle }} — {{ niv.description }}">{{ niv.habitant }}</div>
             </div>
           {% endfor %}
         </div>
-        {% set last_temoignage = (hart_evaluations | selectattr('temoignage') | list | last) %}
-        {% if last_temoignage %}
-          <p style="margin:10px 0 0 0;"><em>« {{ last_temoignage.temoignage }} »</em> <span class="muted">— témoignage du {{ last_temoignage.date_evaluation.strftime('%d/%m/%Y') }}</span></p>
-        {% endif %}
+        <div class="hart-sol"></div>
+      </div>
+      {% if not hart_evaluations %}
+        <p class="muted" style="margin-top:8px;">{{ participant.prenom }} n'a pas encore posé le pied sur l'escalier : pose l'évaluation de première venue ci-dessous. 👇</p>
+      {% endif %}
+
+      {% if hart_evaluations %}
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer; font-weight:700;">🧾 Historique des évaluations ({{ hart_evaluations|length }})</summary>
+          <div class="tablewrap clean" style="margin-top:8px;">
+            <table>
+              <thead><tr><th>Date</th><th>Étape</th><th>Type</th><th>Témoignage</th><th>Remarque pro</th><th></th></tr></thead>
+              <tbody>
+                {% for ev in hart_evaluations | reverse %}
+                  <tr>
+                    <td>{{ ev.date_evaluation.strftime('%d/%m/%Y') }}</td>
+                    <td><span class="status-badge" style="background: {{ hart_couleurs.get(ev.niveau, '#888') }}; color:#fff;">{{ ev.niveau }}</span></td>
+                    <td>{{ ev.type_label }}</td>
+                    <td>{% if ev.temoignage %}<em>« {{ ev.temoignage }} »</em>{% else %}—{% endif %}</td>
+                    <td class="muted">{{ ev.remarque_pro or '—' }}</td>
+                    <td>
+                      <form method="post" action="{{ url_for('main.hart_evaluation_supprimer', evaluation_id=ev.id) }}" onsubmit="return confirm('Supprimer cette évaluation ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id) }}#hart">
+                        <button class="btn danger" type="submit" style="padding:0 6px; font-size:11px;">🗑</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
       {% endif %}
 
       <div class="spacer"></div>
@@ -223,11 +282,11 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id) }}#hart">
           <div class="row" style="gap:10px; flex-wrap:wrap;">
-            <label class="field-stack"><span>Niveau</span>
+            <label class="field-stack"><span>Étape sur l'escalier</span>
               <select class="in" name="niveau" required>
                 <option value="">— Choisir —</option>
-                {% for n, lib, desc, part, coul in hart_niveaux %}
-                  <option value="{{ n }}" title="{{ desc }}">{{ n }} · {{ lib }}{{ '' if part else ' (non-participation)' }}</option>
+                {% for niv in hart_niveaux %}
+                  <option value="{{ niv.niveau }}" title="{{ niv.libelle }} — {{ niv.description }}">{{ niv.niveau }} {{ niv.emoji }} {{ niv.habitant }}{{ '' if niv.participation else ' (non-participation)' }}</option>
                 {% endfor %}
               </select>
             </label>
