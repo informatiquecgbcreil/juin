@@ -22,8 +22,8 @@
   <section class="hero-card">
     <div class="page-header">
       <div class="page-title-wrap">
-        <h1>Subventions</h1>
-        <p class="muted">Liste des dossiers actifs pour l’exercice {{ selected_year }}. Ouvrez un dossier pour le pilotage, le bilan ou les exports.</p>
+        <h1>Subventions{% if voir_archives %} — archives{% endif %}</h1>
+        <p class="muted">{% if voir_archives %}Dossiers archivés{% else %}Liste des dossiers actifs{% endif %} pour l’exercice {{ selected_year }}. Ouvrez un dossier pour le pilotage, le bilan ou les exports.</p>
       </div>
       <div class="hero-actions">
         <form method="get" action="{{ url_for('main.subventions_list') }}" class="inline-actions" data-filter-summary="true">
@@ -34,10 +34,28 @@
         <a class="btn" href="{{ url_for('main.subventions_par_financeur', annee=selected_year) }}">Vue par financeur</a>
         <a class="btn" href="{{ url_for('main.tresorerie', annee=selected_year) }}">💶 Trésorerie</a>
         <a class="btn" href="{{ url_for('main.export_subventions_xlsx', annee=selected_year) }}">⬇ Export Excel</a>
+        {% if voir_archives %}
+          <a class="btn" href="{{ url_for('main.subventions_list', annee=selected_year) }}">← Dossiers actifs</a>
+        {% else %}
+          <a class="btn" href="{{ url_for('main.subventions_list', annee=selected_year, archives=1) }}">Archives{% if nb_archives %} ({{ nb_archives }}){% endif %}</a>
+        {% endif %}
         <a class="btn" href="{{ url_for('budget.depenses_list') }}">Dépenses</a>
         <a class="btn" href="{{ url_for('previsionnel.referentiel') }}">Référentiel budgétaire</a>
       </div>
     </div>
+    {% if not voir_archives %}
+    <div class="context-strip">
+      <form method="post" action="{{ url_for('main.subventions_reconduire') }}" class="inline-actions"
+            onsubmit="return confirm('Reconduire les subventions de {{ selected_year }} vers l\'année suivante ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="annee_source" value="{{ selected_year }}">
+        <span class="context-pill">Bascule annuelle :</span>
+        <label class="field-stack slim"><span>Reconduire {{ selected_year }} vers</span>
+          <input class="in" type="number" name="annee_cible" value="{{ selected_year + 1 }}" style="width:110px;"></label>
+        <button class="btn" type="submit">🔁 Reconduire les dossiers</button>
+      </form>
+    </div>
+    {% endif %}
     <div class="kpi-grid-modern">
       <div class="kpi-box"><div class="muted">Dossiers</div><strong>{{ ns.count }}</strong></div>
       <div class="kpi-box"><div class="muted">Total demandé</div><strong>{{ '%.2f'|format(ns.total_demande) }}€</strong></div>
@@ -159,7 +177,13 @@
             <tr class="subvRow" data-search="{{ (s.nom ~ ' ' ~ (s.financeur or '') ~ ' ' ~ s.secteur ~ ' ' ~ s.annee_exercice)|lower }}" data-year="{{ s.annee_exercice }}" data-secteur="{{ s.secteur }}">
               <td><strong>{{ s.nom }}</strong></td><td>{{ s.financeur or '—' }}</td><td>{{ s.secteur }}</td><td>{{ s.annee_exercice }}</td><td><span class="status-badge" data-status="{{ s.statut_cycle }}">{{ s.statut_label }}</span></td><td>{{ "%.2f"|format(s.montant_demande or 0) }}€</td><td>{{ "%.2f"|format(s.montant_attribue or 0) }}€</td><td><strong>{{ "%.2f"|format(s.montant_recu or 0) }}€</strong></td>
               <td style="min-width:220px;"><div class="progress-shell"><div class="progress-fill {{ 'is-ok' if pct >= 80 else ('is-warn' if pct >= 30 else 'is-danger') }}" style="width:{{ pct }}%;">{{ "%.0f"|format(pct) }}%</div></div><div class="muted">reçu / attribué</div></td>
-              <td><div class="inline-actions"><span class="status-badge {{ "status-success" if pct >= 80 else ("status-warning" if pct >= 30 else "status-danger") }}">{{ "%.0f"|format(pct) }}% reçu</span><a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=s.id) }}">Ouvrir</a><a class="btn" href="{{ url_for('main.subvention_bilan', subvention_id=s.id) }}">Bilan</a></div></td>
+              <td><div class="inline-actions"><span class="status-badge {{ "status-success" if pct >= 80 else ("status-warning" if pct >= 30 else "status-danger") }}">{{ "%.0f"|format(pct) }}% reçu</span><a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=s.id) }}">Ouvrir</a><a class="btn" href="{{ url_for('main.subvention_bilan', subvention_id=s.id) }}">Bilan</a>
+                {% if voir_archives %}
+                  <form method="post" action="{{ url_for('main.subvention_restore', subvention_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn" type="submit">Restaurer</button></form>
+                {% else %}
+                  <form method="post" action="{{ url_for('main.subvention_archive', subvention_id=s.id) }}" onsubmit="return confirm('Archiver ce dossier ?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn" type="submit">Archiver</button></form>
+                {% endif %}
+              </div></td>
             </tr>
           {% endfor %}
           {% if subs|length == 0 %}<tr><td colspan="10"><div class="quick-empty"><strong>Aucune subvention n’est enregistrée pour le moment.</strong>Créez une subvention pour démarrer le suivi financier.</div></td></tr>{% endif %}
@@ -187,6 +211,11 @@
             <span class="status-badge {{ 'status-success' if pct >= 80 else ('status-warning' if pct >= 30 else 'status-danger') }}">{{ "%.0f"|format(pct) }}% reçu</span>
             <a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=s.id) }}">Ouvrir</a>
             <a class="btn" href="{{ url_for('main.subvention_bilan', subvention_id=s.id) }}">Bilan</a>
+            {% if voir_archives %}
+              <form method="post" action="{{ url_for('main.subvention_restore', subvention_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn" type="submit">Restaurer</button></form>
+            {% else %}
+              <form method="post" action="{{ url_for('main.subvention_archive', subvention_id=s.id) }}" onsubmit="return confirm('Archiver ce dossier ?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn" type="submit">Archiver</button></form>
+            {% endif %}
           </div>
         </article>
       {% else %}
