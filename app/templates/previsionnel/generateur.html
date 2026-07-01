@@ -137,15 +137,23 @@
 
 <script>
 (function(){
+  // Reproduit fidèlement app/previsionnel/cerfa.py:parse_amount côté serveur,
+  // pour que le total affiché corresponde exactement à ce qui sera enregistré.
   function parseAmount(raw){
-    raw = (raw||'').toString().replace(/\s/g,'').replace(',', '.');
+    raw = (raw||'').toString().replace(/\s/g,'').replace(/,/g,'.');
     if(!raw) return 0;
-    var v = parseFloat(raw);
-    if(!isNaN(v) && /^[0-9.]+$/.test(raw)) return v;
-    if(/^[0-9.+]+$/.test(raw)){
-      return raw.split('+').reduce(function(a,p){ var n=parseFloat(p); return a+(isNaN(n)?0:n); },0);
+    if(/^[0-9]*\.?[0-9]+$/.test(raw)) return parseFloat(raw);   // nombre simple
+    if(/^[0-9.+]+$/.test(raw)){                                 // somme « a+b+c »
+      var parts = raw.split('+'), total = 0, any = false;
+      for(var i=0;i<parts.length;i++){
+        if(parts[i]==='') continue;
+        var n = Number(parts[i]);
+        if(isNaN(n)) return 0;   // une partie invalide -> 0, comme le serveur
+        total += n; any = true;
+      }
+      return any ? total : 0;
     }
-    return isNaN(v)?0:v;
+    return 0;   // texte parasite (ex. « 100abc », « 1,000.50 ») -> 0
   }
   function fmt(n){ return (Math.round(n*100)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
