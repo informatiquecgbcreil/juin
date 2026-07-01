@@ -32,6 +32,7 @@
         </form>
         <span class="context-pill">Création rapide disponible ci-dessous</span>
         <a class="btn" href="{{ url_for('main.subventions_par_financeur', annee=selected_year) }}">Vue par financeur</a>
+        <a class="btn" href="{{ url_for('main.tresorerie', annee=selected_year) }}">💶 Trésorerie</a>
         <a class="btn" href="{{ url_for('main.export_subventions_xlsx', annee=selected_year) }}">⬇ Export Excel</a>
         <a class="btn" href="{{ url_for('budget.depenses_list') }}">Dépenses</a>
         <a class="btn" href="{{ url_for('previsionnel.referentiel') }}">Référentiel budgétaire</a>
