@@ -1238,6 +1238,16 @@ def participant_passeport(participant_id: int):
         .order_by(PortailAttempt.finished_at.desc().nullslast())
         .all()
     )
+
+    # --- Échelle de Hart (participation des habitants) ---
+    from app.models import HartEvaluation, HART_TYPES_EVALUATION
+    from app.services import hart as hart_service
+    hart_evaluations = (
+        HartEvaluation.query.filter_by(participant_id=participant_id)
+        .order_by(HartEvaluation.date_evaluation.asc(), HartEvaluation.id.asc())
+        .all()
+    )
+    hart_due = hart_service.evaluation_due(participant_id)
     # Détail des compétences alimentées par le portail (traçabilité).
     portail_comp_ids = list(portail_progress.keys())
     portail_comp_lookup = {
@@ -1277,6 +1287,11 @@ def participant_passeport(participant_id: int):
         portail_competences=portail_competences,
         portail_comp_ids=set(portail_progress.keys()),
         portail_configure=portail_configure(),
+        hart_evaluations=hart_evaluations,
+        hart_due=hart_due,
+        hart_niveaux=hart_service.HART_NIVEAUX,
+        hart_couleurs={n: info["couleur"] for n, info in hart_service.HART_NIVEAUX_DICT.items()},
+        hart_types=HART_TYPES_EVALUATION,
     )
 
 
