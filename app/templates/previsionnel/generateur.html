@@ -1,31 +1,42 @@
 {% extends "layout.html" %}
 {% block body %}
 <style>
-  .cerfa-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
-  @media (max-width: 1100px){ .cerfa-grid { grid-template-columns:1fr; } }
-  .cerfa-col h3 { margin:0 0 6px 0; }
-  .cerfa-compte { margin-top:12px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
-  .cerfa-compte__head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; font-weight:800; }
-  .cerfa-compte.charge .cerfa-compte__head { background: color-mix(in srgb, #2e7d32 15%, transparent); }
-  .cerfa-compte.produit .cerfa-compte__head { background: color-mix(in srgb, #2563eb 15%, transparent); }
-  .cerfa-line { display:grid; grid-template-columns:1fr 130px; gap:8px; align-items:center; padding:4px 10px; }
-  .cerfa-line input { text-align:right; }
-  .cerfa-sub { font-variant-numeric:tabular-nums; }
-  .cerfa-totline { display:flex; justify-content:space-between; padding:8px 10px; font-weight:800; }
+  .gen-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  @media (max-width: 1100px){ .gen-grid { grid-template-columns:1fr; } }
+  .gen-sec { padding:12px; }
+  .gen-sec-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .gen-sec-head h3 { margin:0; }
+  .gen-sec-total { font-weight:800; font-variant-numeric:tabular-nums; }
+  .gen-compte { border:1px solid var(--border); border-radius:10px; margin-top:10px; overflow:hidden; }
+  .gen-compte-head { display:flex; align-items:center; gap:6px; padding:6px 8px; background:color-mix(in srgb, var(--border) 30%, transparent); flex-wrap:wrap; }
+  .gen-compte-head .gen-code { width:64px; font-weight:700; }
+  .gen-compte-head .gen-clib { flex:1 1 160px; font-weight:700; }
+  .gen-csub { font-weight:800; font-variant-numeric:tabular-nums; margin-left:auto; }
+  .gen-lines { padding:4px 8px; }
+  .gen-line { display:grid; grid-template-columns:1fr 120px auto; gap:6px; align-items:center; padding:3px 0; }
+  .gen-line .gen-amt { text-align:right; }
+  .gen-add-compte { margin-top:10px; }
+  .gen-add-line, .gen-del-compte, .gen-del-line { padding:2px 8px; }
   .eq-ok { color: var(--ok,#2e7d32); } .eq-bad { color: var(--danger,#dc2626); }
-  @media print { .no-print { display:none !important; } }
+  @media print { .no-print { display:none !important; } .gen-del-line,.gen-del-compte,.gen-add-line,.gen-add-compte { display:none !important; } }
 </style>
 
 <div class="page-shell wide-shell stack">
   <div class="page-header">
     <div class="page-title-wrap">
       <h1 class="page-title">Générateur de budget prévisionnel</h1>
-      <p class="page-subtitle">Saisis un compte de résultat prévisionnel (modèle associatif type CERFA / CAF-FADO), puis exporte-le en Excel ou envoie-le vers une subvention ou un budget de projet.</p>
+      <p class="page-subtitle">Modèle associatif type CERFA / CAF-FADO, <strong>entièrement éditable</strong> : ajoute ou retire des comptes, ajoute, renomme ou supprime des lignes. Exporte en Excel ou envoie vers une subvention ou un budget de projet.</p>
+    </div>
+    <div class="hero-actions no-print">
+      <button type="button" class="btn" id="genReset" title="Repartir du modèle CERFA par défaut">↺ Réinitialiser au modèle</button>
     </div>
   </div>
 
   <form method="post" action="{{ url_for('previsionnel.generateur') }}" id="cerfaForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="structure_json" id="structureJson">
+    <input type="hidden" name="action" id="cerfaAction" value="export_xlsx">
+    <input type="hidden" name="budget_nom" id="budgetNomMirror">
 
     <section class="section-card">
       <div class="form-grid-3">
@@ -41,74 +52,12 @@
         <span class="context-pill">Total charges : <strong id="tCharges">0,00</strong> €</span>
         <span class="context-pill">Total produits : <strong id="tProduits">0,00</strong> €</span>
         <span class="context-pill">Équilibre : <strong id="tEquilibre" class="eq-ok">0,00</strong> €</span>
+        <span class="context-pill muted">Vos modifications sont mémorisées dans ce navigateur.</span>
       </div>
     </section>
 
-    <div class="cerfa-grid">
-      <div class="cerfa-col">
-        <h3>Charges</h3>
-        {% for compte in charges %}
-          <div class="cerfa-compte charge">
-            <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|charge">0,00 €</span></div>
-            {% for cat in compte.categories %}
-              <div class="cerfa-line">
-                <label>{{ cat.libelle }}</label>
-                <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="charge" placeholder="0">
-              </div>
-            {% endfor %}
-          </div>
-        {% endfor %}
-        <div class="cerfa-totline" style="background:color-mix(in srgb,#2e7d32 18%,transparent); border-radius:10px; margin-top:12px;">
-          <span>TOTAL DES CHARGES</span><span><strong id="tChargesBloc">0,00</strong> €</span>
-        </div>
-      </div>
-
-      <div class="cerfa-col">
-        <h3>Produits</h3>
-        {% for compte in produits %}
-          <div class="cerfa-compte produit">
-            <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|produit">0,00 €</span></div>
-            {% for cat in compte.categories %}
-              <div class="cerfa-line">
-                <label>{{ cat.libelle }}</label>
-                <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="produit" placeholder="0">
-              </div>
-            {% endfor %}
-          </div>
-        {% endfor %}
-        <div class="cerfa-totline" style="background:color-mix(in srgb,#2563eb 18%,transparent); border-radius:10px; margin-top:12px;">
-          <span>TOTAL DES PRODUITS</span><span><strong id="tProduitsBloc">0,00</strong> €</span>
-        </div>
-      </div>
-    </div>
-
-    <section class="section-card">
-      <h3 class="section-title">Contributions volontaires en nature</h3>
-      <div class="cerfa-grid">
-        <div class="cerfa-col">
-          {% for compte in contrib_emplois %}
-            <div class="cerfa-compte charge">
-              <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|emploi">0,00 €</span></div>
-              {% for cat in compte.categories %}
-                <div class="cerfa-line"><label>{{ cat.libelle }}</label>
-                  <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="emploi" placeholder="0"></div>
-              {% endfor %}
-            </div>
-          {% endfor %}
-        </div>
-        <div class="cerfa-col">
-          {% for compte in contrib_ressources %}
-            <div class="cerfa-compte produit">
-              <div class="cerfa-compte__head"><span>{{ compte.code }} - {{ compte.libelle }}</span><span class="cerfa-sub" data-subtotal="{{ compte.code }}|ressource">0,00 €</span></div>
-              {% for cat in compte.categories %}
-                <div class="cerfa-line"><label>{{ cat.libelle }}</label>
-                  <input class="in cerfa-amount" name="{{ cat.key }}" inputmode="decimal" data-compte="{{ compte.code }}" data-section="ressource" placeholder="0"></div>
-              {% endfor %}
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-    </section>
+    <noscript><div class="callout-soft">Ce générateur nécessite JavaScript pour l'édition et l'export.</div></noscript>
+    <div id="genRoot"></div>
 
     <section class="section-card no-print">
       <h3 class="section-title">Exporter ou envoyer</h3>
@@ -121,11 +70,6 @@
           </select>
         </label>
       </div>
-      <input type="hidden" name="budget_nom" id="budgetNomMirror">
-      {# L'action est portée par un champ caché (et non par le name/value du bouton) :
-         un gestionnaire JS global désactive le bouton de soumission, or un bouton
-         désactivé n'envoie pas son name/value — l'action serait alors perdue (HTTP 400). #}
-      <input type="hidden" name="action" id="cerfaAction" value="export_xlsx">
       <div class="inline-actions" style="margin-top:12px;">
         <button class="btn ok" type="submit" onclick="document.getElementById('cerfaAction').value='export_xlsx'">⬇ Exporter en Excel</button>
         {% if can_edit_budget %}
@@ -139,75 +83,7 @@
   </form>
 </div>
 
-<script>
-(function(){
-  // Reproduit fidèlement app/previsionnel/cerfa.py:parse_amount côté serveur,
-  // pour que le total affiché corresponde exactement à ce qui sera enregistré.
-  function parseAmount(raw){
-    raw = (raw||'').toString().replace(/\s/g,'').replace(/,/g,'.');
-    if(!raw) return 0;
-    if(/^[0-9]*\.?[0-9]+$/.test(raw)) return parseFloat(raw);   // nombre simple
-    if(/^[0-9.+]+$/.test(raw)){                                 // somme « a+b+c »
-      var parts = raw.split('+'), total = 0, any = false;
-      for(var i=0;i<parts.length;i++){
-        if(parts[i]==='') continue;
-        var n = Number(parts[i]);
-        if(isNaN(n)) return 0;   // une partie invalide -> 0, comme le serveur
-        total += n; any = true;
-      }
-      return any ? total : 0;
-    }
-    return 0;   // texte parasite (ex. « 100abc », « 1,000.50 ») -> 0
-  }
-  function fmt(n){ return (Math.round(n*100)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-
-  var inputs = Array.prototype.slice.call(document.querySelectorAll('.cerfa-amount'));
-  var budgetMirror = document.getElementById('budgetNomMirror');
-  var subvNom = document.querySelector('input[name="subvention_nom"]');
-
-  function recompute(){
-    var subtotals = {};      // "code|section" -> sum
-    var sections = {charge:0, produit:0, emploi:0, ressource:0};
-    inputs.forEach(function(inp){
-      var val = parseAmount(inp.value);
-      var code = inp.getAttribute('data-compte');
-      var sec = inp.getAttribute('data-section');
-      var k = code+'|'+sec;
-      subtotals[k] = (subtotals[k]||0) + val;
-      sections[sec] += val;
-    });
-    document.querySelectorAll('[data-subtotal]').forEach(function(el){
-      var k = el.getAttribute('data-subtotal');
-      el.textContent = fmt(subtotals[k]||0) + ' €';
-    });
-    var totalCharges = sections.charge, totalProduits = sections.produit;
-    var tgCharges = totalCharges + sections.emploi;
-    var tgProduits = totalProduits + sections.ressource;
-    var eq = tgProduits - tgCharges;
-    document.getElementById('tCharges').textContent = fmt(totalCharges);
-    document.getElementById('tProduits').textContent = fmt(totalProduits);
-    document.getElementById('tChargesBloc').textContent = fmt(totalCharges);
-    document.getElementById('tProduitsBloc').textContent = fmt(totalProduits);
-    var eqEl = document.getElementById('tEquilibre');
-    eqEl.textContent = fmt(eq);
-    eqEl.className = Math.abs(eq) < 0.005 ? 'eq-ok' : 'eq-bad';
-  }
-  inputs.forEach(function(inp){ inp.addEventListener('input', recompute); });
-  var form = document.getElementById('cerfaForm');
-  form.addEventListener('submit', function(){
-    if(subvNom && budgetMirror){ budgetMirror.value = subvNom.value; }
-    // L'export déclenche un téléchargement sans recharger la page : on réactive
-    // les boutons désactivés par le gestionnaire global pour ne pas les laisser
-    // bloqués sur « Enregistrement… ».
-    setTimeout(function(){
-      form.querySelectorAll('button[type="submit"]').forEach(function(b){
-        b.disabled = false; b.classList.remove('is-pending');
-        if(b.dataset.originalText){ b.innerHTML = b.dataset.originalText; }
-        delete b.dataset.pendingApplied;
-      });
-    }, 2500);
-  });
-  recompute();
-})();
-</script>
+<script id="cerfaDefault" type="application/json">{{ default_structure|tojson }}</script>
+<script>window.CERFA_SECTION_LABELS = {{ section_labels|tojson }};</script>
+<script src="{{ url_for('static', filename='js/budget-generateur.js') }}?v=20260701-editable"></script>
 {% endblock %}

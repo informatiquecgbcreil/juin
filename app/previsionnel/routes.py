@@ -1739,10 +1739,10 @@ def generateur():
         except Exception:
             exercice = date.today().year
         secteur = _resolved_secteur(request.form.get("secteur"))
-        values = cerfa.values_from_form(request.form)
+        structure = cerfa.parse_structure(request.form.get("structure_json"))
 
         if action == "export_xlsx":
-            wb = cerfa.build_cerfa_workbook(values, organisme=organisme, exercice=exercice, secteur=secteur)
+            wb = cerfa.build_workbook(structure, organisme=organisme, exercice=exercice, secteur=secteur)
             bio = BytesIO()
             wb.save(bio)
             bio.seek(0)
@@ -1761,7 +1761,7 @@ def generateur():
             flash("Sélectionne un secteur.", "danger")
             return redirect(url_for("previsionnel.generateur"))
 
-        lignes = cerfa.lignes_budget(values)
+        lignes = cerfa.lignes_budget(structure)
 
         if action == "to_subvention":
             if not lignes:
@@ -1824,10 +1824,8 @@ def generateur():
     from flask import current_app
     return render_template(
         "previsionnel/generateur.html",
-        charges=cerfa.CERFA_CHARGES,
-        produits=cerfa.CERFA_PRODUITS,
-        contrib_emplois=cerfa.CERFA_CONTRIB_EMPLOIS,
-        contrib_ressources=cerfa.CERFA_CONTRIB_RESSOURCES,
+        default_structure=cerfa.default_structure(),
+        section_labels=cerfa.SECTION_LABEL,
         secteurs=secteurs,
         selected_secteur=default_secteur,
         projets=projets,

@@ -48,7 +48,24 @@
   document.addEventListener('submit', (e)=>{
     const form = e.target;
     if(!(form instanceof HTMLFormElement)) return;
-    const submit = form.querySelector('[type="submit"]');
+
+    // Bouton réellement cliqué (SubmitEvent.submitter, null si soumission
+    // programmatique). On préserve son name/value : le désactiver ci-dessous
+    // l'exclurait de l'envoi, ce qui perdrait l'action portée par le bouton
+    // (symptôme : HTTP 400 côté serveur).
+    const clicked = (e.submitter && e.submitter.tagName) ? e.submitter : null;
+    form.querySelectorAll('input[data-submit-keeper="1"]').forEach(n => n.remove());
+    if(clicked && clicked.name){
+      const keeper = document.createElement('input');
+      keeper.type = 'hidden';
+      keeper.name = clicked.name;
+      keeper.value = clicked.value;
+      keeper.dataset.submitKeeper = '1';
+      form.appendChild(keeper);
+    }
+
+    // Décor « en cours » sur le bouton cliqué (sinon le premier bouton de soumission).
+    const submit = clicked || form.querySelector('[type="submit"]');
     if(!submit || submit.dataset.pendingApplied === '1') return;
     submit.dataset.pendingApplied = '1';
     submit.dataset.originalText = submit.innerHTML;

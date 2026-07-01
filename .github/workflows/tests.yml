@@ -22,5 +22,8 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r requirements-dev.txt
 
+      - name: Installer le navigateur Playwright (test de fumée)
+        run: python -m playwright install --with-deps chromium
+
       - name: Lancer les tests
         run: python -m pytest
