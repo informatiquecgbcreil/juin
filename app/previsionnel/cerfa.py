@@ -138,27 +138,48 @@ CERFA_CONTRIB_RESSOURCES = [
 ]
 
 
-def all_category_keys() -> list[str]:
-    keys = []
-    for block in (CERFA_CHARGES, CERFA_PRODUITS, CERFA_CONTRIB_EMPLOIS, CERFA_CONTRIB_RESSOURCES):
-        for compte in block:
-            for cat in compte["categories"]:
-                keys.append(cat["key"])
-    return keys
+# --- Sections (une structure = 4 sections ordonnées) -------------------------
+
+SECTIONS = [
+    ("charges", "Charges", "charge"),
+    ("produits", "Produits", "produit"),
+    ("contrib_emplois", "Contributions volontaires — emplois", "charge"),
+    ("contrib_ressources", "Contributions volontaires — ressources", "produit"),
+]
+SECTION_KEYS = [k for k, _, _ in SECTIONS]
+SECTION_NATURE = {k: nat for k, _, nat in SECTIONS}
+SECTION_LABEL = {k: lib for k, lib, _ in SECTIONS}
+
+# Garde-fous anti-abus (structure envoyée par le client).
+MAX_COMPTES = 120
+MAX_LINES = 300
 
 
-# --- Parsing / calculs -------------------------------------------------------
+def default_structure() -> dict:
+    """Structure de départ = modèle CERFA/CAF-FADO canonique, montants à 0."""
+    def conv(block):
+        return [
+            {"code": c["code"], "libelle": c["libelle"],
+             "lines": [{"libelle": cat["libelle"], "montant": 0.0} for cat in c["categories"]]}
+            for c in block
+        ]
+    return {
+        "charges": conv(CERFA_CHARGES),
+        "produits": conv(CERFA_PRODUITS),
+        "contrib_emplois": conv(CERFA_CONTRIB_EMPLOIS),
+        "contrib_ressources": conv(CERFA_CONTRIB_RESSOURCES),
+    }
+
 
 def parse_amount(value) -> float:
-    """Tolère les espaces, la virgule décimale et une somme simple « a+b+c »."""
-    raw = str(value or "").replace(" ", "").replace(" ", "").replace(",", ".")
+    """Tolère nombre, espaces, virgule décimale et somme simple « a+b+c »."""
+    raw = str(value if value is not None else "").replace(" ", "").replace(" ", "").replace(",", ".")
     if not raw:
         return 0.0
     try:
         return round(float(raw), 2)
     except Exception:
         pass
-    # somme simple de nombres (ex. « 220+144+270 »), sans eval arbitraire
     if all(c in "0123456789.+" for c in raw):
         total = 0.0
         ok = False
@@ -175,64 +196,101 @@ def parse_amount(value) -> float:
     return 0.0
 
 
-def values_from_form(form) -> dict[str, float]:
-    """Extrait {clé_catégorie: montant} depuis un formulaire (request.form)."""
-    values = {}
-    for key in all_category_keys():
-        values[key] = parse_amount(form.get(key))
-    return values
+def parse_structure(raw) -> dict:
+    """Valide/normalise une structure (chaîne JSON ou dict). Retourne toujours
+    une structure sûre ; revient au modèle par défaut si l'entrée est vide."""
+    import json
+    data = raw
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+        except Exception:
+            data = None
+    if not isinstance(data, dict):
+        return default_structure()
+
+    out = {}
+    for key in SECTION_KEYS:
+        comptes = []
+        block = data.get(key)
+        if isinstance(block, list):
+            for c in block[:MAX_COMPTES]:
+                if not isinstance(c, dict):
+                    continue
+                code = str(c.get("code") or "").strip()[:20]
+                libelle = str(c.get("libelle") or "").strip()[:200]
+                lines = []
+                raw_lines = c.get("lines")
+                if isinstance(raw_lines, list):
+                    for ln in raw_lines[:MAX_LINES]:
+                        if not isinstance(ln, dict):
+                            continue
+                        llib = str(ln.get("libelle") or "").strip()[:255]
+                        montant = parse_amount(ln.get("montant"))
+                        if not llib and not montant:
+                            continue
+                        lines.append({"libelle": llib, "montant": montant})
+                if code or libelle or lines:
+                    comptes.append({"code": code, "libelle": libelle, "lines": lines})
+        out[key] = comptes
+
+    if not any(out[k] for k in SECTION_KEYS):
+        return default_structure()
+    return out
 
 
-def _compte_total(compte: dict, values: dict[str, float]) -> float:
-    return round(sum(values.get(c["key"], 0.0) for c in compte["categories"]), 2)
+def _compte_total(compte: dict) -> float:
+    return round(sum(float(l.get("montant") or 0) for l in compte.get("lines", [])), 2)
 
 
-def compute_totals(values: dict[str, float]) -> dict:
-    """Calcule les sous-totaux par compte et les totaux généraux."""
-    totaux_charges = {c["code"]: _compte_total(c, values) for c in CERFA_CHARGES}
-    totaux_produits = {c["code"]: _compte_total(c, values) for c in CERFA_PRODUITS}
-    total_charges = round(sum(totaux_charges.values()), 2)
-    total_produits = round(sum(totaux_produits.values()), 2)
+def _section_total(structure: dict, key: str) -> float:
+    return round(sum(_compte_total(c) for c in structure.get(key, [])), 2)
 
-    total_emplois = round(sum(_compte_total(c, values) for c in CERFA_CONTRIB_EMPLOIS), 2)
-    total_ressources = round(sum(_compte_total(c, values) for c in CERFA_CONTRIB_RESSOURCES), 2)
 
-    total_general_charges = round(total_charges + total_emplois, 2)
-    total_general_produits = round(total_produits + total_ressources, 2)
-
+def compute_totals(structure: dict) -> dict:
+    total_charges = _section_total(structure, "charges")
+    total_produits = _section_total(structure, "produits")
+    total_emplois = _section_total(structure, "contrib_emplois")
+    total_ressources = _section_total(structure, "contrib_ressources")
+    tgc = round(total_charges + total_emplois, 2)
+    tgp = round(total_produits + total_ressources, 2)
     return {
-        "par_compte_charges": totaux_charges,
-        "par_compte_produits": totaux_produits,
         "total_charges": total_charges,
         "total_produits": total_produits,
         "total_emplois": total_emplois,
         "total_ressources": total_ressources,
-        "total_general_charges": total_general_charges,
-        "total_general_produits": total_general_produits,
-        "equilibre": round(total_general_produits - total_general_charges, 2),
+        "total_general_charges": tgc,
+        "total_general_produits": tgp,
+        "equilibre": round(tgp - tgc, 2),
     }
 
 
-def lignes_budget(values: dict[str, float], *, inclure_zero: bool = False) -> list[dict]:
-    """Aplati la saisie en lignes {nature, compte, libelle, montant} pour
-    alimenter une subvention ou un budget prévisionnel. Les contributions
-    volontaires (86/87) sont exclues : elles ne constituent pas des flux
-    budgétaires réels."""
+def _compte_label(compte: dict) -> str:
+    code = (compte.get("code") or "").strip()
+    lib = (compte.get("libelle") or "").strip()
+    label = f"{code} - {lib}".strip(" -")
+    return label or code or lib or "60"
+
+
+def lignes_budget(structure: dict, *, inclure_zero: bool = False) -> list[dict]:
+    """Aplati charges + produits en lignes {nature, compte, code, libelle, montant}
+    pour alimenter une subvention ou un budget prévisionnel. Les contributions
+    volontaires (86/87) sont exclues (ce ne sont pas des flux réels)."""
     out = []
-    for compte in CERFA_CHARGES:
-        compte_label = f"{compte['code']} - {compte['libelle']}"
-        for cat in compte["categories"]:
-            montant = values.get(cat["key"], 0.0)
-            if montant or inclure_zero:
-                out.append({"nature": "charge", "compte": compte_label,
-                            "libelle": cat["libelle"], "montant": round(montant, 2)})
-    for compte in CERFA_PRODUITS:
-        compte_label = f"{compte['code']} - {compte['libelle']}"
-        for cat in compte["categories"]:
-            montant = values.get(cat["key"], 0.0)
-            if montant or inclure_zero:
-                out.append({"nature": "produit", "compte": compte_label,
-                            "libelle": cat["libelle"], "montant": round(montant, 2)})
+    for key in ("charges", "produits"):
+        nature = SECTION_NATURE[key]
+        for compte in structure.get(key, []):
+            label = _compte_label(compte)
+            for ln in compte.get("lines", []):
+                montant = round(float(ln.get("montant") or 0), 2)
+                if montant or inclure_zero:
+                    out.append({
+                        "nature": nature,
+                        "compte": label,
+                        "code": (compte.get("code") or "").strip(),
+                        "libelle": (ln.get("libelle") or "").strip() or label,
+                        "montant": montant,
+                    })
     return out
 
 
@@ -246,16 +304,15 @@ def _safe_text(value) -> str:
     return s
 
 
-def build_cerfa_workbook(values: dict[str, float], *, organisme: str, exercice, secteur: str | None = None):
-    """Construit un classeur openpyxl fidèle au modèle de compte de résultat
-    prévisionnel : deux colonnes parallèles (charges / produits), sous-totaux
-    par compte en formules, totaux généraux et vérification de l'équilibre."""
+def build_workbook(structure: dict, *, organisme: str, exercice, secteur: str | None = None):
+    """Classeur Excel fidèle au modèle : colonnes parallèles charges/produits,
+    sous-totaux par compte en formules SUM, totaux généraux et équilibre.
+    Piloté par la structure (éventuellement éditée par l'utilisateur)."""
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Font, PatternFill, Border, Side
 
     wb = Workbook()
     ws = wb.active
-    # openpyxl interdit les caractères []:*?/\ dans un titre d'onglet.
     titre = re.sub(r"[\[\]:*?/\\]", " ", (secteur or "Budget")).strip()[:31]
     ws.title = titre or "Budget"
 
@@ -284,58 +341,59 @@ def build_cerfa_workbook(values: dict[str, float], *, organisme: str, exercice, 
         ws[coord].font = bold
         ws[coord].fill = fill
 
-    start = 6
-
-    def write_block(block, col_lib, col_val, fill, cursor_start):
-        """Écrit un bloc (charges ou produits) et renvoie (dernière_ligne, [cellules_sous_totaux])."""
+    def write_block(comptes, col_lib, col_val, fill, cursor_start):
         row = cursor_start
         subtotal_cells = []
-        for compte in block:
-            # ligne de compte : libellé + formule SUM sur ses catégories
+        for compte in comptes:
             first_cat_row = row + 1
-            last_cat_row = row + len(compte["categories"])
-            lib_cell = ws.cell(row=row, column=col_lib, value=f"{compte['code']} - {compte['libelle']}")
+            last_cat_row = row + len(compte.get("lines", []))
+            lib_cell = ws.cell(row=row, column=col_lib, value=_compte_label(compte))
             lib_cell.font = bold
             lib_cell.fill = fill
             val_cell = ws.cell(row=row, column=col_val)
             col_letter = val_cell.column_letter
-            val_cell.value = f"=SUM({col_letter}{first_cat_row}:{col_letter}{last_cat_row})"
+            if last_cat_row >= first_cat_row:
+                val_cell.value = f"=SUM({col_letter}{first_cat_row}:{col_letter}{last_cat_row})"
+            else:
+                val_cell.value = 0
             val_cell.font = bold
             val_cell.fill = fill
+            val_cell.number_format = "#,##0.00"
             subtotal_cells.append(f"{col_letter}{row}")
             row += 1
-            for cat in compte["categories"]:
-                ws.cell(row=row, column=col_lib, value=_safe_text(cat["libelle"]))
-                mc = ws.cell(row=row, column=col_val, value=round(values.get(cat["key"], 0.0), 2))
+            for ln in compte.get("lines", []):
+                ws.cell(row=row, column=col_lib, value=_safe_text(ln.get("libelle")))
+                mc = ws.cell(row=row, column=col_val, value=round(float(ln.get("montant") or 0), 2))
                 mc.number_format = "#,##0.00"
                 row += 1
         return row, subtotal_cells
 
-    end_charges, charge_subtotals = write_block(CERFA_CHARGES, 1, 2, head_fill, start)
-    end_produits, produit_subtotals = write_block(CERFA_PRODUITS, 3, 4, prod_fill, start)
+    end_charges, charge_subtotals = write_block(structure.get("charges", []), 1, 2, head_fill, 6)
+    end_produits, produit_subtotals = write_block(structure.get("produits", []), 3, 4, prod_fill, 6)
 
     total_row = max(end_charges, end_produits) + 1
     ws.cell(row=total_row, column=1, value="TOTAL DES CHARGES").font = bold
-    tc = ws.cell(row=total_row, column=2, value="=" + "+".join(charge_subtotals))
+    tc = ws.cell(row=total_row, column=2, value=("=" + "+".join(charge_subtotals)) if charge_subtotals else 0)
     ws.cell(row=total_row, column=3, value="TOTAL DES PRODUITS").font = bold
-    tp = ws.cell(row=total_row, column=4, value="=" + "+".join(produit_subtotals))
+    tp = ws.cell(row=total_row, column=4, value=("=" + "+".join(produit_subtotals)) if produit_subtotals else 0)
     for cell in (tc, tp):
         cell.font = bold
         cell.number_format = "#,##0.00"
     for col in (1, 2, 3, 4):
         ws.cell(row=total_row, column=col).fill = total_fill
 
-    # Contributions volontaires
     contrib_title = total_row + 2
     ws.cell(row=contrib_title, column=1, value="CONTRIBUTIONS VOLONTAIRES EN NATURE").font = bold
-    end_emplois, emploi_subtotals = write_block(CERFA_CONTRIB_EMPLOIS, 1, 2, head_fill, contrib_title + 1)
-    end_ressources, ressource_subtotals = write_block(CERFA_CONTRIB_RESSOURCES, 3, 4, prod_fill, contrib_title + 1)
+    end_emplois, emploi_subtotals = write_block(structure.get("contrib_emplois", []), 1, 2, head_fill, contrib_title + 1)
+    end_ressources, ressource_subtotals = write_block(structure.get("contrib_ressources", []), 3, 4, prod_fill, contrib_title + 1)
 
     tg_row = max(end_emplois, end_ressources) + 1
     ws.cell(row=tg_row, column=1, value="TOTAL GÉNÉRAL DES CHARGES").font = bold
-    tgc = ws.cell(row=tg_row, column=2, value=f"=B{total_row}+" + "+".join(emploi_subtotals))
+    emplois_expr = ("+" + "+".join(emploi_subtotals)) if emploi_subtotals else ""
+    ressources_expr = ("+" + "+".join(ressource_subtotals)) if ressource_subtotals else ""
+    tgc = ws.cell(row=tg_row, column=2, value=f"=B{total_row}{emplois_expr}")
     ws.cell(row=tg_row, column=3, value="TOTAL GÉNÉRAL DES PRODUITS").font = bold
-    tgp = ws.cell(row=tg_row, column=4, value=f"=D{total_row}+" + "+".join(ressource_subtotals))
+    tgp = ws.cell(row=tg_row, column=4, value=f"=D{total_row}{ressources_expr}")
     for cell in (tgc, tgp):
         cell.font = bold
         cell.number_format = "#,##0.00"
@@ -348,7 +406,6 @@ def build_cerfa_workbook(values: dict[str, float], *, organisme: str, exercice, 
     eq.font = bold
     eq.number_format = "#,##0.00"
 
-    # bordures + largeurs
     for row in ws.iter_rows(min_row=5, max_row=eq_row, min_col=1, max_col=4):
         for cell in row:
             if cell.value is not None:
@@ -356,12 +413,4 @@ def build_cerfa_workbook(values: dict[str, float], *, organisme: str, exercice, 
     for col_letter, width in (("A", 42), ("B", 15), ("C", 46), ("D", 15)):
         ws.column_dimensions[col_letter].width = width
     ws.freeze_panes = "A6"
-
     return wb
-
-
-def workbook_to_bytes(wb) -> bytes:
-    buf = BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return buf.getvalue()

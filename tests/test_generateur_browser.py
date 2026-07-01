@@ -134,9 +134,12 @@ def test_export_generateur_dans_navigateur(live_server):
             page.click('button:has-text("Se connecter")')
             page.wait_for_url("**/dashboard", timeout=15000)
 
-            # Générateur : saisir un montant puis exporter
+            # Générateur : la structure est rendue par le JS (éditeur)
             page.goto(live_server + "/previsionnel/generateur", wait_until="domcontentloaded")
-            page.fill('input[name="cat__60__0"]', "500")
+            page.wait_for_selector(".gen-amt", timeout=10000)
+            # éditer : ajouter une ligne dans le premier compte, puis saisir un montant
+            page.locator(".gen-add-line").first.click()
+            page.locator(".gen-amt").first.fill("500")
             with page.expect_download(timeout=20000) as dl:
                 page.click('button:has-text("Exporter en Excel")')
             download = dl.value
