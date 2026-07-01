@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import csv
 from datetime import datetime, date, timedelta
 
-from io import BytesIO
+from io import BytesIO, StringIO
 
-from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, abort, send_file
+from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, abort, send_file, Response
 from flask_login import login_required, current_user
 from ..rbac import require_perm, can
 
@@ -32,6 +33,7 @@ from app.services.insertion import (
     can_view_insertion_sensitive as can_view_insertion_sensitive_module,
     sync_legacy_insertion_fields,
 )
+from app.services.purge_rgpd import NOM_ANONYME
 
 
 
@@ -548,6 +550,69 @@ def list_participants():
         dashboard_filters=dashboard_filters,
         pagination=None,
     )
+
+
+def _csat_gender_code(genre: str | None) -> str:
+    """Convertit le genre interne (Homme/Femme/Autre) vers le code attendu par
+    l'import CSV du portail CSAT (M/F/N)."""
+    if genre == "Homme":
+        return "M"
+    if genre == "Femme":
+        return "F"
+    return "N"
+
+
+@bp.route("/export-csat.csv")
+@login_required
+@require_perm("participants:view")
+def export_csat_csv():
+    """Export des participants au format d'import CSV du portail CSAT
+    (Centres Sociaux Acteurs des Transitions) : évite la ressaisie manuelle
+    entre les deux outils.
+
+    Colonnes attendues par CSAT : last_name;first_name;location;gender;birthdate
+    (date au format JJ/MM/AAAA, genre M/F/N).
+    """
+    participants_q = Participant.query.filter(Participant.nom != NOM_ANONYME)
+
+    if not current_user.has_perm("participants:view_all"):
+        sec = _current_secteur()
+        if not sec:
+            abort(403)
+        subq_presence_ids = (
+            db.session.query(PresenceActivite.participant_id)
+            .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+            .filter(SessionActivite.secteur == sec)
+            .distinct()
+        )
+        participants_q = participants_q.filter(
+            (Participant.created_secteur == sec) | (Participant.id.in_(subq_presence_ids))
+        )
+    else:
+        secteur_filtre = (request.args.get("secteur") or "").strip()
+        if secteur_filtre:
+            participants_q = participants_q.filter(Participant.created_secteur == secteur_filtre)
+
+    participants = participants_q.order_by(Participant.nom.asc(), Participant.prenom.asc()).all()
+
+    output = StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["last_name", "first_name", "location", "gender", "birthdate"])
+    for p in participants:
+        writer.writerow([
+            p.nom,
+            p.prenom,
+            p.ville or "",
+            _csat_gender_code(p.genre),
+            p.date_naissance.strftime("%d/%m/%Y") if p.date_naissance else "",
+        ])
+
+    content = output.getvalue().encode("utf-8-sig")
+    filename = f"participants_csat_{date.today().isoformat()}.csv"
+    return Response(content, mimetype="text/csv", headers={
+        "Content-Disposition": f"attachment; filename={filename}"
+    })
+
 
 @bp.route("/search")
 @login_required

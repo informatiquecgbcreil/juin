@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime, time as dt_time
+from io import BytesIO
 
 from app.utils.dates import utcnow
 
@@ -8,6 +9,7 @@ from flask import (
     redirect,
     url_for,
     flash,
+    send_file,
 )
 from flask_login import login_required
 from sqlalchemy import false
@@ -264,6 +266,70 @@ def sessions(atelier_id: int):
         corbeille=corbeille,
         current_year=date.today().year,
         current_month=date.today().month,
+    )
+
+
+def _parse_hhmm(value: str | None) -> dt_time | None:
+    if not value:
+        return None
+    try:
+        h, m = str(value).split(":")[:2]
+        return dt_time(int(h), int(m))
+    except Exception:
+        return None
+
+
+@bp.route("/atelier/<int:atelier_id>/export-csat-sessions.xlsx")
+@login_required
+def export_csat_sessions(atelier_id: int):
+    """Export des séances d'un atelier au format d'import « Sessions » du
+    portail CSAT (Centres Sociaux Acteurs des Transitions) : évite la
+    ressaisie manuelle des créneaux entre les deux outils.
+
+    Colonnes attendues par CSAT : session_date, session_debut, session_fin
+    (heure de début en texte, heure de fin en valeur horaire, comme dans le
+    modèle d'import fourni par CSAT).
+    """
+    from openpyxl import Workbook
+
+    _require_any_perm("ateliers:view", "emargement:view")
+    atelier = db.get_or_404(AtelierActivite, atelier_id)
+    if not _can_access_activity_secteur(atelier.secteur):
+        return _deny_activity_access()
+
+    sessions_list = (
+        SessionActivite.query
+        .filter_by(atelier_id=atelier.id, is_deleted=False)
+        .all()
+    )
+
+    rows = []
+    for s in sessions_list:
+        if s.session_type == "COLLECTIF":
+            eff_date, eff_debut, eff_fin = s.date_session, s.heure_debut, s.heure_fin
+        else:
+            eff_date, eff_debut, eff_fin = s.rdv_date, s.rdv_debut, s.rdv_fin
+        if not eff_date:
+            continue
+        rows.append((eff_date, eff_debut or "", _parse_hhmm(eff_fin)))
+    rows.sort(key=lambda r: r[0])
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sessions"
+    ws.append(["session_date", "session_debut", "session_fin"])
+    for eff_date, eff_debut, eff_fin in rows:
+        ws.append([datetime.combine(eff_date, dt_time()), eff_debut, eff_fin])
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"sessions_csat_{atelier.id}_{date.today().isoformat()}.xlsx"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 
