@@ -8,6 +8,7 @@
         <p class="muted" style="margin:.35rem 0 0;">Vue synthèse des subventions, comptes et projets.</p>
       </div>
       <div class="hero-actions">
+        <a class="btn" href="{{ url_for('main.comparaison', annee=selected_annee) }}">📊 Comparaison N/N-1</a>
         <a class="btn" href="{{ url_for('main.export_depenses_csv') }}">Exporter dépenses CSV</a>
       </div>
     </div>
