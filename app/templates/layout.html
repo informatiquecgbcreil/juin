@@ -706,6 +706,12 @@
                   {% if can('participants:view') %}
                     <a class="pill {% if ep == 'main.hart_collectif' %}active{% endif %}" href="{{ url_for('main.hart_collectif') }}">Échelle de Hart</a>
                   {% endif %}
+                  {% if can('subventions:view') %}
+                    <a class="pill {% if ep in ('main.dons_registre', 'main.don_recu') %}active{% endif %}" href="{{ url_for('main.dons_registre') }}">Dons &amp; reçus fiscaux</a>
+                  {% endif %}
+                  {% if can('stats:view') %}
+                    <a class="pill {% if ep == 'main.cout_unitaire' %}active{% endif %}" href="{{ url_for('main.cout_unitaire') }}">Coût unitaire</a>
+                  {% endif %}
                   {% if can('inventaire:view') %}
                     <a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire matériel</a>
                   {% endif %}

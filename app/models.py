@@ -2460,3 +2460,46 @@ class HartEvaluation(db.Model):
     @property
     def type_label(self):
         return HART_TYPES_DICT.get(self.type_evaluation or "suivi", self.type_evaluation or "—")
+
+
+# ---------- DONS & REÇUS FISCAUX (CERFA 11580) ----------
+
+class Don(db.Model):
+    """Don reçu par l'association, avec reçu fiscal numéroté (CERFA 11580).
+
+    Un reçu émis est un document comptable : il ne se supprime pas, il
+    s'annule (le numéro reste dans le registre). Les coordonnées de
+    l'organisme sont figées sur le don pour que le reçu reste reproductible
+    à l'identique même si l'organisme change d'adresse ensuite.
+    """
+    __tablename__ = "don"
+
+    id = db.Column(db.Integer, primary_key=True)
+    numero = db.Column(db.String(20), nullable=False, unique=True)   # ex. 2026-0001
+    annee = db.Column(db.Integer, nullable=False, index=True)
+
+    type_donateur = db.Column(db.String(20), nullable=False, default="particulier")  # particulier | entreprise
+    donateur_civilite = db.Column(db.String(20), nullable=True)
+    donateur_nom = db.Column(db.String(160), nullable=False)
+    donateur_prenom = db.Column(db.String(120), nullable=True)
+    donateur_adresse = db.Column(db.String(255), nullable=True)
+    donateur_cp = db.Column(db.String(10), nullable=True)
+    donateur_ville = db.Column(db.String(120), nullable=True)
+    donateur_email = db.Column(db.String(180), nullable=True)
+
+    montant = db.Column(db.Float, nullable=False, default=0.0)
+    date_don = db.Column(db.Date, nullable=False, default=date.today)
+    forme_don = db.Column(db.String(20), nullable=False, default="numeraire")   # numeraire | nature
+    mode_versement = db.Column(db.String(20), nullable=False, default="virement")  # especes | cheque | virement | autre
+    nature_description = db.Column(db.Text, nullable=True)   # si don en nature
+
+    organisme_nom = db.Column(db.String(200), nullable=True)
+    organisme_adresse = db.Column(db.String(255), nullable=True)
+
+    est_annule = db.Column(db.Boolean, nullable=False, default=False)
+    annulation_motif = db.Column(db.String(255), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    user = db.relationship("User")

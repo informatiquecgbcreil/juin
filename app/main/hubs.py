@@ -576,6 +576,26 @@ def hub_ressources():
             "tag": "Participation",
         })
 
+    if can("subventions:view"):
+        cards.append({
+            "title": "Dons & reçus fiscaux",
+            "subtitle": "Registre numéroté des dons et reçus fiscaux (modèle CERFA 11580) : montant en lettres, mentions légales, impression PDF, export Excel.",
+            "primary_label": "Ouvrir le registre",
+            "primary_url": url_for("main.dons_registre"),
+            "secondary": [],
+            "tag": "Fiscal",
+        })
+
+    if can("stats:view"):
+        cards.append({
+            "title": "Coût unitaire d'une action",
+            "subtitle": "Croise un montant (ou une subvention) avec l'activité réelle : coût par participant, par présence, par heure — prêt à citer dans un dossier.",
+            "primary_label": "Ouvrir le calculateur",
+            "primary_url": url_for("main.cout_unitaire"),
+            "secondary": [],
+            "tag": "Budget",
+        })
+
     _hub_forbidden_if_empty(cards)
     return render_template(
         "hub_ressources.html",
