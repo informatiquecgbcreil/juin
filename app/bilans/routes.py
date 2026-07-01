@@ -36,6 +36,7 @@ from app.extensions import db
 from app.models import BilanLourdNarratif
 from app.services.storage import ensure_upload_subdir, media_relpath
 from app.services.consumption import aggregate_sessions_consumption, aggregate_individual_consumption
+from app.services.participation import PARTICIPATION_STEPS, collective_stats
 from app.models import SessionActivite
 
 
@@ -337,6 +338,12 @@ def bilans_lourds():
         return redirect(url_for("bilans.bilans_lourds", year=year))
 
     stats = compute_bilans_lourds(year, scope)
+    participation_secteur = scope.secteurs[0] if scope.secteurs and len(scope.secteurs) == 1 else None
+    participation_stats = collective_stats(
+        secteur=participation_secteur,
+        start=datetime.date(year, 1, 1),
+        end=datetime.date(year, 12, 31),
+    )
     note, note_scope = _get_or_create_bilan_note(year, scope, create=False)
     photos = _safe_json_list(note.photos_json if note else None)
     timeline_rows = _safe_json_list(note.timeline_json if note else None)
@@ -375,6 +382,8 @@ def bilans_lourds():
         narrative_photos=photos,
         timeline_rows=timeline_rows,
         timeline_input=_timeline_text(timeline_rows),
+        participation_steps=PARTICIPATION_STEPS,
+        participation_stats=participation_stats,
     )
 
 

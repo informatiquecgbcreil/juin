@@ -65,6 +65,30 @@
   </div>
 
   <div class="monster-card">
+    <div class="inline" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div>
+        <h3 style="margin:0;">Pouvoir d’agir — boussole participation</h3>
+        <p class="muted" style="margin:6px 0 0 0;">Répartition issue des positions structurées du passeport, exploitable pour le récit de bilan.</p>
+      </div>
+      <a class="btn" href="{{ url_for('pedagogie.participation_collective', start=year ~ '-01-01', end=year ~ '-12-31') }}">Ouvrir la boussole</a>
+    </div>
+    {% set total_participation = participation_stats.latest|length %}
+    {% if total_participation %}
+      <div class="kpi-grid-flex" style="margin-top:12px;">
+        {% for level,label,description in participation_steps %}
+          <div class="kpi-card">
+            <div class="kpi-label">Étape {{ level }}</div>
+            <div class="kpi-value">{{ participation_stats.counts.get(level, 0) }}</div>
+            <div class="muted" style="font-size:12px;">{{ label }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted" style="margin:12px 0 0 0;">Aucune position de boussole enregistrée pour cet exercice.</p>
+    {% endif %}
+  </div>
+
+  <div class="monster-card">
     <h3>Activité et accompagnement</h3>
     <table class="compact-table">
       <tbody>

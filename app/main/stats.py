@@ -15,6 +15,7 @@ from app.models import (
     SubventionProjet,
 )
 from app.services.consumption import aggregate_individual_consumption
+from app.services.participation import PARTICIPATION_STEPS, collective_stats
 
 
 from app.main.common import bp, can_see_secteur
@@ -190,6 +191,12 @@ def stats():
         )
 
     eco_conso_stats = _eco_conso_stats_for_context(selected_annee, selected_secteur, selected_projet_id)
+    participation_start, participation_end = _eco_date_range_from_year(selected_annee)
+    participation_stats = collective_stats(
+        secteur=selected_secteur,
+        start=participation_start,
+        end=participation_end,
+    )
 
     return render_template(
         "stats.html",
@@ -335,6 +342,12 @@ def stats_bilans():
     }
 
     eco_conso_stats = _eco_conso_stats_for_context(selected_annee, selected_secteur, selected_projet_id)
+    participation_start, participation_end = _eco_date_range_from_year(selected_annee)
+    participation_stats = collective_stats(
+        secteur=selected_secteur,
+        start=participation_start,
+        end=participation_end,
+    )
 
     return render_template(
         "stats_bilans.html",
@@ -351,8 +364,8 @@ def stats_bilans():
         alertes=alertes,
         summary=summary,
         eco_conso_stats=eco_conso_stats,
+        participation_steps=PARTICIPATION_STEPS,
+        participation_stats=participation_stats,
     )
-
-
 
 

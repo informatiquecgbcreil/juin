@@ -64,6 +64,20 @@ def test_stats_collectives_conservent_une_position_par_secteur(admin_client, app
         assert (pid, "Numérique") in stats["latest"]
 
     page = admin_client.get("/pedagogie/participation").get_data(as_text=True)
-    assert "Répartition à l’instant T" in page
+    assert "Boussole participation" in page
+    assert "Détail par étape" in page
     assert "Familles" in page
     assert "Numérique" in page
+
+
+def test_boussole_trouvable_ressources_stats_et_bilans(admin_client, app):
+    ressources = admin_client.get("/ressources").get_data(as_text=True)
+    assert "Boussole participation" in ressources
+    assert "/pedagogie/participation" in ressources
+
+    stats = admin_client.get("/stats-bilans").get_data(as_text=True)
+    assert "Pouvoir d’agir" in stats
+    assert "Ouvrir la boussole" in stats
+
+    bilans = admin_client.get("/bilans/lourds?year=2026").get_data(as_text=True)
+    assert "boussole participation" in bilans.lower()

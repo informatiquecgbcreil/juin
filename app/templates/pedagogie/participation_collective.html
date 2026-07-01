@@ -1,10 +1,44 @@
 {% extends 'layout.html' %}
 {% block body %}
-<div class="stack">
-  <div class="card">
-    <h1>🧭 Boussole participation & pouvoir d’agir</h1>
-    <p class="muted">Vue collective sectorisée. Les statistiques utilisent uniquement les champs structurés : étape, secteur, période, jalon, source et indices observables.</p>
-    <form method="get" class="row" style="gap:8px;align-items:end;flex-wrap:wrap;">
+<style>
+  .boussole-shell{display:flex;flex-direction:column;gap:18px}
+  .boussole-hero{position:relative;overflow:hidden;border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border));border-radius:26px;padding:22px;background:radial-gradient(circle at 10% 10%,color-mix(in srgb,var(--accent) 30%,transparent),transparent 30%),linear-gradient(135deg,color-mix(in srgb,var(--surface) 95%,#fff 5%),var(--surface));}
+  .boussole-hero:after{content:"🧭";position:absolute;right:22px;top:10px;font-size:92px;opacity:.14;transform:rotate(-12deg)}
+  .boussole-stage-grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px}
+  @media(max-width:1000px){.boussole-stage-grid{grid-template-columns:repeat(2,minmax(160px,1fr))}}
+  @media(max-width:640px){.boussole-stage-grid{grid-template-columns:1fr}}
+  .boussole-stage{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:22px;padding:14px;min-height:150px;background:linear-gradient(145deg,color-mix(in srgb,var(--surface) 90%,#fff 10%),color-mix(in srgb,var(--surface) 82%,#000 18%));box-shadow:0 10px 22px rgba(0,0,0,.08)}
+  .boussole-stage:before{content:"";position:absolute;right:-34px;bottom:-34px;width:105px;height:105px;border-radius:50%;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .boussole-stage.has-people{border-color:color-mix(in srgb,var(--accent) 55%,var(--border));box-shadow:0 16px 30px rgba(0,0,0,.14)}
+  .stage-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .stage-num{display:grid;place-items:center;width:38px;height:38px;border-radius:14px;background:linear-gradient(135deg,#34d399,#60a5fa);color:#07111f;font-weight:900}
+  .stage-count{font-size:28px;font-weight:900}
+  .stage-label{font-size:16px;margin:10px 0 4px 0}
+  .stage-desc{font-size:12px;color:var(--muted);margin:0}
+  .stage-bar{height:8px;border-radius:999px;background:color-mix(in srgb,var(--muted) 18%,var(--surface));overflow:hidden;margin-top:12px}
+  .stage-bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#34d399,#60a5fa,#fbbf24)}
+  .boussole-map{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:10px}
+  .map-seg{height:16px;border-radius:999px;background:color-mix(in srgb,var(--muted) 16%,var(--surface));border:1px solid var(--border)}
+  .map-seg.active{background:linear-gradient(90deg,#34d399,#60a5fa);border-color:transparent}
+  .person-chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:5px 9px;margin:3px;background:var(--surface-soft)}
+</style>
+
+{% set total_positions = stats.latest|length %}
+<div class="boussole-shell">
+  <section class="boussole-hero">
+    <div class="page-header">
+      <div>
+        <div class="eyebrow">Ressources · Pouvoir d’agir</div>
+        <h1>🧭 Boussole participation</h1>
+        <p class="muted">Une carte collective des postures de participation, par secteur et par période. Les statistiques reposent sur des champs structurés ; les récits restent dans les passeports.</p>
+      </div>
+      <div class="stats-hub-actions">
+        <a class="btn" href="{{ url_for('main.hub_ressources') }}">← Ressources</a>
+        <a class="btn ok" href="{{ url_for('main.stats_bilans') }}">Stats & bilans</a>
+      </div>
+    </div>
+
+    <form method="get" class="row" style="gap:8px;align-items:end;flex-wrap:wrap;margin-top:14px;">
       <div>
         <label>Secteur</label>
         <select class="in" name="secteur">
@@ -14,63 +48,49 @@
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label>Début</label>
-        <input class="in" type="date" name="start" value="{{ start }}">
-      </div>
-      <div>
-        <label>Fin</label>
-        <input class="in" type="date" name="end" value="{{ end }}">
-      </div>
-      <button class="btn ok" type="submit">Filtrer</button>
+      <div><label>Début</label><input class="in" type="date" name="start" value="{{ start }}"></div>
+      <div><label>Fin</label><input class="in" type="date" name="end" value="{{ end }}"></div>
+      <button class="btn ok" type="submit">Filtrer la carte</button>
     </form>
-  </div>
 
-  <div class="card">
-    <h2>Répartition à l’instant T</h2>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>Étape</th><th>Libellé</th><th>Habitants</th></tr></thead>
-        <tbody>
-          {% for level,label,description in participation_steps %}
-            <tr>
-              <td><strong>{{ level }}</strong></td>
-              <td>{{ label }}<br><span class="muted">{{ description }}</span></td>
-              <td><strong>{{ stats.counts.get(level, 0) }}</strong></td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="boussole-map" aria-label="Répartition graphique des étapes">
+      {% for level,label,description in participation_steps %}
+        <span class="map-seg {% if stats.counts.get(level, 0) %}active{% endif %}" title="{{ level }} · {{ label }} : {{ stats.counts.get(level, 0) }}"></span>
+      {% endfor %}
     </div>
-  </div>
+  </section>
 
-  <div class="card">
-    <h2>Détail par étage</h2>
+  <section class="boussole-stage-grid">
+    {% for level,label,description in participation_steps %}
+      {% set count = stats.counts.get(level, 0) %}
+      {% set pct = (count / total_positions * 100) if total_positions else 0 %}
+      <article class="boussole-stage {% if count %}has-people{% endif %}">
+        <div class="stage-top"><span class="stage-num">{{ level }}</span><span class="stage-count">{{ count }}</span></div>
+        <h2 class="stage-label">{{ label }}</h2>
+        <p class="stage-desc">{{ description }}</p>
+        <div class="stage-bar"><span style="width:{{ pct }}%"></span></div>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Détail par étape</h2>
     {% for level,label,description in participation_steps %}
       <details class="ref-card" {% if stats.counts.get(level, 0) %}open{% endif %}>
         <summary><strong>{{ level }} · {{ label }}</strong> — {{ stats.counts.get(level, 0) }} habitant(s)</summary>
-        <div class="tablewrap" style="margin-top:10px;">
-          <table>
-            <thead><tr><th>Habitant</th><th>Secteur</th><th>Date</th><th>Indices structurés</th><th>Passeport</th></tr></thead>
-            <tbody>
-              {% for item in stats.participants_by_level.get(level, []) %}
-                {% set p = item.participant %}
-                {% set row = item.position %}
-                <tr>
-                  <td>{{ p.nom }} {{ p.prenom if p else 'Participant supprimé' }}</td>
-                  <td>{{ row.secteur }}</td>
-                  <td>{{ row.date_observation }}</td>
-                  <td>{{ participation_indicator_labels(row.indicators())|join(', ') }}</td>
-                  <td>{% if p %}<a class="btn" href="{{ url_for('pedagogie.participant_passeport', participant_id=p.id, secteur=row.secteur, tab='participation') }}">Ouvrir</a>{% endif %}</td>
-                </tr>
-              {% else %}
-                <tr><td colspan="5" class="muted">Aucun habitant.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div style="margin-top:10px;">
+          {% for item in stats.participants_by_level.get(level, []) %}
+            {% set p = item.participant %}
+            {% set row = item.position %}
+            {% if p %}
+              <a class="person-chip" href="{{ url_for('pedagogie.participant_passeport', participant_id=p.id, secteur=row.secteur, tab='participation') }}">👤 {{ p.nom }} {{ p.prenom }} · {{ row.secteur }}</a>
+            {% endif %}
+          {% else %}
+            <div class="muted">Aucun habitant.</div>
+          {% endfor %}
         </div>
       </details>
     {% endfor %}
-  </div>
+  </section>
 </div>
 {% endblock %}

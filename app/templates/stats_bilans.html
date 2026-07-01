@@ -84,6 +84,34 @@
   <section class="section-card stats-hub-card stats-hub-card--full">
     <div class="page-header page-header--compact">
       <div>
+        <div class="eyebrow">Pouvoir d’agir</div>
+        <h2>Boussole participation</h2>
+        <p class="muted">Lecture synthétique des dernières positions structurées dans le contexte filtré.</p>
+      </div>
+      <div class="finance-actions">
+        <a class="btn ok" href="{{ url_for('pedagogie.participation_collective', secteur=secteur_val, start=(annee_val ~ '-01-01') if annee_val else '', end=(annee_val ~ '-12-31') if annee_val else '') }}">Ouvrir la boussole</a>
+      </div>
+    </div>
+    {% set total_participation = participation_stats.latest|length %}
+    {% if total_participation %}
+      <div class="stats-hub-kpis">
+        {% for level,label,description in participation_steps %}
+          {% set nb = participation_stats.counts.get(level, 0) %}
+          <article class="section-card stats-hub-kpi">
+            <span class="eyebrow">Étape {{ level }}</span>
+            <strong>{{ nb }}</strong>
+            <small>{{ label }}</small>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="quick-empty">Aucune position de boussole enregistrée dans ce contexte. Ouvre la boussole depuis les ressources pour commencer le suivi.</div>
+    {% endif %}
+  </section>
+
+  <section class="section-card stats-hub-card stats-hub-card--full">
+    <div class="page-header page-header--compact">
+      <div>
         <div class="eyebrow">Transition écologique</div>
         <h2>Éco-conso individuelle</h2>
         <p class="muted">Synthèse issue des matériels attribués dans les feuilles d’émargement.</p>
