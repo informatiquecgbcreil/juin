@@ -575,6 +575,24 @@ def hub_ressources():
             "secondary": [],
             "tag": "Participation",
         })
+        cards.append({
+            "title": "Bénévolat",
+            "subtitle": "Heures données par les habitants, missions, valorisation € (compte 87). Alimente l'onglet vitalité démocratique du SENACS.",
+            "primary_label": "Ouvrir le bénévolat",
+            "primary_url": url_for("main.benevolat"),
+            "secondary": [],
+            "tag": "Participation",
+        })
+
+    if can("rh:view"):
+        cards.append({
+            "title": "RH — Salariés",
+            "subtitle": "Réservé direction : salariés, affectation secteur/poste, ETP, masse salariale. Alimente le SENACS et les finances. Import depuis votre outil RH.",
+            "primary_label": "Ouvrir le module RH",
+            "primary_url": url_for("main.rh"),
+            "secondary": [],
+            "tag": "Direction",
+        })
 
     if can("subventions:view"):
         cards.append({

@@ -172,3 +172,8 @@ class Config:
     BACKUP_RETENTION_LOTS = int(os.environ.get("BACKUP_RETENTION_LOTS", "30"))
     BACKUP_ALERT_DAYS = int(os.environ.get("BACKUP_ALERT_DAYS", "2"))
 
+    # --- Bénévolat -----------------------------------------------------------
+    # Taux horaire de valorisation du bénévolat (contributions volontaires,
+    # compte 87) — usuellement le SMIC horaire chargé.
+    BENEVOLAT_TAUX_HORAIRE = float(os.environ.get("BENEVOLAT_TAUX_HORAIRE", "13"))
+

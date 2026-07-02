@@ -169,6 +169,9 @@ class InstanceSettings(db.Model):
     smtp_use_tls = db.Column(db.Boolean, nullable=True)
     smtp_sender = db.Column(db.String(255), nullable=True)
 
+    # Taux horaire de valorisation du bénévolat (prioritaire sur la config env).
+    benevolat_taux_horaire = db.Column(db.Float, nullable=True)
+
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -1346,6 +1349,9 @@ class Participant(db.Model):
     # Type de public (ex: H/S/B/A/P). Par défaut: H
     type_public = db.Column(db.String(2), nullable=False, default="H")
 
+    # Bénévole du centre (SENACS « vitalité démocratique », valorisation compte 87).
+    est_benevole = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
     quartier_id = db.Column(db.Integer, db.ForeignKey("quartier.id"), nullable=True)
     quartier = db.relationship("Quartier")
 
@@ -1694,6 +1700,10 @@ class SessionActivite(db.Model):
     # Pont manuel CSAT (portail sans API) : date de dernière inclusion dans
     # l'export « Sessions ». NULL = jamais exportée, remonte dans le prochain export.
     exported_csat_at = db.Column(db.DateTime, nullable=True)
+
+    # Séance « événementielle » (fête de quartier, temps fort, sortie…) :
+    # comptée à part dans le volet événementiel du SENACS.
+    est_evenement = db.Column(db.Boolean, nullable=False, default=False, index=True)
 
     presences = db.relationship("PresenceActivite", backref="session", cascade="all, delete-orphan")
     competences = db.relationship(
@@ -2503,3 +2513,127 @@ class Don(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     user = db.relationship("User")
+
+
+# ---------- BÉNÉVOLAT (heures, missions, valorisation) ----------
+
+class BenevoleHeures(db.Model):
+    """Heures de bénévolat réalisées par un habitant.
+
+    Alimente l'onglet « bénévolat / vitalité démocratique » du SENACS et la
+    valorisation comptable des contributions volontaires (compte 87).
+    """
+    __tablename__ = "benevole_heures"
+
+    id = db.Column(db.Integer, primary_key=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), nullable=False, index=True)
+    date_action = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    heures = db.Column(db.Float, nullable=False, default=0.0)
+    mission = db.Column(db.String(200), nullable=True)     # ex. accueil, accompagnement scolaire, CA
+    secteur = db.Column(db.String(80), nullable=True, index=True)
+    commentaire = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    participant = db.relationship("Participant", backref=db.backref("benevolat_heures", cascade="all, delete-orphan"))
+    user = db.relationship("User")
+
+
+# ---------- LIEN SUBVENTION <-> ATELIERS (justificatif financeur) ----------
+
+class SubventionAtelier(db.Model):
+    """Rattache une subvention aux ateliers qu'elle finance.
+
+    Permet de produire le justificatif financeur : « cette subvention a
+    financé ces ateliers = X séances, Y heures, Z participants, soit N € par
+    participant ». ``poids_pct`` = part de la subvention affectée à l'atelier.
+    """
+    __tablename__ = "subvention_atelier"
+
+    id = db.Column(db.Integer, primary_key=True)
+    subvention_id = db.Column(db.Integer, db.ForeignKey("subvention.id", ondelete="CASCADE"), nullable=False, index=True)
+    atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), nullable=False, index=True)
+    poids_pct = db.Column(db.Float, nullable=False, default=100.0)
+    justification = db.Column(db.Text, nullable=True)   # ex. « 40 jeunes QPV, hors temps scolaire »
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    subvention = db.relationship("Subvention", backref=db.backref("ateliers_finances", cascade="all, delete-orphan"))
+    atelier = db.relationship("AtelierActivite")
+
+    __table_args__ = (
+        db.UniqueConstraint("subvention_id", "atelier_id", name="uq_subvention_atelier"),
+    )
+
+
+# ---------- SENACS : EMPLOIS / ETP ----------
+
+SENACS_TYPES_CONTRAT = [
+    ("cdi", "CDI"),
+    ("cdd", "CDD"),
+    ("emploi_aide", "Emploi aidé"),
+    ("mise_a_disposition", "Mise à disposition"),
+    ("autre", "Autre"),
+]
+SENACS_TYPES_CONTRAT_DICT = dict(SENACS_TYPES_CONTRAT)
+
+
+class SenacsEmploi(db.Model):
+    """Poste salarié déclaré pour l'onglet « Emplois » du SENACS.
+
+    Saisie simple par exercice : fonction, type de contrat, quotité (ETP).
+    Pas un module RH : juste ce qu'exige l'enquête annuelle.
+    """
+    __tablename__ = "senacs_emploi"
+
+    id = db.Column(db.Integer, primary_key=True)
+    annee = db.Column(db.Integer, nullable=False, index=True)
+    intitule = db.Column(db.String(200), nullable=False)     # ex. Directeur, animatrice famille
+    type_contrat = db.Column(db.String(30), nullable=False, default="cdi")
+    etp = db.Column(db.Float, nullable=False, default=1.0)
+    commentaire = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    @property
+    def contrat_label(self):
+        return SENACS_TYPES_CONTRAT_DICT.get(self.type_contrat or "autre", self.type_contrat or "—")
+
+
+# ---------- RH : SALARIÉS (réservé direction) ----------
+
+class Salarie(db.Model):
+    """Salarié du centre — module RH minimal, réservé à la direction.
+
+    Nourrit le SENACS (emplois/ETP) et la masse salariale ; la direction
+    affecte chaque salarié à son secteur et à son poste dans le secteur.
+    Peut être alimenté par import depuis un outil RH externe (source_ref
+    conserve l'identifiant externe pour les rapprochements).
+    """
+    __tablename__ = "salarie"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(160), nullable=False)
+    prenom = db.Column(db.String(120), nullable=True)
+    poste = db.Column(db.String(200), nullable=True)        # poste dans le secteur
+    secteur = db.Column(db.String(80), nullable=True, index=True)
+    type_contrat = db.Column(db.String(30), nullable=False, default="cdi")  # cf. SENACS_TYPES_CONTRAT
+    etp = db.Column(db.Float, nullable=False, default=1.0)
+    salaire_brut_charge = db.Column(db.Float, nullable=True)  # annuel, chargé (€)
+    date_entree = db.Column(db.Date, nullable=True)
+    date_sortie = db.Column(db.Date, nullable=True, index=True)
+    commentaire = db.Column(db.Text, nullable=True)
+    source_ref = db.Column(db.String(120), nullable=True, index=True)  # id dans l'outil RH externe
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    @property
+    def contrat_label(self):
+        return SENACS_TYPES_CONTRAT_DICT.get(self.type_contrat or "autre", self.type_contrat or "—")
+
+    def actif_sur(self, annee: int) -> bool:
+        """Présent au moins un jour sur l'exercice."""
+        debut, fin = date(annee, 1, 1), date(annee, 12, 31)
+        if self.date_entree and self.date_entree > fin:
+            return False
+        if self.date_sortie and self.date_sortie < debut:
+            return False
+        return True

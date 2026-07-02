@@ -20,6 +20,7 @@
         <a class="btn" href="{{ url_for('main.subventions_list') }}">← Retour à la liste</a>
         <a class="btn" href="{{ url_for('main.subvention_bilan', subvention_id=sub.id) }}">Bilan</a>
         <a class="btn" href="{{ url_for('main.subvention_historique', subvention_id=sub.id) }}">Historique</a>
+        <a class="btn" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">📊 Justificatif</a>
         <form method="POST" action="{{ url_for('main.subvention_delete', subvention_id=sub.id) }}" style="margin:0;" onsubmit="return confirm('Supprimer cette subvention ?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn danger" type="submit">Supprimer</button>
@@ -93,6 +94,58 @@
             </label>
             <button class="btn ok" type="submit">Enregistrer le dossier</button>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding: 0 16px 18px 16px;">
+      <div class="monster-card">
+        <div class="card-header"><h3 class="card-title" style="margin:0;">Activités financées <span class="muted" style="font-weight:400;">(justificatif financeur)</span></h3></div>
+        <div style="padding: 0 16px 16px 16px;">
+          {% if liens_ateliers %}
+            <div class="tablewrap clean">
+              <table>
+                <thead><tr><th>Atelier</th><th>Part de la subvention</th><th>Justification</th><th></th></tr></thead>
+                <tbody>
+                  {% for lien in liens_ateliers %}
+                    <tr>
+                      <td><strong>{{ lien.atelier.nom if lien.atelier else '?' }}</strong></td>
+                      <td>{{ '%g'|format(lien.poids_pct) }} %</td>
+                      <td class="muted">{{ lien.justification or '—' }}</td>
+                      <td>
+                        <form method="post" onsubmit="return confirm('Détacher cet atelier ?');" style="display:inline;">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <input type="hidden" name="action" value="del_atelier">
+                          <input type="hidden" name="lien_id" value="{{ lien.id }}">
+                          <button class="btn danger" type="submit" style="padding:2px 8px;">🗑</button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top:8px;">
+              <a class="btn ok" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">📊 Voir le justificatif chiffré</a>
+            </div>
+          {% else %}
+            <p class="muted">Aucun atelier rattaché : rattache les ateliers que cette subvention finance pour générer automatiquement le justificatif (séances, heures, participants, coût unitaire).</p>
+          {% endif %}
+          {% if ateliers_disponibles %}
+            <form method="post" class="row" style="gap:8px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="add_atelier">
+              <label class="field-stack"><span>Atelier</span>
+                <select class="in" name="atelier_id" required>
+                  <option value="">— Choisir —</option>
+                  {% for a in ateliers_disponibles %}<option value="{{ a.id }}">{{ a.nom }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="field-stack"><span>Part (%)</span><input class="in" name="poids_pct" inputmode="decimal" value="100" style="width:90px;"></label>
+              <label class="field-stack" style="flex:1 1 240px;"><span>Justification (optionnel)</span><input class="in" name="justification" placeholder="Ex : 40 jeunes QPV, hors temps scolaire"></label>
+              <button class="btn" type="submit">Rattacher</button>
+            </form>
+          {% endif %}
         </div>
       </div>
     </div>

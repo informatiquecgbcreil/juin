@@ -118,6 +118,12 @@
         <a class="btn" href="{{ url_for('activite.sessions', atelier_id=atelier.id) }}">Retour aux sessions</a>
         <a class="btn" href="{{ url_for('activite.session_edit_schedule', session_id=session.id) }}">Modifier la date et l'horaire</a>
         <span class="status-badge {{ 'status-success' if session.kiosk_open else 'status-warning' }}">{{ 'Kiosque ouvert' if session.kiosk_open else 'Kiosque fermé' }}</span>
+        <form method="post" action="{{ url_for('activite.session_toggle_evenement', session_id=session.id) }}" style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn" type="submit" title="Les séances événementielles sont comptées à part dans le volet événementiel du SENACS.">
+            {{ '🎉 Événement ✓ (retirer)' if session.est_evenement else '🎉 Marquer comme événement' }}
+          </button>
+        </form>
         {% if session.session_type == 'COLLECTIF' %}
           <a class="btn" href="{{ url_for('activite.generate_collectif', session_id=session.id) }}">Générer la feuille PDF</a>
         {% endif %}

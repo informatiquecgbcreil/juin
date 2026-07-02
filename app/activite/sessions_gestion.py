@@ -128,6 +128,7 @@ def session_new(atelier_id: int):
 
         s.competences = Competence.query.filter(Competence.id.in_(list(competence_ids))).all() if competence_ids else []
         s.modules = modules
+        s.est_evenement = request.form.get("est_evenement") in {"1", "on", "true"}
 
         db.session.add(s)
         db.session.flush()
@@ -547,3 +548,19 @@ def evaluation_batch(session_id: int):
     return render_template("activite/evaluation_batch.html", session=s, atelier=atelier, participants=participants, competences=competences, eval_map=eval_map)
 
 
+
+
+@bp.route("/session/<int:session_id>/toggle-evenement", methods=["POST"])
+@login_required
+def session_toggle_evenement(session_id: int):
+    """Marque / démarque une séance comme événementielle (volet SENACS)."""
+    require_perm("ateliers:edit")(lambda: None)()
+    s = db.get_or_404(SessionActivite, session_id)
+    if not _can_access_activity_secteur(s.secteur):
+        return _deny_activity_access()
+    s.est_evenement = not bool(s.est_evenement)
+    db.session.commit()
+    flash("Séance marquée comme événement (comptée dans le volet événementiel SENACS)."
+          if s.est_evenement else "Séance retirée du volet événementiel.",
+          "success" if s.est_evenement else "warning")
+    return redirect(url_for("activite.emargement", session_id=s.id))

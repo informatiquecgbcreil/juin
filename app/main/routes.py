@@ -6,6 +6,7 @@ défini dans app.main.common. L'import suffit à déclencher l'enregistrement.
 from app.main.common import bp  # noqa: F401
 
 from app.main import (  # noqa: F401
+    benevoles,
     bilan_global,
     comparaison,
     controle,
@@ -16,6 +17,7 @@ from app.main import (  # noqa: F401
     hubs,
     qualite_donnees,
     recherche,
+    rh,
     stats,
     subventions,
     suivi_rappels,
