@@ -15,6 +15,8 @@ from app.models import (
     Subvention,
     SUBVENTION_STATUTS,
     SUBVENTION_STATUTS_DICT,
+    SubventionAtelier,
+    AtelierActivite,
     LigneBudget,
     Depense,
     Projet,
@@ -326,6 +328,42 @@ def subvention_pilotage(subvention_id):
             flash("Dossier mis à jour.", "success")
             return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
 
+        # --- Activités financées (justificatif financeur) ---
+        if action == "add_atelier":
+            atelier_id = int(request.form.get("atelier_id") or 0)
+            atelier = db.get_or_404(AtelierActivite, atelier_id)
+            if atelier.secteur != sub.secteur:
+                abort(400)
+            if SubventionAtelier.query.filter_by(subvention_id=sub.id, atelier_id=atelier.id).first():
+                flash("Cet atelier est déjà rattaché à la subvention.", "info")
+                return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
+            try:
+                poids = float(str(request.form.get("poids_pct") or "100").replace(",", "."))
+            except Exception:
+                poids = 100.0
+            poids = min(max(poids, 0.0), 100.0)
+            db.session.add(SubventionAtelier(
+                subvention_id=sub.id, atelier_id=atelier.id, poids_pct=poids,
+                justification=(request.form.get("justification") or "").strip() or None,
+            ))
+            db.session.commit()
+            journaliser("subvention.atelier_lien", cible=f"subvention#{sub.id}",
+                        details={"atelier": atelier.nom, "poids_pct": poids})
+            flash(f"Atelier « {atelier.nom} » rattaché à la subvention.", "success")
+            return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
+
+        if action == "del_atelier":
+            lien = db.get_or_404(SubventionAtelier, int(request.form.get("lien_id") or 0))
+            if lien.subvention_id != sub.id:
+                abort(400)
+            nom_atelier = lien.atelier.nom if lien.atelier else "?"
+            db.session.delete(lien)
+            db.session.commit()
+            journaliser("subvention.atelier_delien", cible=f"subvention#{sub.id}",
+                        details={"atelier": nom_atelier})
+            flash("Atelier détaché de la subvention.", "warning")
+            return redirect(url_for("main.subvention_pilotage", subvention_id=sub.id))
+
         # --- Ajouter une ligne ---
         if action == "add_ligne":
             nature = (request.form.get("nature") or "charge").strip()
@@ -439,6 +477,13 @@ def subvention_pilotage(subvention_id):
     for a in alertes_echeances([sub]):
         warnings.append(a["message"])
 
+    liens_ateliers = (SubventionAtelier.query.filter_by(subvention_id=sub.id)
+                      .order_by(SubventionAtelier.id.asc()).all())
+    dispo_q = AtelierActivite.query.filter_by(secteur=sub.secteur, is_deleted=False)
+    if liens_ateliers:
+        dispo_q = dispo_q.filter(~AtelierActivite.id.in_([l.atelier_id for l in liens_ateliers]))
+    ateliers_disponibles = dispo_q.order_by(AtelierActivite.nom.asc()).all()
+
     return render_template(
         "budget_pilotage.html",
         sub=sub,
@@ -450,6 +495,8 @@ def subvention_pilotage(subvention_id):
         warnings=warnings,
         statuts=SUBVENTION_STATUTS,
         categories_ref=_budget_categories_ref_for_secteur(sub.secteur),
+        liens_ateliers=liens_ateliers,
+        ateliers_disponibles=ateliers_disponibles,
     )
 
 
@@ -491,6 +538,105 @@ def subvention_historique(subvention_id):
             details = {}
         lignes.append({"entry": e, "details": details})
     return render_template("subvention_historique.html", sub=sub, lignes=lignes)
+
+
+@bp.route("/subvention/<int:subvention_id>/justificatif")
+@login_required
+@require_perm("subventions:view")
+def subvention_justificatif(subvention_id):
+    """Justificatif financeur : activité réelle des ateliers financés par la
+    subvention sur son exercice (séances, heures, participants, coûts unitaires)."""
+    from app.main.couts import mesures_activite, couts_unitaires
+
+    sub = db.get_or_404(Subvention, subvention_id)
+    if not can_see_secteur(sub.secteur):
+        abort(403)
+
+    annee = int(sub.annee_exercice or date.today().year)
+    d1, d2 = date(annee, 1, 1), date(annee, 12, 31)
+    montant_base = float(sub.montant_attribue or 0) or float(sub.montant_demande or 0)
+    base_label = "attribué" if sub.montant_attribue else "demandé"
+
+    liens = (SubventionAtelier.query.filter_by(subvention_id=sub.id)
+             .order_by(SubventionAtelier.id.asc()).all())
+
+    lignes = []
+    for lien in liens:
+        mesures = mesures_activite([lien.atelier_id], d1, d2)
+        montant_affecte = round(montant_base * float(lien.poids_pct or 0) / 100.0, 2)
+        lignes.append({
+            "lien": lien,
+            "atelier": lien.atelier,
+            "mesures": mesures,
+            "montant": montant_affecte,
+            "couts": couts_unitaires(montant_affecte, mesures),
+        })
+
+    mesures_global = mesures_activite([l.atelier_id for l in liens], d1, d2) if liens else \
+        {"sessions": 0, "heures": 0.0, "presences": 0, "uniques": 0}
+    total_pct = round(sum(float(l.poids_pct or 0) for l in liens), 1)
+    montant_global = round(montant_base * min(total_pct, 100.0) / 100.0, 2)
+    couts_global = couts_unitaires(montant_global, mesures_global) if montant_global else None
+
+    return render_template(
+        "subvention_justificatif.html",
+        sub=sub, annee=annee, lignes=lignes,
+        montant_base=montant_base, base_label=base_label,
+        total_pct=total_pct, montant_global=montant_global,
+        mesures_global=mesures_global, couts_global=couts_global,
+    )
+
+
+@bp.route("/subvention/<int:subvention_id>/justificatif.xlsx")
+@login_required
+@require_perm("subventions:view")
+def subvention_justificatif_xlsx(subvention_id):
+    from openpyxl import Workbook
+    from app.main.couts import mesures_activite, couts_unitaires
+
+    sub = db.get_or_404(Subvention, subvention_id)
+    if not can_see_secteur(sub.secteur):
+        abort(403)
+
+    annee = int(sub.annee_exercice or date.today().year)
+    d1, d2 = date(annee, 1, 1), date(annee, 12, 31)
+    montant_base = float(sub.montant_attribue or 0) or float(sub.montant_demande or 0)
+    liens = SubventionAtelier.query.filter_by(subvention_id=sub.id).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Justificatif"
+    ws.append(["Subvention", sub.nom])
+    ws.append(["Financeur", sub.financeur or ""])
+    ws.append(["Exercice", annee])
+    ws.append(["Montant de référence (€)", round(montant_base, 2)])
+    ws.append([])
+    ws.append(["Atelier financé", "Part (%)", "Montant affecté (€)", "Séances", "Heures",
+               "Participants uniques", "Présences", "Coût / participant (€)", "Coût / heure (€)",
+               "Justification"])
+    for lien in liens:
+        mesures = mesures_activite([lien.atelier_id], d1, d2)
+        montant = round(montant_base * float(lien.poids_pct or 0) / 100.0, 2)
+        couts = couts_unitaires(montant, mesures)
+        ws.append([
+            lien.atelier.nom if lien.atelier else "?",
+            lien.poids_pct, montant,
+            mesures["sessions"], mesures["heures"], mesures["uniques"], mesures["presences"],
+            couts["par_participant"] if couts["par_participant"] is not None else "",
+            couts["par_heure"] if couts["par_heure"] is not None else "",
+            lien.justification or "",
+        ])
+    for col, width in zip("ABCDEFGHIJ", (30, 9, 16, 9, 9, 18, 10, 18, 14, 40)):
+        ws.column_dimensions[col].width = width
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        buf.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=justificatif_subvention_{sub.id}_{annee}.xlsx"},
+    )
 
 
 @bp.route("/subvention/<int:subvention_id>/archiver", methods=["POST"])

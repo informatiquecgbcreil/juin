@@ -2530,3 +2530,29 @@ class BenevoleHeures(db.Model):
 
     participant = db.relationship("Participant", backref=db.backref("benevolat_heures", cascade="all, delete-orphan"))
     user = db.relationship("User")
+
+
+# ---------- LIEN SUBVENTION <-> ATELIERS (justificatif financeur) ----------
+
+class SubventionAtelier(db.Model):
+    """Rattache une subvention aux ateliers qu'elle finance.
+
+    Permet de produire le justificatif financeur : « cette subvention a
+    financé ces ateliers = X séances, Y heures, Z participants, soit N € par
+    participant ». ``poids_pct`` = part de la subvention affectée à l'atelier.
+    """
+    __tablename__ = "subvention_atelier"
+
+    id = db.Column(db.Integer, primary_key=True)
+    subvention_id = db.Column(db.Integer, db.ForeignKey("subvention.id", ondelete="CASCADE"), nullable=False, index=True)
+    atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), nullable=False, index=True)
+    poids_pct = db.Column(db.Float, nullable=False, default=100.0)
+    justification = db.Column(db.Text, nullable=True)   # ex. « 40 jeunes QPV, hors temps scolaire »
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    subvention = db.relationship("Subvention", backref=db.backref("ateliers_finances", cascade="all, delete-orphan"))
+    atelier = db.relationship("AtelierActivite")
+
+    __table_args__ = (
+        db.UniqueConstraint("subvention_id", "atelier_id", name="uq_subvention_atelier"),
+    )
