@@ -2637,3 +2637,28 @@ class Salarie(db.Model):
         if self.date_sortie and self.date_sortie < debut:
             return False
         return True
+
+
+# ---------- GLOSSAIRE : personnalisations locales ----------
+
+class GlossaireTerme(db.Model):
+    """Personnalisation du glossaire (« dico du social »).
+
+    Le glossaire de base vit dans le code (app/aide/glossaire.py) et suit
+    les mises à jour de l'application. Cette table ne stocke QUE les
+    ajustements de la structure :
+    - un terme du même nom qu'un terme de base le REMPLACE (modification) ;
+    - ``masque=True`` retire un terme de base de l'affichage (suppression) ;
+    - les autres lignes sont des mots AJOUTÉS par la structure.
+    Supprimer la ligne d'une modification rétablit la version d'origine.
+    """
+    __tablename__ = "glossaire_terme"
+
+    id = db.Column(db.Integer, primary_key=True)
+    terme = db.Column(db.String(180), nullable=False, unique=True, index=True)
+    definition = db.Column(db.Text, nullable=False, default="")
+    categorie = db.Column(db.String(120), nullable=True)
+    dans_app = db.Column(db.Text, nullable=True)
+    masque = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)

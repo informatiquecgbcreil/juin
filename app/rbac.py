@@ -115,6 +115,9 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
     ("rh:view", "Voir le module RH (salariés, ETP, masse salariale)"),
     ("rh:edit", "Gérer les salariés (RH : créer, affecter, importer)"),
 
+    # Glossaire (dico du social)
+    ("glossaire:edit", "Modifier le glossaire (ajouter, corriger, importer des mots)"),
+
     # Contrôle / activité / admin
     ("controle:view", "Accéder au module contrôle"),
     ("activite:delete", "Supprimer une activité"),
@@ -259,6 +262,7 @@ PERMS_AUTO_GRANT = {
     "benevolat:taux": ("direction", "directrice", "finance"),
     "rh:view": ("direction", "directrice"),
     "rh:edit": ("direction", "directrice"),
+    "glossaire:edit": ("direction", "directrice"),
 }
 
 
@@ -278,6 +282,7 @@ def _category_from_code(code: str) -> str:
         "benevolat": "Bénévolat",
         "dons": "Dons & reçus fiscaux",
         "rh": "Ressources humaines",
+        "glossaire": "Glossaire",
         "insertion": "Insertion",
         "quartiers": "Quartiers",
         "partenaires": "Partenaires",
