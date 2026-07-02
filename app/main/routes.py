@@ -13,6 +13,7 @@ from app.main import (  # noqa: F401
     couts,
     dashboard,
     dons,
+    guides,
     hart,
     hubs,
     qualite_donnees,
