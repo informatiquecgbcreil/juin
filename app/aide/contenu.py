@@ -52,6 +52,26 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Le bouton Imprimer permet d'en faire un livret d'accueil pour un nouveau salarié ou bénévole.",
     },
+    "activite.saisie_grille": {
+        "titre": "La saisie en grille",
+        "resume": "Pour rattraper les feuilles d'émargement papier : un mois entier de présences en cases à cocher.",
+        "etapes": [
+            "Choisissez l'atelier puis le mois de la feuille papier.",
+            "Cochez les présents (participants en lignes, dates en colonnes), puis Enregistrer.",
+            "Si une séance ou une personne manque, ajoutez-la depuis les formulaires sous la grille.",
+        ],
+        "astuce": "Les cases 🔒 sont des présences signées au kiosque ou à statut particulier : elles ne se modifient que depuis la feuille d'émargement détaillée.",
+    },
+    "activite.emargements_attente": {
+        "titre": "Les émargements en attente",
+        "resume": "Toutes les séances passées sans présence saisie : la feuille n'est pas revenue, ou pas encore saisie.",
+        "etapes": [
+            "Les ateliers les plus en retard sont en haut de la liste.",
+            "« Saisir (grille) » ouvre directement le bon atelier et le bon mois.",
+            "« Relancer » pose un rappel dans « À traiter » pour courir après la feuille.",
+        ],
+        "astuce": "Une séance qui n'a réellement accueilli personne peut être annulée depuis sa page : elle sortira de cette liste.",
+    },
     "main.dashboard_customize": {
         "titre": "Personnaliser votre tableau de bord",
         "resume": "Choisissez ici ce que VOUS voulez voir en arrivant dans l'application.",

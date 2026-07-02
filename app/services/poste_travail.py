@@ -78,6 +78,20 @@ def _ctx_seances_du_jour(user) -> dict[str, Any] | None:
     }
 
 
+def _ctx_emargements_en_attente(user) -> dict[str, Any] | None:
+    from app.activite.saisie_grille import seances_sans_presence_query
+
+    secteur = _scope_secteur(user)
+    n = seances_sans_presence_query(secteur).count()
+    if n == 0:
+        return {"badge": "Tout est à jour", "tone": "ok"}
+    return {
+        "badge": f"{n} séance{'s' if n > 1 else ''} à saisir",
+        "tone": "warn",
+        "count": n,
+    }
+
+
 def _ctx_rappels_ouverts(user) -> dict[str, Any] | None:
     from app.extensions import db
     from app.models import SuiviRappel
@@ -114,6 +128,14 @@ POSTE_ACTIONS: dict[str, dict[str, Any]] = {
         "perm_any": ["emargement:view", "emargement:edit"],
         "endpoint": "activite.index",
         "context": _ctx_seances_du_jour,
+    },
+    "rattraper_emargements": {
+        "label": "Rattraper les émargements",
+        "desc": "Les feuilles papier en retard : voir ce qui manque, saisir en grille.",
+        "icon": "🗓️",
+        "perm_any": ["emargement:edit"],
+        "endpoint": "activite.emargements_attente",
+        "context": _ctx_emargements_en_attente,
     },
     "accueillir": {
         "label": "Accueillir une nouvelle personne",
@@ -222,14 +244,15 @@ ROLE_POSTES: dict[str, list[str]] = {
     "responsable_secteur": ["appel", "accueillir", "a_traiter", "suivre_activite", "monter_projet"],
     "coordinateur": ["appel", "accueillir", "a_traiter", "suivre_activite", "monter_projet"],
     "animateur": ["appel", "accueillir", "retrouver", "suivre_apprentissages"],
-    "accueil": ["accueillir", "retrouver", "appel", "a_traiter"],
+    "accueil": ["accueillir", "retrouver", "rattraper_emargements", "appel", "a_traiter"],
+    "secretaire": ["accueillir", "retrouver", "rattraper_emargements", "appel", "a_traiter"],
     "benevole": ["appel", "retrouver"],
     "admin_tech": ["gerer_equipe", "regler_droits", "verifier_sante", "verifier_sauvegardes"],
 }
 
 # Ordre de repli pour un rôle inconnu : du plus quotidien au plus pilotage.
 FALLBACK_ORDER = [
-    "appel", "accueillir", "retrouver", "a_traiter", "suivre_activite",
+    "appel", "accueillir", "retrouver", "rattraper_emargements", "a_traiter", "suivre_activite",
     "saisir_depense", "suivre_subventions", "preparer_bilan", "monter_projet",
     "suivre_apprentissages", "gerer_equipe", "regler_droits",
 ]
@@ -237,7 +260,7 @@ FALLBACK_ORDER = [
 # Priorité de résolution quand une personne cumule plusieurs rôles.
 ROLE_PRIORITY = [
     "direction", "finance", "responsable_secteur", "coordinateur",
-    "animateur", "accueil", "benevole", "admin_tech",
+    "animateur", "accueil", "secretaire", "benevole", "admin_tech",
 ]
 
 
