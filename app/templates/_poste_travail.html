@@ -1,0 +1,72 @@
+{# Poste de travail « Ma journée » : les grandes actions du rôle, en verbes. #}
+{% if poste_travail and poste_travail.actions %}
+<style>
+  .poste-hero{
+    background:linear-gradient(135deg, var(--panel, #fff) 0%, rgba(120,160,255,.08) 100%);
+    border:1px solid var(--border, #e3e6ef);
+    border-radius:16px;
+    padding:18px 20px;
+    margin-bottom:14px;
+  }
+  .poste-hero__head{
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px;
+    margin-bottom:12px;
+  }
+  .poste-hero__title{ margin:0; font-size:1.25rem; }
+  .poste-hero__meta{ font-size:.9rem; opacity:.75; }
+  .poste-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+    gap:10px;
+  }
+  .poste-card{
+    display:flex; flex-direction:column; gap:6px;
+    background:var(--panel, #fff);
+    border:1px solid var(--border, #e3e6ef);
+    border-radius:14px;
+    padding:14px;
+    text-decoration:none;
+    color:inherit;
+    min-height:118px;
+    transition:transform .08s ease, box-shadow .08s ease, border-color .08s ease;
+  }
+  .poste-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 6px 18px rgba(30,40,80,.10);
+    border-color:rgba(90,120,255,.45);
+  }
+  .poste-card__icon{ font-size:1.6rem; line-height:1; }
+  .poste-card__label{ font-weight:700; font-size:1.02rem; line-height:1.25; }
+  .poste-card__desc{ font-size:.84rem; opacity:.72; line-height:1.35; }
+  .poste-card__badge{
+    margin-top:auto; align-self:flex-start;
+    font-size:.78rem; font-weight:600;
+    padding:3px 9px; border-radius:999px;
+    background:rgba(120,130,150,.12); color:inherit;
+  }
+  .poste-card__badge[data-tone="info"]{ background:rgba(70,120,255,.14); }
+  .poste-card__badge[data-tone="warn"]{ background:rgba(255,170,40,.20); }
+  .poste-card__badge[data-tone="ok"]{ background:rgba(60,180,110,.16); }
+  @media (max-width:560px){
+    .poste-grid{ grid-template-columns:1fr 1fr; }
+    .poste-card{ min-height:104px; padding:12px; }
+  }
+</style>
+<section class="poste-hero no-print" aria-label="Ma journée">
+  <div class="poste-hero__head">
+    <h2 class="poste-hero__title">👋 Bonjour {{ poste_travail.prenom or '' }}</h2>
+    {# Le rôle et le secteur sont déjà affichés dans le bandeau au-dessus. #}
+    <span class="poste-hero__meta">{{ poste_travail.date_fr }}</span>
+  </div>
+  <div class="poste-grid">
+    {% for a in poste_travail.actions %}
+      <a class="poste-card" href="{{ a.url }}">
+        <span class="poste-card__icon" aria-hidden="true">{{ a.icon }}</span>
+        <span class="poste-card__label">{{ a.label }}</span>
+        <span class="poste-card__desc">{{ a.desc }}</span>
+        {% if a.badge %}<span class="poste-card__badge" data-tone="{{ a.tone }}">{{ a.badge }}</span>{% endif %}
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}

@@ -16,6 +16,7 @@ from app.services.dashboard_customization import (
     reset_dashboard_pref,
     save_dashboard_pref,
 )
+from app.services.poste_travail import build_poste_travail
 
 
 from app.main.common import bp
@@ -151,6 +152,11 @@ def dashboard():
     prefs = load_dashboard_pref(current_user)
     ctx["dashboard_prefs"] = prefs
     ctx["dashboard_widgets"] = prefs.get("widgets") or []
+    try:
+        ctx["poste_travail"] = build_poste_travail(current_user)
+    except Exception:
+        # L'accueil doit s'afficher même si le poste de travail échoue.
+        ctx["poste_travail"] = None
     return render_template("dashboard.html", **ctx)
 
 

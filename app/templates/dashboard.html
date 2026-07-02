@@ -364,6 +364,11 @@
         <h1 class="ui-title page-title">Tableau de bord</h1>
         <p class="ui-subtitle page-subtitle">Commence par une action rapide, puis reprends les éléments du jour sur {{ period_label }}.</p>
       </div>
+      {% if ui_simplified %}
+      <div class="dashboard-toolbar">
+        <button type="button" class="btn no-print" onclick="window.print()" title="Imprimer ou enregistrer en PDF pour un CA / une AG">🖨️ Imprimer / PDF</button>
+      </div>
+      {% else %}
       <div class="dashboard-toolbar">
         <a class="btn {% if period_key == '30' %}is-active{% endif %}" href="{{ url_for('main.dashboard', period='30', budget_year=budget_year) }}">30 jours</a>
         <a class="btn {% if period_key == '90' %}is-active{% endif %}" href="{{ url_for('main.dashboard', period='90', budget_year=budget_year) }}">90 jours</a>
@@ -383,15 +388,18 @@
           </form>
         {% endif %}
       </div>
+      {% endif %}
     </div>
 
     {% if mode == "admin_tech" %}
       <div class="quick-empty"><strong>Mode administration technique</strong>Les raccourcis techniques sont affichés en priorité pour faciliter la maintenance.</div>
     {% else %}
+      {% if not ui_simplified %}
       <div class="helper-banner" style="margin-top:10px;">
         <strong>Repère rapide</strong>
         <span class="muted">Les chiffres détaillés restent disponibles plus bas. Ici, on privilégie d’abord les actions du quotidien.</span>
       </div>
+      {% endif %}
       <details class="details-card" style="margin-top:12px;">
         <summary>Voir les chiffres clés</summary>
         <div class="details-body">
@@ -408,7 +416,35 @@
     {% endif %}
   </section>
 
-  {% if mode != "admin_tech" and pilotage %}
+  {% include "_poste_travail.html" %}
+
+  {% if mode != "admin_tech" and pilotage and ui_simplified %}
+  {# Mode simple : on garde uniquement « À traiter en premier », sans le score ni les modules. #}
+  <section class="ui-panel section-card" aria-label="À traiter en premier">
+    <div class="pilotage-focus">
+      <div class="pilotage-focus__head">
+        <div>
+          <h2 style="margin:0;">À traiter en premier</h2>
+          <div class="muted">Les signaux les plus utiles pour savoir où poser les yeux.</div>
+        </div>
+        <a class="mini-link" href="{{ url_for('main.suivi_rappels') }}">Centre de suivi</a>
+      </div>
+      <div class="pilotage-focus__list">
+        {% for item in pilotage.focus_items %}
+          <a class="pilotage-focus__item" data-tone="{{ item.tone }}" href="{{ item.url }}">
+            <span class="pilotage-dot" aria-hidden="true"></span>
+            <span>
+              <span class="pilotage-focus__title">{{ item.title }}</span>
+              <span class="pilotage-focus__text">{{ item.text }}</span>
+            </span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if mode != "admin_tech" and pilotage and not ui_simplified %}
   <section class="pilotage-board" aria-label="Pilotage global">
     <div class="pilotage-overview">
       <div class="pilotage-score" data-tone="{{ pilotage.health_tone }}">
@@ -469,7 +505,7 @@
   </section>
   {% endif %}
 
-  {% if mode != "admin_tech" %}
+  {% if mode != "admin_tech" and not ui_simplified %}
   <section class="ui-panel section-card">
     <div class="ui-section-head section-head">
       <div>
@@ -573,7 +609,7 @@
       </div>
     </div>
   </section>
-  {% else %}
+  {% elif mode == "admin_tech" %}
   <section class="ui-panel section-card">
     <div class="ui-section-head section-head">
       <div>
@@ -600,6 +636,7 @@
   </section>
   {% endif %}
 
+  {% if not ui_simplified or (dashboard_prefs and dashboard_prefs.customized) %}
   <section class="ui-panel section-card">
     <div class="ui-section-head section-head">
       <div>
@@ -629,8 +666,9 @@
       <div class="quick-empty"><strong>Aucune action rapide</strong>Choisis tes raccourcis depuis “Personnaliser mon accueil”.</div>
     {% endif %}
   </section>
+  {% endif %}
 
-  {% if mode != "admin_tech" %}
+  {% if mode != "admin_tech" and not ui_simplified %}
     <div class="grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:12px;">
       <section class="ui-panel section-card">
         <div class="ui-section-head section-head">
