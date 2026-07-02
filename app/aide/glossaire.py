@@ -114,11 +114,6 @@ GLOSSAIRE: list[dict] = [
                 "dans_app": "Se rattache aux séances pour proposer les bonnes compétences à évaluer.",
             },
             {
-                "terme": "Échelle de Hart (participation)",
-                "definition": "Outil qui mesure la place réellement laissée aux habitants dans les décisions, du simple spectateur jusqu'à la co-décision. Représentée comme un escalier : plus on monte, plus les habitants décident.",
-                "dans_app": "Onglet Participation du passeport (individuel) et page Échelle de Hart (vue collective). C'est une évaluation humaine : l'application signale seulement les bons moments pour la poser.",
-            },
-            {
                 "terme": "Insertion",
                 "definition": "Accompagnement individuel vers l'emploi, la formation, les droits ou les papiers. Suit des informations sensibles (titre de séjour, diplômes) réservées aux personnes habilitées.",
                 "dans_app": "Module Insertion, visible uniquement avec les droits correspondants.",
@@ -140,6 +135,91 @@ GLOSSAIRE: list[dict] = [
             {
                 "terme": "RGPD",
                 "definition": "Règlement général sur la protection des données : la loi européenne qui encadre ce qu'on enregistre sur les gens. En pratique : ne saisir que l'utile, et pouvoir montrer/effacer les données d'une personne si elle le demande.",
+            },
+        ],
+    },
+    {
+        "categorie": "Éducation populaire & pouvoir d'agir",
+        "icone": "✊",
+        "termes": [
+            {
+                "terme": "Éducation populaire",
+                "definition": "L'idée fondatrice des centres sociaux : chacun peut apprendre, transmettre et agir toute sa vie, en dehors de l'école, à partir de ce qu'il vit. On apprend ensemble, en faisant, et les savoirs de chacun comptent — pas seulement les diplômes.",
+                "dans_app": "C'est l'esprit du module Apprentissages : on y évalue des progrès réels, pas des notes scolaires.",
+            },
+            {
+                "terme": "Développement du pouvoir d'agir (DPA)",
+                "definition": "Accompagner les personnes pour qu'elles reprennent prise sur leur vie et leur territoire : passer de « on fait pour eux » à « ils font eux-mêmes, avec nous ». On parle aussi d'« empowerment ». Concrètement : partir des envies des habitants, pas de nos programmes.",
+                "dans_app": "L'échelle de Hart mesure exactement ça : la place réelle laissée aux habitants dans les décisions.",
+            },
+            {
+                "terme": "Participation des habitants",
+                "definition": "Le principe selon lequel les habitants ne sont pas des « publics » à qui on offre des services, mais des acteurs qui construisent le centre avec l'équipe : donner son avis, animer, décider, siéger au conseil d'administration.",
+                "dans_app": "Onglet Participation du passeport (parcours individuel) et page Échelle de Hart (vue collective).",
+            },
+            {
+                "terme": "Échelle de Hart",
+                "definition": "Outil (imaginé par Roger Hart) qui décrit 8 marches de participation, de la simple présence décorative jusqu'à la co-décision. Monter l'escalier = laisser de plus en plus de vraie prise aux habitants. Ce n'est pas une note : c'est un repère pour se questionner.",
+                "dans_app": "Représentée en escalier dans le passeport et en vue collective. C'est une évaluation humaine, jamais un calcul automatique.",
+            },
+            {
+                "terme": "Aller-vers",
+                "definition": "Ne pas attendre que les gens poussent la porte du centre : sortir, être présent en pied d'immeuble, sur le marché, à la sortie de l'école, pour toucher ceux qui ne viendraient jamais d'eux-mêmes.",
+            },
+            {
+                "terme": "Co-construction",
+                "definition": "Monter un projet AVEC les personnes concernées, du diagnostic à l'évaluation — pas seulement leur demander leur avis à la fin. Plus exigeant, plus lent, mais les actions co-construites tiennent dans le temps.",
+            },
+            {
+                "terme": "Diagnostic partagé",
+                "definition": "Photographie des besoins et des ressources d'un territoire, faite AVEC les habitants et les partenaires (et pas seulement à partir de statistiques). C'est la première étape du projet social.",
+                "dans_app": "Les données quartiers, présences et questionnaires fournissent la matière chiffrée du diagnostic.",
+            },
+            {
+                "terme": "Pair-aidance",
+                "definition": "L'entraide entre personnes qui vivent ou ont vécu la même situation : un parent qui en accompagne un autre, un ancien apprenant qui aide un débutant. Le centre la favorise car elle crée de la confiance qu'aucun professionnel ne peut décréter.",
+            },
+            {
+                "terme": "Lien social",
+                "definition": "Ce qui relie les gens entre eux : se connaître, se rendre service, se sentir appartenir à un endroit. C'est la matière première du centre social — beaucoup d'actions n'ont pas d'autre but, et c'est déjà énorme.",
+            },
+            {
+                "terme": "Mixité sociale",
+                "definition": "Faire se rencontrer des personnes qui ne se croiseraient pas autrement : générations, quartiers, milieux, origines. Un repas partagé qui mélange vraiment, c'est de la mixité réussie.",
+            },
+            {
+                "terme": "Médiation sociale",
+                "definition": "Faciliter le dialogue là où il s'est rompu : entre voisins, entre familles et institutions (école, bailleur, CAF…). Le médiateur ne juge pas, il rétablit le lien.",
+            },
+            {
+                "terme": "Animation globale",
+                "definition": "Le socle du centre social financé par la CAF : une fonction d'accueil, d'écoute et de coordination qui bénéficie à tout le territoire, au-delà des activités. C'est ce qui distingue un centre social d'une simple structure d'activités.",
+                "dans_app": "La prestation CAF correspondante (AGC) apparaît dans les subventions.",
+            },
+            {
+                "terme": "Projet social",
+                "definition": "LE document fondateur du centre : tous les 4 ans environ, il décrit le territoire (diagnostic), les priorités et les moyens. C'est sur lui que la CAF accorde l'agrément. Idéalement écrit avec les habitants.",
+                "dans_app": "Les bilans et statistiques de l'application servent à l'écrire et à l'évaluer.",
+            },
+            {
+                "terme": "Référent familles / ACF",
+                "definition": "Le ou la professionnelle qui coordonne tout ce qui touche aux familles et à la parentalité, dans le cadre de l'Animation collective familles (ACF), financée par la CAF en complément de l'animation globale.",
+            },
+            {
+                "terme": "Comité d'habitants / comité d'usagers",
+                "definition": "Groupe d'habitants qui participe aux décisions du centre : programmation, aménagement, budget d'une action… Une des formes concrètes de la participation, entre le simple avis et le conseil d'administration.",
+            },
+            {
+                "terme": "FPH (Fonds de participation des habitants)",
+                "definition": "Petite enveloppe (souvent liée à la politique de la ville) que des habitants attribuent eux-mêmes à des micro-projets d'autres habitants : fête des voisins, sortie collective… Les habitants décident, la structure sécurise.",
+            },
+            {
+                "terme": "FCSF & charte fédérale",
+                "definition": "La Fédération des centres sociaux et socioculturels de France, qui relie les centres entre eux. Sa charte fonde l'action sur trois valeurs : dignité humaine, solidarité, démocratie.",
+            },
+            {
+                "terme": "Laïcité",
+                "definition": "Principe qui garantit à chacun la liberté de croire ou non, et la neutralité de la structure : le centre accueille tout le monde, sans prosélytisme d'aucune sorte. Au quotidien : on accueille les personnes telles qu'elles sont, et les activités restent ouvertes à tous.",
             },
         ],
     },
@@ -259,6 +339,27 @@ GLOSSAIRE: list[dict] = [
                 "terme": "Partenaire",
                 "definition": "Structure avec qui le centre travaille : école, mission locale, CCAS, association… On oriente des personnes vers eux et on monte des actions ensemble.",
                 "dans_app": "Module Partenaires, avec annuaire et carte.",
+            },
+            {
+                "terme": "Politique de la ville / contrat de ville",
+                "definition": "L'ensemble des moyens que l'État et les collectivités consacrent aux quartiers prioritaires (QPV). Le contrat de ville est le document local qui organise ces moyens — beaucoup d'appels à projets en découlent.",
+            },
+            {
+                "terme": "CLAS (Contrat local d'accompagnement à la scolarité)",
+                "definition": "Le dispositif qui finance l'accompagnement scolaire : aide aux devoirs, ouverture culturelle ET accompagnement des parents dans leur rôle. Un bilan spécifique est à rendre chaque année.",
+                "dans_app": "Les présences des ateliers d'accompagnement scolaire alimentent directement ce bilan.",
+            },
+            {
+                "terme": "REAAP (Réseau d'écoute, d'appui et d'accompagnement des parents)",
+                "definition": "Le dispositif qui finance les actions de soutien à la parentalité : cafés des parents, groupes de parole, sorties familles. Porté par la CAF.",
+            },
+            {
+                "terme": "ASL (Atelier sociolinguistique)",
+                "definition": "Apprentissage du français à partir des situations de la vie quotidienne (école, santé, démarches) — on apprend la langue ET les codes pour être autonome. Différent d'un cours de français classique.",
+            },
+            {
+                "terme": "Adulte-relais",
+                "definition": "Poste de médiation sociale financé par l'État, réservé aux habitants des quartiers prioritaires. Beaucoup de médiateurs des centres sociaux sont sur ce type de contrat.",
             },
         ],
     },

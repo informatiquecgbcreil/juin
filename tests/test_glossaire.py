@@ -14,7 +14,10 @@ def test_glossaire_page_complete(admin_client):
     assert r.status_code == 200
     # Les termes clés demandés (bilan, subvention, présence…) sont là
     for terme in ["Bilan", "Subvention", "Présence", "Séance", "Atelier",
-                  "SENACS", "QPV", "ETP", "Bénévole", "Passeport"]:
+                  "SENACS", "QPV", "ETP", "Bénévole", "Passeport",
+                  "Éducation populaire", "Développement du pouvoir", "DPA",
+                  "Aller-vers", "CLAS", "REAAP", "Animation globale",
+                  "Projet social"]:
         assert terme in body, f"terme manquant : {terme}"
     # La recherche instantanée est en place
     assert "glossaire-filtre" in body
