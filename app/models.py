@@ -1698,6 +1698,10 @@ class SessionActivite(db.Model):
     # l'export « Sessions ». NULL = jamais exportée, remonte dans le prochain export.
     exported_csat_at = db.Column(db.DateTime, nullable=True)
 
+    # Séance « événementielle » (fête de quartier, temps fort, sortie…) :
+    # comptée à part dans le volet événementiel du SENACS.
+    est_evenement = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
     presences = db.relationship("PresenceActivite", backref="session", cascade="all, delete-orphan")
     competences = db.relationship(
         "Competence",
@@ -2556,3 +2560,36 @@ class SubventionAtelier(db.Model):
     __table_args__ = (
         db.UniqueConstraint("subvention_id", "atelier_id", name="uq_subvention_atelier"),
     )
+
+
+# ---------- SENACS : EMPLOIS / ETP ----------
+
+SENACS_TYPES_CONTRAT = [
+    ("cdi", "CDI"),
+    ("cdd", "CDD"),
+    ("emploi_aide", "Emploi aidé"),
+    ("mise_a_disposition", "Mise à disposition"),
+    ("autre", "Autre"),
+]
+SENACS_TYPES_CONTRAT_DICT = dict(SENACS_TYPES_CONTRAT)
+
+
+class SenacsEmploi(db.Model):
+    """Poste salarié déclaré pour l'onglet « Emplois » du SENACS.
+
+    Saisie simple par exercice : fonction, type de contrat, quotité (ETP).
+    Pas un module RH : juste ce qu'exige l'enquête annuelle.
+    """
+    __tablename__ = "senacs_emploi"
+
+    id = db.Column(db.Integer, primary_key=True)
+    annee = db.Column(db.Integer, nullable=False, index=True)
+    intitule = db.Column(db.String(200), nullable=False)     # ex. Directeur, animatrice famille
+    type_contrat = db.Column(db.String(30), nullable=False, default="cdi")
+    etp = db.Column(db.Float, nullable=False, default=1.0)
+    commentaire = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    @property
+    def contrat_label(self):
+        return SENACS_TYPES_CONTRAT_DICT.get(self.type_contrat or "autre", self.type_contrat or "—")

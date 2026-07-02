@@ -265,14 +265,62 @@ def construire_export_senacs(annee: int):
         [[p["nom"], p["territoire"], p["description"], "", ""] for p in partenaires_recenses()],
     )
 
+    benevolat = benevolat_annee(annee)
+    lignes_benevolat = [
+        ["Bénévoles actifs (avec heures saisies)", benevolat["nb_actifs"]],
+        ["Bénévoles déclarés (fiches marquées)", benevolat["nb_declares"]],
+        ["Heures de bénévolat", benevolat["total_heures"]],
+        ["Taux horaire de valorisation (€)", benevolat["taux_horaire"]],
+        ["Valorisation (contributions volontaires, €)", benevolat["valorisation"]],
+        ["", ""],
+        ["Heures par mission", ""],
+    ] + [[f"  {mission}", heures] for mission, heures in benevolat["par_mission"].items()]
+    feuille("Bénévolat", ["Indicateur", "Valeur"], lignes_benevolat)
+
+    emplois = emplois_annee(annee)
+    lignes_emplois = [[p.intitule, p.contrat_label, p.etp, p.commentaire or ""] for p in emplois["postes"]]
+    lignes_emplois.append(["", "", "", ""])
+    lignes_emplois.append(["TOTAL", f"{emplois['nb_postes']} poste(s)", emplois["total_etp"], ""])
+    for contrat, d in emplois["par_contrat"].items():
+        lignes_emplois.append([f"  dont {contrat}", d["nb"], d["etp"], ""])
+    feuille("Emplois", ["Fonction", "Contrat", "ETP", "Commentaire"], lignes_emplois)
+
+    finances = finances_annee(annee)
+    lignes_finances = [
+        ["Produits — subventions par financeur", "", ""],
+    ] + [
+        [f"  {financeur}", d["attribue"], d["recu"]]
+        for financeur, d in finances["par_financeur"].items()
+    ] + [
+        ["TOTAL subventions", finances["total_attribue"], finances["total_recu"]],
+        ["", "", ""],
+        ["Charges réalisées (lignes budgétaires des subventions)", finances["total_charges_reelles"], ""],
+        ["Valorisation du bénévolat (compte 87)", finances["valorisation_benevolat"], ""],
+    ]
+    feuille("Finances", ["Poste", "Attribué (€)", "Reçu (€)"], lignes_finances)
+
+    evenementiel = evenementiel_annee(annee)
+    feuille(
+        "Événementiel",
+        ["Indicateur", "Valeur"],
+        [
+            ["Événements réalisés (séances marquées « événement »)", evenementiel["nb_evenements"]],
+            ["Participations aux événements", evenementiel["participations"]],
+            ["Participants uniques aux événements", evenementiel["participants_uniques"]],
+        ],
+    )
+
     feuille(
         "Mode d'emploi",
         ["À savoir"],
         [
             ["Ce fichier pré-remplit les tableaux de consolidation SENACS à partir des données de l'application."],
             ["Les participants uniques sont dédoublonnés entre secteurs : une personne inscrite dans plusieurs ateliers compte une seule fois."],
-            ["L'événementiel et les publics des partenaires hébergés ne sont pas suivis dans l'application : à estimer à part, sans les mélanger."],
-            ["Le bénévolat, les emplois et les finances ne sont pas gérés par l'application : à renseigner à la main (onglets Vitalité démocratique, Emplois, Finances)."],
+            ["Bénévolat : onglet alimenté par la page Ressources -> Bénévolat (heures saisies, valorisation au taux configuré)."],
+            ["Emplois : onglet alimenté par les postes déclarés sur la page Bilan SENACS (fonction, contrat, ETP)."],
+            ["Finances : produits par financeur et charges réalisées issus des subventions de l'exercice ; à rapprocher de la comptabilité officielle."],
+            ["Événementiel : séances cochées « événement » à la création ou depuis la correction de séance."],
+            ["Les publics des partenaires hébergés restent à estimer à part, sans les mélanger."],
             ["La colonne 'Séances sans durée connue' signale les heures face public sous-évaluées : renseignez les horaires des séances pour fiabiliser le chiffre."],
             ["Le hors les murs (aller-vers) et les liens à distance relèvent d'un suivi spécifique non couvert ici."],
             ["La saisie officielle se fait sur senacs.fr ; en cas de doute, consultez vos référents CAF / fédération."],
@@ -280,3 +328,89 @@ def construire_export_senacs(annee: int):
     )
 
     return wb
+
+
+# ---------------------------------------------------------------------------
+# Volets complémentaires : bénévolat, emplois, finances, événementiel
+# ---------------------------------------------------------------------------
+
+def benevolat_annee(annee: int) -> dict:
+    """Onglet « vitalité démocratique » : bénévoles, heures, valorisation."""
+    from app.services.benevolat import stats_annee
+    stats = stats_annee(annee)
+    return {
+        "nb_actifs": stats["nb_actifs"],
+        "nb_declares": stats["nb_declares"],
+        "total_heures": stats["total_heures"],
+        "taux_horaire": stats["taux_horaire"],
+        "valorisation": stats["valorisation"],
+        "par_mission": stats["par_mission"],
+    }
+
+
+def emplois_annee(annee: int) -> dict:
+    """Onglet « emplois » : postes déclarés pour l'exercice + totaux."""
+    from app.models import SenacsEmploi
+    postes = (SenacsEmploi.query.filter_by(annee=annee)
+              .order_by(SenacsEmploi.intitule.asc()).all())
+    par_contrat: dict[str, dict] = {}
+    for p in postes:
+        d = par_contrat.setdefault(p.contrat_label, {"nb": 0, "etp": 0.0})
+        d["nb"] += 1
+        d["etp"] = round(d["etp"] + float(p.etp or 0), 2)
+    return {
+        "postes": postes,
+        "nb_postes": len(postes),
+        "total_etp": round(sum(float(p.etp or 0) for p in postes), 2),
+        "par_contrat": par_contrat,
+    }
+
+
+def finances_annee(annee: int) -> dict:
+    """Onglet « finances » : produits par financeur et charges réalisées,
+    à partir des subventions de l'exercice + valorisation du bénévolat."""
+    from app.models import Subvention
+
+    subs = Subvention.query.filter_by(est_archive=False, annee_exercice=annee).all()
+    par_financeur: dict[str, dict] = {}
+    total_charges_reelles = 0.0
+    for s in subs:
+        fin = (s.financeur or "").strip() or "— Non renseigné —"
+        d = par_financeur.setdefault(fin, {"attribue": 0.0, "recu": 0.0, "nb": 0})
+        d["attribue"] = round(d["attribue"] + float(s.montant_attribue or 0), 2)
+        d["recu"] = round(d["recu"] + float(s.montant_recu or 0), 2)
+        d["nb"] += 1
+        total_charges_reelles += float(s.total_reel_lignes or 0)
+
+    benevolat = benevolat_annee(annee)
+    return {
+        "par_financeur": dict(sorted(par_financeur.items(), key=lambda kv: -kv[1]["attribue"])),
+        "total_attribue": round(sum(d["attribue"] for d in par_financeur.values()), 2),
+        "total_recu": round(sum(d["recu"] for d in par_financeur.values()), 2),
+        "total_charges_reelles": round(total_charges_reelles, 2),
+        "valorisation_benevolat": benevolat["valorisation"],
+    }
+
+
+def evenementiel_annee(annee: int) -> dict:
+    """Volet événementiel : séances marquées « événement » sur l'année."""
+    eff = db.func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date)
+    sessions = (SessionActivite.query
+                .filter(SessionActivite.is_deleted.is_(False))
+                .filter(SessionActivite.est_evenement.is_(True))
+                .filter(eff >= date(annee, 1, 1), eff <= date(annee, 12, 31))
+                .all())
+    ids = [s.id for s in sessions]
+    participations = 0
+    uniques = 0
+    if ids:
+        participations = (db.session.query(db.func.count(PresenceActivite.id))
+                          .filter(PresenceActivite.session_id.in_(ids)).scalar() or 0)
+        uniques = (db.session.query(db.func.count(db.distinct(PresenceActivite.participant_id)))
+                   .filter(PresenceActivite.session_id.in_(ids)).scalar() or 0)
+    return {
+        "nb_evenements": len(sessions),
+        "participations": int(participations),
+        "participants_uniques": int(uniques),
+        "sessions": sessions,
+    }

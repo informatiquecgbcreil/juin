@@ -624,10 +624,16 @@ def bilan_senacs():
         NON_RENSEIGNE,
         TRANCHES_AGE,
         annees_disponibles,
+        benevolat_annee,
+        emplois_annee,
+        evenementiel_annee,
+        finances_annee,
         partenaires_recenses,
         publics_annee,
         tableau_actions,
     )
+    from app.models import SENACS_TYPES_CONTRAT
+    from app.rbac import can
 
     annees = annees_disponibles()
     try:
@@ -643,7 +649,60 @@ def bilan_senacs():
         actions=tableau_actions(annee),
         partenaires=partenaires_recenses(),
         tranches=[t[0] for t in TRANCHES_AGE] + [NON_RENSEIGNE],
+        benevolat=benevolat_annee(annee),
+        emplois=emplois_annee(annee),
+        finances=finances_annee(annee),
+        evenementiel=evenementiel_annee(annee),
+        types_contrat=SENACS_TYPES_CONTRAT,
+        peut_editer_emplois=can("subventions:edit"),
     )
+
+
+@bp.route("/bilans/senacs/emplois", methods=["POST"])
+@login_required
+@require_perm("subventions:edit")
+def bilan_senacs_emploi_create():
+    from app.models import SenacsEmploi, SENACS_TYPES_CONTRAT_DICT
+
+    try:
+        annee = int(request.form.get("annee") or 0)
+    except Exception:
+        annee = 0
+    intitule = (request.form.get("intitule") or "").strip()
+    if not annee or not intitule:
+        flash("Fonction et année sont obligatoires.", "danger")
+        return redirect(url_for("bilans.bilan_senacs", annee=annee or None))
+
+    type_contrat = (request.form.get("type_contrat") or "cdi").strip()
+    if type_contrat not in SENACS_TYPES_CONTRAT_DICT:
+        type_contrat = "autre"
+    try:
+        etp = round(float(str(request.form.get("etp") or "1").replace(",", ".")), 2)
+    except Exception:
+        etp = 1.0
+    etp = min(max(etp, 0.0), 2.0)
+
+    db.session.add(SenacsEmploi(
+        annee=annee, intitule=intitule, type_contrat=type_contrat, etp=etp,
+        commentaire=(request.form.get("commentaire") or "").strip() or None,
+    ))
+    db.session.commit()
+    flash(f"Poste « {intitule} » ajouté ({etp:g} ETP).", "success")
+    return redirect(url_for("bilans.bilan_senacs", annee=annee))
+
+
+@bp.route("/bilans/senacs/emplois/<int:emploi_id>/supprimer", methods=["POST"])
+@login_required
+@require_perm("subventions:edit")
+def bilan_senacs_emploi_supprimer(emploi_id: int):
+    from app.models import SenacsEmploi
+
+    emploi = db.get_or_404(SenacsEmploi, emploi_id)
+    annee = emploi.annee
+    db.session.delete(emploi)
+    db.session.commit()
+    flash("Poste supprimé.", "warning")
+    return redirect(url_for("bilans.bilan_senacs", annee=annee))
 
 
 @bp.route("/bilans/senacs/export.xlsx")
