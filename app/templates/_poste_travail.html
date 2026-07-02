@@ -57,6 +57,7 @@
     <h2 class="poste-hero__title">👋 Bonjour {{ poste_travail.prenom or '' }}</h2>
     {# Le rôle et le secteur sont déjà affichés dans le bandeau au-dessus. #}
     <span class="poste-hero__meta">{{ poste_travail.date_fr }}</span>
+    <a class="mini-link" style="margin-left:auto;" href="{{ url_for('main.guides_liste') }}">🧭 Guides pas à pas</a>
   </div>
   <div class="poste-grid">
     {% for a in poste_travail.actions %}

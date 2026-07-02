@@ -50,7 +50,7 @@ def generate_collectif(session_id: int):
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if s.session_type != "COLLECTIF":
-        flash("Uniquement pour les sessions collectives.", "warning")
+        flash("Uniquement pour les séances collectives.", "warning")
         return _redirect_emargement_with_period(session_id)
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()

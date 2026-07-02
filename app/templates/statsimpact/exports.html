@@ -36,7 +36,7 @@
   </div>
   <div class="section-card compact">
     <div class="table-toolbar"><h2 class="section-title" style="margin:0">CSV sur mesure</h2><div class="inline-actions"><button class="btn" type="button" data-csv-select="all">Tout sélectionner</button><button class="btn" type="button" data-csv-select="none">Tout désélectionner</button></div></div>
-    <p class="muted">Chaque ligne du CSV correspond à une présence. Pour obtenir une matrice par atelier et par session, utilisez plutôt l’export XLSX annuel.</p>
+    <p class="muted">Chaque ligne du CSV correspond à une présence. Pour obtenir une matrice par atelier et par séance, utilisez plutôt l’export XLSX annuel.</p>
     <form method="get" action="{{ url_for('statsimpact.magatomatique_export_csv') }}" class="stack" style="margin-top:10px;">
       {% if flt.secteur %}<input type="hidden" name="secteur" value="{{ flt.secteur }}">{% endif %}
       {% for atelier_id in flt.atelier_ids or [] %}<input type="hidden" name="atelier_ids" value="{{ atelier_id }}">{% endfor %}

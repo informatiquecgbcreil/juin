@@ -10,7 +10,7 @@
   <div class="k-card">
     <span class="k-chip">{{ session.secteur }}</span>
     <h1 class="k-card__title k-mt">{{ session_label }}</h1>
-    <p class="k-card__sub">Code de la session : <strong>{{ session.kiosk_pin or '—' }}</strong></p>
+    <p class="k-card__sub">Code de la séance : <strong>{{ session.kiosk_pin or '—' }}</strong></p>
     <div class="k-row">
       <a class="k-btn k-btn--ghost" href="{{ url_for('kiosk.kiosk_home') }}">← Changer d'atelier</a>
       <a class="k-btn k-btn--ghost" href="{{ url_for('kiosk.kiosk_feedback', token=token) }}">💬 Donner mon avis</a>

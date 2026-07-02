@@ -77,12 +77,12 @@
                     {% if s.session_type=='COLLECTIF' %}
                       <a class="btn" href="{{ url_for('activite.generate_collectif', session_id=s.id) }}">Générer PDF</a>
                     {% endif %}
-                    <form method="post" action="{{ url_for('activite.session_delete', session_id=s.id) }}" style="display:inline;" onsubmit="return confirm('Mettre cette session en corbeille ? (restaurable)');">
+                    <form method="post" action="{{ url_for('activite.session_delete', session_id=s.id) }}" style="display:inline;" onsubmit="return confirm('Mettre cette séance en corbeille ? (restaurable)');">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn danger">Supprimer</button>
                     </form>
                   {% else %}
-                    <form method="post" action="{{ url_for('activite.session_restore', session_id=s.id) }}" style="display:inline;" onsubmit="return confirm('Restaurer cette session ?');">
+                    <form method="post" action="{{ url_for('activite.session_restore', session_id=s.id) }}" style="display:inline;" onsubmit="return confirm('Restaurer cette séance ?');">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn">Restaurer</button>
                     </form>
@@ -132,12 +132,12 @@
               {% if s.session_type=='COLLECTIF' %}
                 <a class="btn" href="{{ url_for('activite.generate_collectif', session_id=s.id) }}">Générer PDF</a>
               {% endif %}
-              <form method="post" action="{{ url_for('activite.session_delete', session_id=s.id) }}" onsubmit="return confirm('Mettre cette session en corbeille ? (restaurable)');">
+              <form method="post" action="{{ url_for('activite.session_delete', session_id=s.id) }}" onsubmit="return confirm('Mettre cette séance en corbeille ? (restaurable)');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn danger">Supprimer</button>
               </form>
             {% else %}
-              <form method="post" action="{{ url_for('activite.session_restore', session_id=s.id) }}" onsubmit="return confirm('Restaurer cette session ?');">
+              <form method="post" action="{{ url_for('activite.session_restore', session_id=s.id) }}" onsubmit="return confirm('Restaurer cette séance ?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn">Restaurer</button>
               </form>

@@ -130,7 +130,7 @@
         {# KIOSQUE PUBLIC #}
         {% if session.kiosk_open %}
           <a class="btn" href="{{ url_for('kiosk.kiosk_home') }}" target="_blank">Ouvrir le kiosque</a>
-          <a class="btn" href="{{ url_for('kiosk.kiosk_session', token=session.kiosk_token) }}" target="_blank">Ouvrir cette session</a>
+          <a class="btn" href="{{ url_for('kiosk.kiosk_session', token=session.kiosk_token) }}" target="_blank">Ouvrir cette séance</a>
           <form method="post" action="{{ url_for('activite.kiosk_close', session_id=session.id) }}" style="margin:0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="conso_period_mode" value="{{ conso_period_mode }}">
@@ -370,7 +370,7 @@
     <div class="muted" style="margin-top:8px;">
       Lien kiosque (général) : <code>{{ kiosk_home_url }}</code>
       <br>
-      Lien direct de cette session : <code id="kiosk-link">{{ kiosk_session_url }}</code> <button type="button" class="btn copy-btn" data-copy-target="#kiosk-link">Copier le lien</button>
+      Lien direct de cette séance : <code id="kiosk-link">{{ kiosk_session_url }}</code> <button type="button" class="btn copy-btn" data-copy-target="#kiosk-link">Copier le lien</button>
     </div>
     <div style="margin-top:14px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
       <img alt="QR code de cette séance"
@@ -411,8 +411,8 @@
   {% endif %}
 
   <div class="card">
-    <h2 style="margin-top:0;">Modules pédagogiques de la session</h2>
-    <div class="muted">Associez les modules réellement travaillés pendant cette session pour préparer les compétences proposées lors de l’évaluation.</div>
+    <h2 style="margin-top:0;">Modules pédagogiques de la séance</h2>
+    <div class="muted">Associez les modules réellement travaillés pendant cette séance pour préparer les compétences proposées lors de l’évaluation.</div>
 
     <form method="post" class="mt-2">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -849,7 +849,7 @@
             <div class="spacer"></div>
             <label>Catégorie</label>
             <select class="in" name="categorie">
-              <option value="session">Session</option>
+              <option value="session">Séance</option>
               <option value="progression">Progression</option>
               <option value="participation">Participation</option>
               <option value="temoignage">Témoignage</option>
@@ -924,8 +924,8 @@
 
               {% if not objectifs_payload and session_competences %}
                 <div class="card" style="margin-bottom:12px;">
-                  <strong>Compétences de la session</strong>
-                  <div class="muted">Aucun objectif n'est encore défini pour cette session. Les compétences issues des modules restent toutefois évaluables.</div>
+                  <strong>Compétences de la séance</strong>
+                  <div class="muted">Aucun objectif n'est encore défini pour cette séance. Les compétences issues des modules restent toutefois évaluables.</div>
                   <div class="spacer"></div>
                   {% for comp in session_competences %}
                     {% set eval = evaluation_map.get((pr.participant.id, comp.id)) %}

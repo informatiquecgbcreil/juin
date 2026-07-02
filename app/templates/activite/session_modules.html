@@ -2,7 +2,7 @@
 {% block body %}
 <div class="stack">
   <div class="card">
-    <h1 style="margin-top:0;">Modules de la session</h1>
+    <h1 style="margin-top:0;">Modules de la séance</h1>
     <p class="muted">
       Atelier : <strong>{{ atelier.nom }}</strong> · Session #{{ session.id }}
       {% if session.date_session %}· {{ session.date_session }}{% endif %}
@@ -35,7 +35,7 @@
       <button class="btn ok" type="submit">Enregistrer</button>
     </form>
     <p class="muted" style="margin-top:10px;">
-      Note : à l'enregistrement, la liste des compétences de la session est recalculée automatiquement
+      Note : à l'enregistrement, la liste des compétences de la séance est recalculée automatiquement
       (union des compétences des modules sélectionnés).
     </p>
   </div>

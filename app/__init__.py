@@ -233,6 +233,14 @@ def create_app():
         endpoint = (request.endpoint or "").lower()
         if endpoint.startswith("kiosk."):
             requested_mode = "kiosk"
+        guide_actif = None
+        try:
+            if current_user.is_authenticated:
+                from app.services.guides import guide_actif_ctx
+                guide_actif = guide_actif_ctx()
+        except Exception:
+            # Un guide cassé ne doit jamais casser une page.
+            guide_actif = None
         return {
             "APP_NAME": app_name,
             "ORGANIZATION_NAME": organization_name,
@@ -242,6 +250,7 @@ def create_app():
             "UI_MODE": ui_mode,
             "UI_SIMPLIFIED": ui_mode == "simple",
             "UI_DEVICE_MODE": requested_mode,
+            "GUIDE_ACTIF": guide_actif,
         }
 
     # ------------------------------------------------------------------

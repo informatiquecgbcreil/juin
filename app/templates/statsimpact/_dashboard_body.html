@@ -200,8 +200,8 @@
           <thead>
             <tr>
               <th>Atelier</th>
-              <th>Sessions prév.</th>
-              <th>Sessions réelles</th>
+              <th>Séances prév.</th>
+              <th>Séances réelles</th>
               <th>Présences totales</th>
               <th>Heures réalisées</th>
               <th>Heures prév.</th>
@@ -247,10 +247,10 @@
       <div>
         <div class="pill">Vue dynamique</div>
         <h2 style="margin:6px 0 4px 0; font-size:26px;">Impact global sur la période sélectionnée</h2>
-        <p style="margin:0; opacity:0.9;">Sessions, présences, fidélisation et démographie sur la période sélectionnée.</p>
+        <p style="margin:0; opacity:0.9;">Séances, présences, fidélisation et démographie sur la période sélectionnée.</p>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <div class="pill" style="background:rgba(255,255,255,0.24);">Sessions : {{ stats.kpi.sessions }}</div>
+        <div class="pill" style="background:rgba(255,255,255,0.24);">Séances : {{ stats.kpi.sessions }}</div>
         <div class="pill" style="background:rgba(255,255,255,0.24);">Présences : {{ stats.kpi.presences }}</div>
         <div class="pill" style="background:rgba(255,255,255,0.24);">Uniques : {{ stats.kpi.uniques }}</div>
       </div>
@@ -259,7 +259,7 @@
 
   <div class="dash-grid" style="margin-bottom:14px;">
     <div class="kpi-card">
-      <div class="kpi-label">Sessions</div>
+      <div class="kpi-label">Séances</div>
       <div class="kpi-value">{{ stats.kpi.sessions }}</div>
       <div class="progress-shell" style="margin-top:8px;">
         <div class="progress-bar" style="width:100%;"></div>
@@ -424,7 +424,7 @@
                 {% endif %}
               </div>
               <div style="display:flex; gap:12px; font-size:14px; color:#333;">
-                <span>Sessions : <strong>{{ r.sessions }}</strong></span>
+                <span>Séances : <strong>{{ r.sessions }}</strong></span>
                 <span>Présences : <strong>{{ r.presences }}</strong></span>
                 <span>Uniques : <strong>{{ r.uniques }}</strong></span>
               </div>
@@ -447,7 +447,7 @@
           <thead>
             <tr>
               <th>Secteur</th>
-              <th>Sessions</th>
+              <th>Séances</th>
               <th>Présences</th>
               <th>Uniques</th>
               <th>Heures</th>
@@ -480,7 +480,7 @@
       <tr>
         <th>Secteur</th>
         <th>Atelier</th>
-        <th>Sessions</th>
+        <th>Séances</th>
         <th>Présences</th>
         <th>Uniques</th>
         <th>Heures anim.</th>
@@ -623,7 +623,7 @@
                   </ul>
                 </div>
                 <div style="font-size:13px;">
-                  <strong>Sessions</strong>
+                  <strong>Séances</strong>
                   <ul style="margin:6px 0 0 14px; padding:0;">
                     {% for s in p.sessions %}
                       <li>{{ s.date or "Date ?" }} — {{ s.atelier }} ({{ s.secteur }})</li>
@@ -773,7 +773,7 @@
         {% set m = magato.macro %}
         {% if m and m.kpis is defined %}
           <div class="kpi-card">
-            <div class="kpi-label">Sessions</div>
+            <div class="kpi-label">Séances</div>
             <div class="kpi-value">{{ m.kpis.total_sessions }}</div>
           </div>
           <div class="kpi-card">
@@ -827,7 +827,7 @@
           <thead>
             <tr>
               <th>Secteur</th>
-              <th>Sessions</th>
+              <th>Séances</th>
               <th>Présences</th>
               <th>Participants uniques</th>
             </tr>
@@ -856,7 +856,7 @@
             <tr>
               <th>Secteur</th>
               <th>Atelier</th>
-              <th>Sessions</th>
+              <th>Séances</th>
               <th>Présences</th>
               <th>Participants uniques</th>
             </tr>
@@ -916,7 +916,7 @@
 
       {% if magato.sessions and magato.view != 'macro' %}
         <div class="kpi-card" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 10px 0;">Sessions (clic = zoom sur 1 journée)</h3>
+          <h3 style="margin:0 0 10px 0;">Séances (clic = zoom sur 1 journée)</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             {% for s in magato.sessions %}
               <a class="pill" style="text-decoration:none;" href="?tab=magato&magato_view=matrix{% if flt.secteur %}&secteur={{ flt.secteur }}{% endif %}{% for atelier_id in flt.atelier_ids or [] %}&atelier_ids={{ atelier_id }}{% endfor %}&date_from={{ s.date }}&date_to={{ s.date }}{% if flt.periode_id %}&periode_id={{ flt.periode_id }}{% endif %}">{{ s.label }}</a>

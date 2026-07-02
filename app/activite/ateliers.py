@@ -500,7 +500,7 @@ def session_purge(session_id: int):
         return _deny_activity_access()
 
     if not _is_admin_global() and not s.is_deleted:
-        flash("Place d'abord la session dans la corbeille avant suppression définitive.", "warning")
+        flash("Place d'abord la séance dans la corbeille avant suppression définitive.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id))
 
     presences = PresenceActivite.query.filter_by(session_id=s.id).all()

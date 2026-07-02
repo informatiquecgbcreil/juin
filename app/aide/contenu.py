@@ -33,6 +33,25 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Le bouton « Personnaliser » vous permet de choisir les indicateurs et raccourcis affichés. Le mode Simple/Expert (en haut à droite) allège ou enrichit l'affichage.",
     },
+    "main.guides_liste": {
+        "titre": "Les guides pas à pas",
+        "resume": "Un guide vous emmène sur les bonnes pages, dans le bon ordre, avec une explication à chaque étape.",
+        "etapes": [
+            "Choisissez un guide et cliquez sur « Démarrer ».",
+            "Suivez le bandeau en haut de page : il vous dit quoi faire, étape par étape.",
+            "Vous pouvez quitter un guide à tout moment et le reprendre plus tard.",
+        ],
+        "astuce": "Le glossaire (bouton en haut de la page) explique tous les mots du métier : parfait pour un nouvel arrivant.",
+    },
+    "main.glossaire": {
+        "titre": "Le glossaire",
+        "resume": "Tous les mots du métier et de l'application, expliqués simplement — le dico du social.",
+        "etapes": [
+            "Tapez un mot dans la barre de recherche pour le retrouver instantanément.",
+            "Chaque terme indique aussi où le retrouver dans l'application.",
+        ],
+        "astuce": "Le bouton Imprimer permet d'en faire un livret d'accueil pour un nouveau salarié ou bénévole.",
+    },
     "main.dashboard_customize": {
         "titre": "Personnaliser votre tableau de bord",
         "resume": "Choisissez ici ce que VOUS voulez voir en arrivant dans l'application.",

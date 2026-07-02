@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% block title %}Glossaire — le dico du social{% endblock %}
+{% block body %}
+<style>
+  .glossaire-recherche{ margin:14px 0; }
+  .glossaire-recherche input{
+    width:100%; max-width:480px; font-size:1rem;
+    padding:10px 14px; border-radius:12px;
+    border:1px solid var(--border, #e3e6ef);
+  }
+  .glossaire-cat{ margin-top:22px; }
+  .glossaire-cat h2{ margin:0 0 10px; font-size:1.15rem; }
+  .glossaire-grille{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+    gap:10px;
+  }
+  .terme-carte{
+    border:1px solid var(--border, #e3e6ef); border-radius:12px;
+    padding:12px 14px; background:var(--panel, #fff);
+  }
+  .terme-carte dt{ font-weight:700; margin-bottom:4px; }
+  .terme-carte dd{ margin:0; font-size:.9rem; line-height:1.45; opacity:.85; }
+  .terme-carte .dans-app{
+    display:block; margin-top:8px; font-size:.82rem; line-height:1.4;
+    padding:6px 9px; border-radius:8px;
+    background:rgba(90,120,255,.08);
+  }
+  .glossaire-vide{ display:none; margin-top:18px; }
+</style>
+<div class="ui-page">
+  <section class="ui-header page-hero-soft">
+    <div class="page-title-wrap">
+      <h1 class="ui-title page-title">📖 Glossaire — le dico du social</h1>
+      <p class="ui-subtitle page-subtitle">
+        Tous les mots du métier et de l'application, expliqués simplement.
+        Pensé pour les nouveaux salariés et bénévoles — et pour tous les autres.
+      </p>
+    </div>
+    <div class="ui-actions inline-actions">
+      <a class="btn" href="{{ url_for('main.guides_liste') }}">🧭 Guides pas à pas</a>
+      <button type="button" class="btn no-print" onclick="window.print()" title="Imprimer le glossaire pour l'afficher ou le remettre à un nouvel arrivant">🖨️ Imprimer</button>
+    </div>
+  </section>
+
+  <div class="glossaire-recherche no-print">
+    <label class="sr-only" for="glossaire-filtre">Chercher un mot</label>
+    <input id="glossaire-filtre" type="search" placeholder="Chercher un mot… (ex. subvention, séance, SENACS)" autocomplete="off">
+  </div>
+
+  {% for cat in glossaire %}
+    <section class="glossaire-cat" data-glossaire-cat>
+      <h2>{{ cat.icone }} {{ cat.categorie }}</h2>
+      <dl class="glossaire-grille">
+        {% for t in cat.termes %}
+          <div class="terme-carte" data-terme="{{ (t.terme ~ ' ' ~ t.definition ~ ' ' ~ (t.dans_app or ''))|lower }}">
+            <dt>{{ t.terme }}</dt>
+            <dd>
+              {{ t.definition }}
+              {% if t.dans_app %}<span class="dans-app">🖥️ Dans l'application : {{ t.dans_app }}</span>{% endif %}
+            </dd>
+          </div>
+        {% endfor %}
+      </dl>
+    </section>
+  {% endfor %}
+
+  <div class="quick-empty glossaire-vide" id="glossaire-vide">
+    <strong>Aucun terme trouvé</strong>
+    Essaie un autre mot, ou parcours les catégories ci-dessus.
+  </div>
+</div>
+
+<script>
+  (function(){
+    const champ = document.getElementById("glossaire-filtre");
+    if(!champ) return;
+    const cartes = Array.from(document.querySelectorAll("[data-terme]"));
+    const cats = Array.from(document.querySelectorAll("[data-glossaire-cat]"));
+    const vide = document.getElementById("glossaire-vide");
+    champ.addEventListener("input", function(){
+      const q = champ.value.trim().toLowerCase();
+      let visibles = 0;
+      cartes.forEach(function(c){
+        const ok = !q || c.dataset.terme.includes(q);
+        c.style.display = ok ? "" : "none";
+        if(ok) visibles++;
+      });
+      cats.forEach(function(cat){
+        const restantes = cat.querySelectorAll("[data-terme]:not([style*='none'])").length;
+        cat.style.display = restantes ? "" : "none";
+      });
+      vide.style.display = visibles ? "none" : "block";
+    });
+  })();
+</script>
+{% endblock %}
