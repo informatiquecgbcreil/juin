@@ -76,7 +76,7 @@
             <label>Capacité défaut (collectif)</label>
             {# Default hint: in Numérique, collective workshops are typically 12 places #}
             <input class="in" type="number" name="capacite_defaut" value="{{ atelier.capacite_defaut if atelier else (12 if secteur in ['Numérique','Numerique'] else '') }}" min="0">
-            <div class="muted">Utilisé pour pré-remplir les sessions collectives (override possible par session).</div>
+            <div class="muted">Utilisé pour pré-remplir les séances collectives (modifiable séance par séance).</div>
           </div>
           <div>
             <label>Heures dispo/mois (individuel)</label>

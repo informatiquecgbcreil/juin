@@ -80,7 +80,7 @@ def emargement(session_id: int):
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
-        flash("Cette session/atelier est dans la corbeille.", "warning")
+        flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -110,7 +110,7 @@ def emargement(session_id: int):
                 else []
             )
             db.session.commit()
-            flash("Modules (et compétences) de la session mis à jour.", "success")
+            flash("Modules (et compétences) de la séance mis à jour.", "success")
             return _redirect_emargement_with_period(session_id)
 
         if action == "bulk_eval_selected":
@@ -138,7 +138,7 @@ def emargement(session_id: int):
             present_ids = {p.participant_id for p in PresenceActivite.query.filter_by(session_id=session_id).all()}
             participant_ids = [pid for pid in participant_ids if pid in present_ids]
             if not participant_ids:
-                flash("Sélection invalide (aucun participant présent sur la session).", "danger")
+                flash("Sélection invalide (aucun participant présent sur la séance).", "danger")
                 return _redirect_emargement_with_period(session_id)
 
             updates = 0

@@ -30,6 +30,15 @@ def guides_liste():
     return render_template("guides.html", guides=guides_disponibles(current_user))
 
 
+@bp.route("/guides/glossaire")
+@login_required
+@require_perm("dashboard:view")
+def glossaire():
+    """Le dico du social : tous les termes métier expliqués simplement."""
+    from app.aide.glossaire import GLOSSAIRE
+    return render_template("glossaire.html", glossaire=GLOSSAIRE)
+
+
 @bp.post("/guides/<key>/demarrer")
 @login_required
 @require_perm("dashboard:view")

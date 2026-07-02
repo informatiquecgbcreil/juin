@@ -58,12 +58,12 @@ CSV_FIELD_GROUPS = [
         ],
     },
     {
-        "label": "Session",
+        "label": "Séance",
         "fields": [
-            {"key": "session_id", "label": "ID session"},
-            {"key": "session_date", "label": "Date session"},
-            {"key": "session_type", "label": "Type session"},
-            {"key": "session_statut", "label": "Statut session"},
+            {"key": "session_id", "label": "ID séance"},
+            {"key": "session_date", "label": "Date de séance"},
+            {"key": "session_type", "label": "Type de séance"},
+            {"key": "session_statut", "label": "Statut de séance"},
             {"key": "session_heure_debut", "label": "Heure début"},
             {"key": "session_heure_fin", "label": "Heure fin"},
             {"key": "session_duree_minutes", "label": "Durée (minutes)"},

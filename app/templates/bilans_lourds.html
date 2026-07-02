@@ -43,7 +43,7 @@
 
   <div class="kpi-grid-flex">
     <div class="kpi-card">
-      <div class="kpi-label">Sessions</div>
+      <div class="kpi-label">Séances</div>
       <div class="kpi-value">{{ stats.activite.nb_sessions }}</div>
       <div class="muted" style="font-size:12px;">vs N-1 : {% if deltas.sessions is not none %}{{ deltas.sessions }}%{% else %}N/A{% endif %}</div>
     </div>
@@ -69,7 +69,7 @@
     <table class="compact-table">
       <tbody>
         <tr><td>Ateliers actifs</td><td style="text-align:right;"><strong>{{ stats.activite.nb_ateliers }}</strong></td></tr>
-        <tr><td>Sessions réalisées</td><td style="text-align:right;"><strong>{{ stats.activite.nb_sessions }}</strong></td></tr>
+        <tr><td>Séances réalisées</td><td style="text-align:right;"><strong>{{ stats.activite.nb_sessions }}</strong></td></tr>
         <tr><td>Présences totales</td><td style="text-align:right;"><strong>{{ stats.activite.nb_presences }}</strong></td></tr>
         <tr><td>Participants uniques</td><td style="text-align:right;"><strong>{{ stats.activite.nb_participants_uniques }}</strong></td></tr>
         <tr><td>Participants fidèles (≥2 venues)</td><td style="text-align:right;"><strong>{{ stats.activite.nb_participants_retour }}</strong></td></tr>
@@ -202,7 +202,7 @@
         <tr>
           <th>Secteur</th>
           <th style="text-align:right;">Ateliers</th>
-          <th style="text-align:right;">Sessions</th>
+          <th style="text-align:right;">Séances</th>
           <th style="text-align:right;">Présences</th>
           <th style="text-align:right;">Participants uniques</th>
         </tr>

@@ -408,7 +408,7 @@
         <div class="ui-kpi-card metric-card"><div class="metric-label">Montant engagé</div><div class="metric-value kpi" data-count="{{ (kpis.engage or 0) | round(0) }}">{{ "%.2f"|format(kpis.engage or 0) }}€</div><div class="metric-help">Dépenses imputées</div></div>
         <div class="ui-kpi-card metric-card"><div class="metric-label">Disponible</div><div class="metric-value kpi" data-count="{{ (kpis.reste or 0) | round(0) }}">{{ "%.2f"|format(kpis.reste or 0) }}€</div><div class="metric-help">Reste mobilisable</div></div>
         <div class="ui-kpi-card metric-card"><div class="metric-label">Taux de consommation</div><div class="metric-value">{{ kpis.taux or 0 }}%</div><div class="kpi-rail"><span style="width:{{ (kpis.taux or 0) if (kpis.taux or 0) <= 100 else 100 }}%;"></span></div></div>
-        <div class="ui-kpi-card metric-card"><div class="metric-label">Sessions</div><div class="metric-value kpi" data-count="{{ kpis.sessions or 0 }}">{{ kpis.sessions or 0 }}</div><div class="metric-help">Sur {{ period_label }}</div></div>
+        <div class="ui-kpi-card metric-card"><div class="metric-label">Séances</div><div class="metric-value kpi" data-count="{{ kpis.sessions or 0 }}">{{ kpis.sessions or 0 }}</div><div class="metric-help">Sur {{ period_label }}</div></div>
         <div class="ui-kpi-card metric-card"><div class="metric-label">Participants uniques</div><div class="metric-value kpi" data-count="{{ kpis.uniques or 0 }}">{{ kpis.uniques or 0 }}</div><div class="metric-help">Sur {{ period_label }}</div></div>
       </div>
         </div>
@@ -596,7 +596,7 @@
         <div class="value">{{ alert_count }} alerte{{ 's' if alert_count > 1 else '' }}</div>
       </div>
       <div class="resume-pill">
-        <div class="label">Sessions</div>
+        <div class="label">Séances</div>
         <div class="value">{{ kpis.sessions or 0 }}</div>
       </div>
       <div class="resume-pill">
@@ -783,7 +783,7 @@
           </div>
           <div class="ui-card card chart-card">
             <div class="chart-card__head"><h2 style="margin-top:0;">Activité ateliers</h2></div>
-            <p class="muted" style="margin-top:0;">Sessions réalisées sur les 6 derniers mois.</p>
+            <p class="muted" style="margin-top:0;">Séances réalisées sur les 6 derniers mois.</p>
             <div class="chart-shell"><canvas id="chartSessions" height="190"></canvas></div>
             <div class="chart-meta" data-chart-meta="chartSessions"></div>
           </div>

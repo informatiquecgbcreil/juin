@@ -52,7 +52,7 @@ def session_new(atelier_id: int):
     secteur = _user_secteur()
     atelier = db.get_or_404(AtelierActivite, atelier_id)
     if atelier.is_deleted:
-        flash("Cet atelier est dans la corbeille. Restaure-le pour créer une session.", "warning")
+        flash("Cet atelier est dans la corbeille. Restaure-le pour créer une séance.", "warning")
         return redirect(url_for("activite.index", corbeille=1))
     if not _can_access_activity_secteur(atelier.secteur):
         return _deny_activity_access()
@@ -91,7 +91,7 @@ def session_new(atelier_id: int):
             heure_fin = (request.form.get("heure_fin") or "").strip() or None
             capacite = request.form.get("capacite") or atelier.capacite_defaut
             if not date_session:
-                flash("Date de session obligatoire.", "danger")
+                flash("Date de séance obligatoire.", "danger")
                 modules = PedagogieModule.query.filter(PedagogieModule.actif.is_(True)).order_by(PedagogieModule.nom.asc()).all()
                 return render_template(
                     "activite/session_form.html",
@@ -135,7 +135,7 @@ def session_new(atelier_id: int):
         assign_session_config(s)
         save_session_materiels_from_form(s, request.form)
         db.session.commit()
-        flash("La session a bien été créée.", "success")
+        flash("La séance a bien été créée.", "success")
         return redirect(url_for("activite.emargement", session_id=s.id))
 
     projet_id = request.args.get("projet_id", type=int)
@@ -272,7 +272,7 @@ def session_edit_schedule(session_id: int):
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
-        flash("Cette session/atelier est dans la corbeille.", "warning")
+        flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -298,7 +298,7 @@ def session_edit_schedule(session_id: int):
         else:
             date_session = request.form.get("date_session")
             if not date_session:
-                flash("Date de session obligatoire.", "danger")
+                flash("Date de séance obligatoire.", "danger")
                 return redirect(url_for("activite.session_edit_schedule", session_id=s.id))
             s.date_session = datetime.strptime(date_session, "%Y-%m-%d").date()
             s.heure_debut = (request.form.get("heure_debut") or "").strip() or None
@@ -364,7 +364,7 @@ def session_skills(session_id: int):
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
-        flash("Cette session/atelier est dans la corbeille.", "warning")
+        flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -436,7 +436,7 @@ def session_skill_add(session_id: int):
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
-        flash("Cette session/atelier est dans la corbeille.", "warning")
+        flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -468,7 +468,7 @@ def session_skill_remove(session_id: int):
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
     if s.is_deleted or atelier.is_deleted:
-        flash("Cette session/atelier est dans la corbeille.", "warning")
+        flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()
@@ -482,7 +482,7 @@ def session_skill_remove(session_id: int):
     if len(remaining) != len(getattr(s, "competences", []) or []):
         s.competences = remaining
         db.session.commit()
-        flash("Compétence retirée de la session.", "success")
+        flash("Compétence retirée de la séance.", "success")
     else:
         flash("Cette compétence n'était pas ajoutée en direct sur la session.", "info")
 
@@ -503,7 +503,7 @@ def evaluation_batch(session_id: int):
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
     if s.is_deleted or atelier.is_deleted:
-        flash("Cette session/atelier est dans la corbeille.", "warning")
+        flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
     if not _can_access_activity_secteur(s.secteur):
         return _deny_activity_access()

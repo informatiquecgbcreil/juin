@@ -377,7 +377,7 @@ def kiosk_session(token: str):
                 db.session.commit()
             except Exception:
                 db.session.rollback()
-                flash("Tu es déjà émargé(e) sur cette session.", "warning")
+                flash("Tu es déjà émargé(e) sur cette séance.", "warning")
                 return redirect(url_for("kiosk.kiosk_session", token=token))
 
             # Actions post (individuel mensuel)

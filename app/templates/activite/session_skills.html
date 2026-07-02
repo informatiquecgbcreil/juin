@@ -70,11 +70,11 @@
               </article>
             {% endfor %}
           </div>
-        {% else %}<div class="empty-state">Aucune compétence liée à cette session pour le moment.</div>{% endif %}
+        {% else %}<div class="empty-state">Aucune compétence liée à cette séance pour le moment.</div>{% endif %}
       </section>
 
       <section class="section-card">
-        <div class="page-header"><div class="page-title-wrap"><h2>Ajouter des compétences en direct</h2><p class="muted">Ajoute des compétences spécifiques à cette session, sans toucher aux modules.</p></div></div>
+        <div class="page-header"><div class="page-title-wrap"><h2>Ajouter des compétences en direct</h2><p class="muted">Ajoute des compétences spécifiques à cette séance, sans toucher aux modules.</p></div></div>
         <form method="post" action="{{ url_for('activite.session_skill_add', session_id=session.id) }}" class="filters-panel">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="filters-grid">

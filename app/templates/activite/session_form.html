@@ -7,7 +7,7 @@
       <div class="section-head">
         <div>
           <h1 style="margin-top:0;">Créer une session · {{ atelier.nom }}</h1>
-          <div class="muted">Renseignez la date, l’horaire et, si besoin, les modules pédagogiques associés à cette session.</div>
+          <div class="muted">Renseignez la date, l’horaire et, si besoin, les modules pédagogiques associés à cette séance.</div>
         </div>
         <div class="section-actions"><a class="btn" href="{{ url_for('activite.sessions', atelier_id=atelier.id) }}">Retour aux sessions</a></div>
       </div>
@@ -40,10 +40,10 @@
           </div>
         {% else %}
           <div class="form-grid-4">
-            <div><label>Date de la session</label><input class="in" type="date" name="date_session" required></div>
+            <div><label>Date de la séance</label><input class="in" type="date" name="date_session" required></div>
             <div><label>Heure de début</label><input class="in" type="text" name="heure_debut" placeholder="14:00"></div>
             <div><label>Heure de fin</label><input class="in" type="text" name="heure_fin" placeholder="16:00"></div>
-            <div><label>Capacité {{ ux.tooltip('Nombre maximal de participants attendus pour cette session.') }}</label><input class="in" type="number" name="capacite" value="{{ atelier.capacite_defaut or '' }}" min="0"></div>
+            <div><label>Capacité {{ ux.tooltip('Nombre maximal de participants attendus pour cette séance.') }}</label><input class="in" type="number" name="capacite" value="{{ atelier.capacite_defaut or '' }}" min="0"></div>
           </div>
         {% endif %}
 
@@ -67,7 +67,7 @@
 
         <div class="spacer"></div>
         <div class="field-stack">
-          <label>Modules de la session {{ ux.tooltip('Maintenez la touche Ctrl ou Cmd pour sélectionner plusieurs modules.') }}</label>
+          <label>Modules de la séance {{ ux.tooltip('Maintenez la touche Ctrl ou Cmd pour sélectionner plusieurs modules.') }}</label>
           <select class="in" id="module_ids" name="module_ids" multiple size="8">
             {% for mod in modules|default([]) %}
               <option value="{{ mod.id }}">{{ mod.nom }} ({{ mod.competences|length }} compétence{{ 's' if (mod.competences|length) > 1 else '' }})</option>
