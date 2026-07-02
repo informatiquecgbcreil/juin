@@ -49,6 +49,55 @@ def _ensure_month_capacity(atelier: AtelierActivite, session: SessionActivite):
     db.session.commit()
 
 
+def _normaliser_nom(texte: str) -> str:
+    """Minuscules, sans accents ni caractères non alphabétiques (Mohamed == Mohamed)."""
+    import unicodedata
+    texte = unicodedata.normalize("NFKD", (texte or "")).encode("ascii", "ignore").decode("ascii")
+    return "".join(c for c in texte.lower() if c.isalpha())
+
+
+def _squelette_nom(texte: str) -> str:
+    """Forme normalisée avec les lettres doublées réduites : rend identiques
+    « Mohammed » et « Mohamed », « Alard » et « Allard »."""
+    normalise = _normaliser_nom(texte)
+    out = []
+    for c in normalise:
+        if not out or out[-1] != c:
+            out.append(c)
+    return "".join(out)
+
+
+def _candidats_doublons(nom: str, prenom: str) -> list[Participant]:
+    """Personnes proches d'un nom/prénom saisi au kiosque (anti-doublons).
+
+    Deux champs sont « proches » si, après normalisation (casse/accents) :
+    identiques, mêmes squelettes (lettres doublées réduites), ou l'un préfixe
+    de l'autre (>= 3 lettres). Match global si le nom ET le prénom sont
+    proches, avec au moins l'un des deux strictement identique.
+    """
+    n, p = _normaliser_nom(nom), _normaliser_nom(prenom)
+    if not n or not p:
+        return []
+
+    def _proches(a: str, b: str) -> bool:
+        if a == b:
+            return True
+        if _squelette_nom(a) == _squelette_nom(b):
+            return True
+        return len(a) >= 3 and len(b) >= 3 and (a.startswith(b) or b.startswith(a))
+
+    candidats = []
+    for cand in Participant.query.filter(Participant.nom.ilike(f"{nom[:2]}%")).limit(400).all():
+        cn, cp = _normaliser_nom(cand.nom), _normaliser_nom(cand.prenom)
+        if not cn or not cp:
+            continue
+        if (cn == n or cp == p) and _proches(cn, n) and _proches(cp, p):
+            candidats.append(cand)
+        if len(candidats) >= 5:
+            break
+    return candidats
+
+
 def _get_open_session_by_pin(pin: str):
     if not pin:
         return None
@@ -239,6 +288,28 @@ def kiosk_session(token: str):
             if not nom or not prenom:
                 flash("Nom et prénom obligatoires.", "danger")
                 return redirect(url_for("kiosk.kiosk_session", token=token))
+
+            # Anti-doublons : avant de créer, proposer les personnes proches
+            # (sauf si la personne a confirmé « créer quand même »).
+            if request.form.get("force_creation") != "1":
+                candidats = _candidats_doublons(nom, prenom)
+                if candidats:
+                    return render_template(
+                        "kiosk/session.html",
+                        session=s,
+                        atelier=atelier,
+                        session_label=_session_label(s),
+                        motifs=motifs,
+                        quartiers=quartiers,
+                        message_ok=None,
+                        recu=None,
+                        highlight=None,
+                        highlight_label=None,
+                        token=token,
+                        feedback_url=url_for("kiosk.kiosk_feedback", token=token, _external=True),
+                        doublons_candidats=candidats,
+                        pending=request.form,
+                    )
 
             qid = normalize_quartier_for_ville(ville, quartier_id)
 
