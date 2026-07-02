@@ -224,6 +224,89 @@ GLOSSAIRE: list[dict] = [
         ],
     },
     {
+        "categorie": "Mesurer et évaluer",
+        "icone": "📏",
+        "termes": [
+            {
+                "terme": "Évaluation",
+                "definition": "Se demander honnêtement : qu'est-ce que notre action a changé, pour qui, et comment le sait-on ? Ce n'est ni une punition ni de la paperasse : c'est ce qui permet d'améliorer l'action et de la raconter aux financeurs.",
+                "dans_app": "Les présences, questionnaires et statistiques fournissent la matière ; l'analyse reste humaine.",
+            },
+            {
+                "terme": "Indicateur",
+                "definition": "Une information choisie À L'AVANCE pour suivre une action : nombre de participants, taux de présence, satisfaction… Un bon indicateur répond à une question qu'on se pose vraiment — sinon c'est juste un chiffre de plus.",
+                "dans_app": "Les indicateurs des projets se suivent dans la fiche action ; ceux à renseigner remontent dans « À traiter ».",
+            },
+            {
+                "terme": "Indicateur quantitatif",
+                "definition": "Ce qui se COMPTE : 45 personnes, 12 séances, 80 % de présence. Indispensable mais jamais suffisant : « 45 personnes sont venues » ne dit pas ce que ça leur a apporté.",
+            },
+            {
+                "terme": "Indicateur qualitatif",
+                "definition": "Ce qui se CONSTATE sans se compter : la confiance qui revient, une prise de parole, un parent qui ose entrer dans l'école. Se recueille par l'observation, les témoignages, les questionnaires. Aussi précieux que les chiffres — les financeurs le savent.",
+            },
+            {
+                "terme": "Indicateur de processus (ou de réalisation)",
+                "definition": "Mesure ce qu'on a FAIT : nombre de séances tenues, d'heures d'atelier, de personnes touchées. Répond à « l'action a-t-elle eu lieu comme prévu ? » — pas encore à « a-t-elle servi ? ».",
+            },
+            {
+                "terme": "Indicateur de résultat",
+                "definition": "Mesure ce que l'action a PRODUIT directement à la fin : 8 personnes sur 12 ont obtenu leur code de la route, 15 parents sont venus aux ateliers. C'est le premier niveau du « ça a servi ».",
+            },
+            {
+                "terme": "Effet",
+                "definition": "Le changement observable chez les personnes APRÈS l'action, au-delà du résultat immédiat : reprendre confiance, sortir de chez soi, refaire des démarches seul. Les effets se voient à quelques mois.",
+            },
+            {
+                "terme": "Impact",
+                "definition": "Le changement durable et large, à l'échelle d'une vie ou d'un territoire : un quartier où les gens se parlent, des habitants qui s'organisent seuls. L'impact se mesure sur des années et n'est jamais dû à une seule action — rester modeste dans les bilans.",
+            },
+            {
+                "terme": "Objectif général / objectif opérationnel",
+                "definition": "L'objectif général dit la direction (« rompre l'isolement des personnes âgées ») ; les objectifs opérationnels disent les pas concrets (« ouvrir un atelier hebdomadaire », « toucher 20 personnes la première année »). On évalue les opérationnels pour progresser vers le général.",
+            },
+            {
+                "terme": "Objectif SMART",
+                "definition": "Aide-mémoire pour écrire un objectif évaluable : Spécifique, Mesurable, Atteignable, Réaliste, défini dans le Temps. « Faire venir 15 parents aux ateliers d'ici juin » est SMART ; « améliorer la parentalité » ne l'est pas.",
+            },
+            {
+                "terme": "Critère d'évaluation",
+                "definition": "L'angle sous lequel on juge une action : efficacité (a-t-on atteint l'objectif ?), pertinence (répondait-elle à un vrai besoin ?), efficience (à un coût raisonnable ?). Les indicateurs viennent ensuite chiffrer chaque critère.",
+            },
+            {
+                "terme": "PAG",
+                "definition": "Sigle à double sens selon les maisons : le plus souvent « Pouvoir d'AGir » (voir Développement du pouvoir d'agir), parfois « Projet d'Animation Globale » (le projet social du centre). En réunion, ne pas hésiter à demander lequel — tout le monde gagne du temps.",
+            },
+            {
+                "terme": "Participant unique",
+                "definition": "Une personne comptée UNE seule fois, même si elle est venue 40 fois. « 300 présences » et « 45 participants uniques » racontent deux choses différentes : le volume d'activité et le nombre de personnes réellement touchées.",
+                "dans_app": "Les statistiques distinguent systématiquement présences et participants uniques.",
+            },
+            {
+                "terme": "File active",
+                "definition": "Le nombre de personnes différentes suivies ou accueillies sur une période donnée (souvent l'année). Très utilisé dans les dossiers de financement — c'est en général le nombre de participants uniques.",
+            },
+            {
+                "terme": "Assiduité / fidélisation",
+                "definition": "L'assiduité : une personne inscrite vient-elle régulièrement ? La fidélisation : revient-elle d'une période sur l'autre ? Deux signes qu'une action répond à un vrai besoin.",
+                "dans_app": "Le tableau de bord des ateliers (stats) calcule la fidélisation à partir des présences.",
+            },
+            {
+                "terme": "Taux de remplissage",
+                "definition": "Présences réelles rapportées à la capacité : un atelier de 12 places avec 6 présents est à 50 %. Un taux durablement bas questionne l'horaire, le lieu ou le besoin — pas forcément l'animateur.",
+            },
+            {
+                "terme": "Verbatim / témoignage",
+                "definition": "Les mots exacts d'une personne, cités tels quels dans un bilan : « avant je n'osais pas sortir, maintenant j'accompagne les sorties ». Un bon verbatim vaut souvent mieux qu'un tableau — avec l'accord de la personne, toujours.",
+            },
+            {
+                "terme": "Auto-évaluation",
+                "definition": "Quand la personne évalue elle-même son propre chemin (« où j'en suis, d'où je pars »). Cohérente avec l'éducation populaire : la personne est actrice de son parcours, pas objet de mesure.",
+                "dans_app": "Le passeport de compétences peut recueillir le ressenti de la personne, pas seulement l'avis de l'animateur.",
+            },
+        ],
+    },
+    {
         "categorie": "L'argent",
         "icone": "💰",
         "termes": [
@@ -292,6 +375,35 @@ GLOSSAIRE: list[dict] = [
                 "terme": "Trésorerie",
                 "definition": "L'argent réellement disponible en caisse à un instant donné — à ne pas confondre avec le budget : on peut avoir un budget équilibré et une trésorerie vide si les subventions arrivent en retard.",
             },
+            {
+                "terme": "Cofinancement",
+                "definition": "Quand plusieurs financeurs paient ensemble la même action : la CAF 40 %, la ville 30 %, le reste en fonds propres. Quasiment toutes les actions d'un centre social sont cofinancées — d'où l'importance de bien ventiler les dépenses.",
+            },
+            {
+                "terme": "Fonds propres",
+                "definition": "L'argent qui appartient en propre à la structure (adhésions, participations des familles, réserves…), par opposition aux subventions. Les financeurs demandent presque toujours que la structure en mette une part.",
+            },
+            {
+                "terme": "Adhésion / cotisation",
+                "definition": "L'adhésion fait de la personne un membre de l'association (avec voix à l'assemblée générale) ; la cotisation est la somme, souvent symbolique, versée pour adhérer. Adhérer, c'est un acte d'appartenance, pas un simple ticket d'entrée.",
+            },
+            {
+                "terme": "Convention (de financement)",
+                "definition": "Le contrat signé avec un financeur : ce qu'on s'engage à faire, combien il verse, quand, et quel bilan rendre. À lire AVANT d'agir : les obligations (logos, bilans, délais) s'y cachent.",
+            },
+            {
+                "terme": "Acompte / solde",
+                "definition": "Les subventions arrivent souvent en deux fois : un acompte au démarrage (par exemple 70 %) puis le solde APRÈS remise du bilan. Un bilan en retard, c'est du solde qui n'arrive pas — et la trésorerie qui souffre.",
+            },
+            {
+                "terme": "Exercice (comptable)",
+                "definition": "L'année de référence des comptes, en général l'année civile (du 1er janvier au 31 décembre). « L'exercice 2026 » = tout ce qui a été dépensé et reçu en 2026.",
+                "dans_app": "Le sélecteur « Exercice » des pages finances filtre sur cette année-là.",
+            },
+            {
+                "terme": "Bilan comptable (≠ bilan d'activité)",
+                "definition": "Attention au piège du mot « bilan » : le bilan COMPTABLE est la photographie financière annuelle (ce qu'on possède, ce qu'on doit), établie par le comptable. Le bilan D'ACTIVITÉ raconte ce qu'on a fait et pour qui. Les financeurs demandent souvent les deux.",
+            },
         ],
     },
     {
@@ -332,10 +444,6 @@ GLOSSAIRE: list[dict] = [
                 "dans_app": "Module Questionnaires.",
             },
             {
-                "terme": "Indicateur",
-                "definition": "Un chiffre qu'on suit dans le temps pour piloter : nombre de participants uniques, taux de présence, part d'habitants QPV… Un bon indicateur répond à une question qu'on se pose vraiment.",
-            },
-            {
                 "terme": "Partenaire",
                 "definition": "Structure avec qui le centre travaille : école, mission locale, CCAS, association… On oriente des personnes vers eux et on monte des actions ensemble.",
                 "dans_app": "Module Partenaires, avec annuaire et carte.",
@@ -360,6 +468,46 @@ GLOSSAIRE: list[dict] = [
             {
                 "terme": "Adulte-relais",
                 "definition": "Poste de médiation sociale financé par l'État, réservé aux habitants des quartiers prioritaires. Beaucoup de médiateurs des centres sociaux sont sur ce type de contrat.",
+            },
+            {
+                "terme": "EVS (Espace de vie sociale)",
+                "definition": "Le « petit frère » du centre social : même esprit (participation des habitants, lien social) mais agrément CAF plus léger, souvent sans salarié permanent. Beaucoup de centres accompagnent des EVS sur leur territoire.",
+            },
+            {
+                "terme": "ALSH (Accueil de loisirs sans hébergement)",
+                "definition": "Le « centre de loisirs » : accueil déclaré des enfants et ados hors temps scolaire (mercredis, vacances), avec des règles strictes d'encadrement et une déclaration à la SDJES (services de l'État). Financé notamment par une prestation de service CAF.",
+            },
+            {
+                "terme": "LAEP (Lieu d'accueil enfants-parents)",
+                "definition": "Espace où parents et jeunes enfants (0-6 ans) viennent librement, ensemble, sans inscription : on joue, on se pose, on parle avec des accueillants formés. Ni halte-garderie, ni consultation — un lieu pour être parent tranquillement.",
+            },
+            {
+                "terme": "Prestation de service (PS)",
+                "definition": "Le mode de financement type de la CAF : un tarif national versé pour une fonction reconnue (PS « animation globale », PS « ACF », PS « ALSH », PS « LAEP »…). Chaque PS a ses conditions et son bilan.",
+            },
+            {
+                "terme": "CTG (Convention territoriale globale)",
+                "definition": "Le contrat-cadre entre la CAF et les collectivités d'un territoire, qui organise tous les financements famille/jeunesse/social. Elle a remplacé les anciens « contrats enfance jeunesse » (CEJ). Le centre social y est presque toujours cité.",
+            },
+            {
+                "terme": "VACAF",
+                "definition": "L'aide aux vacances de la CAF : les familles à petit budget paient une partie du séjour, VACAF complète directement auprès de l'organisateur. Les « premiers départs en vacances » accompagnés par le centre s'appuient souvent dessus.",
+            },
+            {
+                "terme": "CCAS (Centre communal d'action sociale)",
+                "definition": "Le service social de la mairie : aides d'urgence, domiciliation, accompagnement des personnes âgées… Partenaire quotidien du centre social — on s'oriente mutuellement des personnes.",
+            },
+            {
+                "terme": "Mission locale",
+                "definition": "La structure qui accompagne les 16-25 ans sortis de l'école : emploi, formation, santé, logement, permis. LE partenaire jeunesse pour l'insertion des jeunes adultes.",
+            },
+            {
+                "terme": "PMI (Protection maternelle et infantile)",
+                "definition": "Le service du département pour la santé des futurs parents et des enfants de 0 à 6 ans : consultations gratuites, puéricultrices, bilans en école maternelle. Partenaire naturel des actions petite enfance et parentalité.",
+            },
+            {
+                "terme": "Bureau (de l'association)",
+                "definition": "Le noyau du conseil d'administration : président·e, trésorier·ère, secrétaire. Ce sont des habitants bénévoles élus — c'est l'employeur légal de l'équipe salariée.",
             },
         ],
     },
@@ -407,9 +555,81 @@ GLOSSAIRE: list[dict] = [
 
 
 def glossaire_termes_plats() -> list[dict]:
-    """Tous les termes à plat (pour tests et recherche)."""
+    """Tous les termes de base à plat (pour tests et recherche)."""
     plats = []
     for cat in GLOSSAIRE:
         for t in cat["termes"]:
             plats.append({**t, "categorie": cat["categorie"]})
     return plats
+
+
+# ---------------------------------------------------------------------------
+# Fusion avec les personnalisations de la structure (table glossaire_terme)
+# ---------------------------------------------------------------------------
+
+ICONE_CATEGORIE_PERSO = "📁"
+CATEGORIE_PERSO_DEFAUT = "Les mots de la structure"
+
+
+def _cle(terme: str) -> str:
+    return (terme or "").strip().lower()
+
+
+def termes_de_base() -> set[str]:
+    """Clés (minuscules) des termes du glossaire intégré."""
+    return {_cle(t["terme"]) for t in glossaire_termes_plats()}
+
+
+def glossaire_fusionne() -> list[dict]:
+    """Glossaire de base + ajustements locaux (ajouts, modifs, masquages).
+
+    Chaque terme rendu porte :
+    - ``id`` : id de la ligne locale (None si terme de base intact) ;
+    - ``origine`` : 'base', 'modifie' (base remplacé) ou 'perso' (ajouté).
+    """
+    try:
+        from app.models import GlossaireTerme
+        rows = GlossaireTerme.query.order_by(GlossaireTerme.terme.asc()).all()
+    except Exception:
+        rows = []
+    locaux = {_cle(r.terme): r for r in rows}
+    utilises: set[str] = set()
+
+    cats: list[dict] = []
+    for cat in GLOSSAIRE:
+        termes = []
+        for t in cat["termes"]:
+            k = _cle(t["terme"])
+            r = locaux.get(k)
+            if r is not None:
+                utilises.add(k)
+                if r.masque:
+                    continue
+                termes.append({
+                    "terme": r.terme, "definition": r.definition,
+                    "dans_app": (r.dans_app or "").strip() or None,
+                    "id": r.id, "origine": "modifie",
+                })
+            else:
+                termes.append({**t, "id": None, "origine": "base"})
+        cats.append({"categorie": cat["categorie"], "icone": cat["icone"], "termes": termes})
+
+    # Mots ajoutés par la structure : rejoignent leur catégorie si elle
+    # existe, sinon une catégorie dédiée (ou celle qu'ils déclarent).
+    icones = {c["categorie"]: c["icone"] for c in cats}
+    for k, r in locaux.items():
+        if k in utilises or r.masque:
+            continue
+        item = {
+            "terme": r.terme, "definition": r.definition,
+            "dans_app": (r.dans_app or "").strip() or None,
+            "id": r.id, "origine": "perso",
+        }
+        cat_nom = (r.categorie or "").strip() or CATEGORIE_PERSO_DEFAUT
+        cible = next((c for c in cats if c["categorie"] == cat_nom), None)
+        if cible is None:
+            cible = {"categorie": cat_nom, "icone": icones.get(cat_nom, ICONE_CATEGORIE_PERSO), "termes": []}
+            cats.append(cible)
+        cible["termes"].append(item)
+
+    return [c for c in cats if c["termes"]]
