@@ -431,6 +431,7 @@ def session_skills(session_id: int):
 @bp.route("/session/<int:session_id>/skills/add", methods=["POST"])
 @login_required
 def session_skill_add(session_id: int):
+    require_perm("pedagogie:edit")(lambda: None)()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 
@@ -462,6 +463,7 @@ def session_skill_add(session_id: int):
 @bp.route("/session/<int:session_id>/skills/remove", methods=["POST"])
 @login_required
 def session_skill_remove(session_id: int):
+    require_perm("pedagogie:edit")(lambda: None)()
     s = db.get_or_404(SessionActivite, session_id)
     atelier = db.get_or_404(AtelierActivite, s.atelier_id)
 

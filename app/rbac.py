@@ -106,6 +106,10 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
     ("statsimpact:insertion_export", "Exporter les stats insertion nominatives"),
     ("bilans:view", "Voir les bilans"),
 
+    # Dons & reçus fiscaux
+    ("dons:view", "Voir les dons et le registre des reçus fiscaux"),
+    ("dons:edit", "Enregistrer / annuler des dons et générer les reçus"),
+
     # Bénévolat / RH
     ("benevolat:taux", "Modifier le taux horaire de valorisation du bénévolat"),
     ("rh:view", "Voir le module RH (salariés, ETP, masse salariale)"),
@@ -250,6 +254,8 @@ ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
 # Sans cela, seules les nouvelles installations en bénéficieraient (les
 # gabarits de rôles ne sont pas réappliqués sur les rôles existants).
 PERMS_AUTO_GRANT = {
+    "dons:view": ("direction", "directrice", "finance"),
+    "dons:edit": ("direction", "directrice", "finance"),
     "benevolat:taux": ("direction", "directrice", "finance"),
     "rh:view": ("direction", "directrice"),
     "rh:edit": ("direction", "directrice"),
@@ -270,6 +276,7 @@ def _category_from_code(code: str) -> str:
         "emargement": "Émargement",
         "participants": "Participants",
         "benevolat": "Bénévolat",
+        "dons": "Dons & reçus fiscaux",
         "rh": "Ressources humaines",
         "insertion": "Insertion",
         "quartiers": "Quartiers",
@@ -442,6 +449,10 @@ PERM_EQUIVALENTS: dict[str, set[str]] = {
     "bilans:lourds:view": {"bilans:lourds:view", "bilans:view"},
 
     # --- Participants: variantes ---
+    # Une vue "tous secteurs" satisfait naturellement la vue simple : sans
+    # cela, responsable_secteur (view_all sans view) prenait un 403 sur
+    # /participants/ alors que la carte du menu lui était affichée.
+    "participants:view": {"participants:view", "participants:view_all"},
     "participants:update": {"participants:update", "participants:edit"},
     "participants:write": {"participants:write", "participants:edit"},
     "participant:edit": {"participant:edit", "participants:edit"},

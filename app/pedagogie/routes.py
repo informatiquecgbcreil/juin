@@ -7,7 +7,7 @@ import os
 from collections import defaultdict
 from io import StringIO
 
-from flask import Response, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Response, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from sqlalchemy import delete
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
@@ -35,7 +35,7 @@ from app.models import (
     Referentiel,
     SessionActivite,
 )
-from app.rbac import require_perm
+from app.rbac import require_perm, can
 
 from . import bp
 from app.utils.delete_guard import commit_delete
@@ -371,6 +371,9 @@ def parcours_pedagogique():
 @login_required
 @require_perm("pedagogie:view")
 def referentiels_list():
+    if request.method == "POST" and not can("pedagogie:edit"):
+        # Lecture seule : consultation autorisée, modification refusée.
+        abort(403)
     if request.method == "POST":
         action = request.form.get("action") or ""
         if action == "create_referentiel":
@@ -444,6 +447,9 @@ def referentiels_list():
 @login_required
 @require_perm("pedagogie:view")
 def referentiels_edit(referentiel_id: int):
+    if request.method == "POST" and not can("pedagogie:edit"):
+        # Lecture seule : consultation autorisée, modification refusée.
+        abort(403)
     referentiel = db.get_or_404(Referentiel, referentiel_id)
 
     if request.method == "POST":
@@ -540,7 +546,7 @@ def referentiels_edit(referentiel_id: int):
 
 @bp.route("/referentiels/<int:referentiel_id>/import_csv", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def import_referentiel_csv(referentiel_id: int):
     """Import CSV de compétences dans un référentiel (upsert par code).
 
@@ -661,6 +667,9 @@ def import_referentiel_csv(referentiel_id: int):
 @login_required
 @require_perm("pedagogie:view")
 def modules_pedagogiques():
+    if request.method == "POST" and not can("pedagogie:edit"):
+        # Lecture seule : consultation autorisée, modification refusée.
+        abort(403)
     if request.method == "POST":
         action = request.form.get("action") or ""
         if action == "create_module":
@@ -693,6 +702,9 @@ def modules_pedagogiques():
 @login_required
 @require_perm("pedagogie:view")
 def objectifs():
+    if request.method == "POST" and not can("pedagogie:edit"):
+        # Lecture seule : consultation autorisée, modification refusée.
+        abort(403)
     projet_id = request.args.get("projet_id", type=int)
     atelier_id = request.args.get("atelier_id", type=int)
     session_id = request.args.get("session_id", type=int)
@@ -950,6 +962,9 @@ def suivi_pedagogique():
 @login_required
 @require_perm("pedagogie:view")
 def kiosk_pedagogique():
+    if request.method == "POST" and not can("pedagogie:edit"):
+        # Lecture seule : consultation autorisée, modification refusée.
+        abort(403)
     session_id = request.args.get("session_id", type=int)
     participant_id = request.args.get("participant_id", type=int)
 
@@ -1046,6 +1061,9 @@ def kiosk_pedagogique():
 @login_required
 @require_perm("pedagogie:view")
 def plan_projet():
+    if request.method == "POST" and not can("pedagogie:edit"):
+        # Lecture seule : consultation autorisée, modification refusée.
+        abort(403)
     if request.method == "POST":
         action = request.form.get("action") or ""
         if action == "add_link":
@@ -1336,7 +1354,7 @@ def portail_competences():
 
 @bp.route("/portail-competences/add", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def portail_competences_add():
     from app.models import PortailCompetenceMap
 
@@ -1363,7 +1381,7 @@ def portail_competences_add():
 
 @bp.route("/portail-competences/<int:map_id>/delete", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def portail_competences_delete(map_id: int):
     from app.models import PortailCompetenceMap
 
@@ -1376,7 +1394,7 @@ def portail_competences_delete(map_id: int):
 
 @bp.route("/portail-competences/sync", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def portail_competences_sync():
     """Lance la synchronisation des résultats du portail depuis l'ERP.
 
@@ -1406,7 +1424,7 @@ def portail_competences_sync():
 
 @bp.route("/participant/<int:participant_id>/passeport/portail", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def participant_passeport_portail(participant_id: int):
     """Crée manuellement le profil portail (code apprenant) d'un participant déjà
     présent dans l'ERP, sans attendre une nouvelle inscription en parcours insertion."""
@@ -1425,7 +1443,7 @@ def participant_passeport_portail(participant_id: int):
 
 @bp.route("/participant/<int:participant_id>/passeport/evaluation", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def participant_passeport_evaluation(participant_id: int):
     """Créer / mettre à jour une évaluation (hors session ou rattachée)."""
     comp_id = request.form.get("competence_id", type=int)
@@ -1489,7 +1507,7 @@ def participant_passeport_evaluation(participant_id: int):
 
 @bp.route("/participant/<int:participant_id>/passeport/note", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def participant_passeport_note(participant_id: int):
     contenu = (request.form.get("contenu") or "").strip()
     if not contenu:
@@ -1512,7 +1530,7 @@ def participant_passeport_note(participant_id: int):
 
 @bp.route("/participant/<int:participant_id>/passeport/note/<int:note_id>/update", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def participant_passeport_note_update(participant_id: int, note_id: int):
     note = db.get_or_404(PasseportNote, note_id)
     if note.participant_id != participant_id:
@@ -1534,7 +1552,7 @@ def participant_passeport_note_update(participant_id: int, note_id: int):
 
 @bp.route("/participant/<int:participant_id>/passeport/note/<int:note_id>/delete", methods=["POST"])
 @login_required
-@require_perm("pedagogie:view")
+@require_perm("pedagogie:edit")
 def participant_passeport_note_delete(participant_id: int, note_id: int):
     note = db.get_or_404(PasseportNote, note_id)
     if note.participant_id != participant_id:

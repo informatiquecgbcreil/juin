@@ -594,7 +594,7 @@ def hub_ressources():
             "tag": "Direction",
         })
 
-    if can("subventions:view"):
+    if can("dons:view"):
         cards.append({
             "title": "Dons & reçus fiscaux",
             "subtitle": "Registre numéroté des dons et reçus fiscaux (modèle CERFA 11580) : montant en lettres, mentions légales, impression PDF, export Excel.",
