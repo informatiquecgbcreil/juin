@@ -114,8 +114,6 @@ def get_ligne_a_ventiler(sub: Subvention) -> LigneBudget:
 @login_required
 @require_perm("inventaire:view")
 def factures_list():
-    if False:
-        abort(403)
 
     q = FactureAchat.query
     if not current_user.has_perm("scope:all_secteurs"):
@@ -129,8 +127,6 @@ def factures_list():
 @login_required
 @require_perm("inventaire:edit")
 def facture_new():
-    if False:
-        abort(403)
 
     # choix secteur
     secteur_default = current_user.secteur_assigne if not current_user.has_perm("scope:all_secteurs") else ""
@@ -205,8 +201,6 @@ def facture_new_alias():
 @login_required
 @require_perm("inventaire:view")
 def facture_detail(facture_id):
-    if False:
-        abort(403)
 
     f = db.get_or_404(FactureAchat, facture_id)
     if not facture_visible(f):
@@ -329,8 +323,6 @@ def facture_detail(facture_id):
 @bp.route("/<int:facture_id>/validate", methods=["POST"])
 @login_required
 def facture_validate(facture_id):
-    if False:
-        abort(403)
 
     f = db.get_or_404(FactureAchat, facture_id)
     if not facture_visible(f):
@@ -389,8 +381,6 @@ def facture_validate(facture_id):
 @login_required
 @require_perm("inventaire:view")
 def facture_download(facture_id):
-    if False:
-        abort(403)
 
     f = db.get_or_404(FactureAchat, facture_id)
     if not facture_visible(f):

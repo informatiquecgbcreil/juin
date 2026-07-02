@@ -171,7 +171,7 @@
   {% if hart_dues %}
   <section class="section-card" id="hart-dues" style="border-color: color-mix(in srgb, var(--warn,#f59e0b) 55%, var(--border));">
     <h2 style="margin-top:0;">🪜 Échelle de Hart — {{ hart_dues|length }} évaluation(s) à poser</h2>
-    <p class="muted" style="margin-top:-6px;">Première venue = évaluation initiale ; ensuite proposée toutes les 5 séances. Positionne le participant, recueille un témoignage si possible.</p>
+    <p class="muted" style="margin-top:-6px;">Première venue = évaluation initiale ; ensuite proposée toutes les 5 séances. <strong>Rien n'est calculé automatiquement</strong> : c'est toi qui positionnes la personne, l'application signale seulement le bon moment. Recueille un témoignage si possible.</p>
     {% for due in hart_dues %}
       <details style="border-top:1px solid var(--border); padding:8px 0;">
         <summary style="cursor:pointer;">
