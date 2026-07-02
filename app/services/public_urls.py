@@ -17,3 +17,17 @@ def public_base_url() -> str:
     if cfg:
         return cfg
     return request.host_url.rstrip("/")
+
+
+def kiosk_public_base_url() -> str:
+    """Base des liens/QR du kiosque.
+
+    Si un hôte public « hors les murs » est configuré (tunnel, voir
+    KIOSK_PUBLIC_HOST dans config.py), les liens kiosque l'utilisent :
+    ils fonctionnent alors aussi bien dans la structure qu'à l'extérieur.
+    Sinon, on retombe sur l'URL LAN habituelle.
+    """
+    hote = (current_app.config.get("KIOSK_PUBLIC_HOST") or "").strip().lower()
+    if hote:
+        return f"https://{hote}"
+    return public_base_url()

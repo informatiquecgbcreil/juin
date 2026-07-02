@@ -37,6 +37,9 @@
       </p>
     </div>
     <div class="ui-actions inline-actions">
+      {% if atelier %}
+        <a class="btn" href="{{ url_for('activite.saisie_grille_imprimer', atelier_id=atelier.id, mois=mois_str) }}" title="La feuille papier du mois, miroir exact de cette grille : l'animateur coche, l'accueil recopie.">🖨️ Feuille du mois (papier)</a>
+      {% endif %}
       <a class="btn" href="{{ url_for('activite.emargements_attente') }}">⏳ Émargements en attente</a>
       <a class="btn" href="{{ url_for('activite.index') }}">Ateliers</a>
     </div>

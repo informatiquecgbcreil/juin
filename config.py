@@ -113,6 +113,13 @@ class Config:
     # Exemple : http://erp-cgb:8000 ou http://192.168.1.10:8000
     PUBLIC_BASE_URL = os.environ.get("ERP_PUBLIC_BASE_URL", "")
 
+    # Façade kiosque « hors les murs » : nom d'hôte PUBLIC (tunnel Cloudflare,
+    # Tailscale Funnel…) par lequel SEUL l'émargement kiosque doit répondre.
+    # Quand une requête arrive par cet hôte, tout le reste de l'application
+    # (connexion, données, admin) renvoie 403. Vide = désactivé.
+    # Exemple : kiosque-cgb.exemple.fr (sans http:// ni port).
+    KIOSK_PUBLIC_HOST = os.environ.get("KIOSK_PUBLIC_HOST", "").strip().lower()
+
     # Répertoire des uploads (pièces jointes, logos, exports visuels).
     # Par défaut: ./static/uploads (compatible Windows/Linux + hébergement web simple).
     APP_UPLOAD_DIR = os.environ.get("APP_UPLOAD_DIR", os.path.join(BASE_DIR, "static", "uploads"))

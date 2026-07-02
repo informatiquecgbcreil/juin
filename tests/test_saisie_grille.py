@@ -168,3 +168,69 @@ def test_grille_lecture_seule_ne_peut_pas_enregistrer(app, atelier_grille):
     assert r.status_code == 403
     r = c.post("/activite/emargements-attente/relancer", data={"session_id": g["s2"]})
     assert r.status_code == 403
+
+
+# ---------- Feuille du mois imprimable ----------
+
+def test_feuille_du_mois_imprimable(app, atelier_grille, admin_client):
+    g = atelier_grille
+    r = admin_client.get(f"/activite/saisie-grille/imprimer?atelier_id={g['atelier_id']}&mois={g['mois']}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "Feuille de présences" in body
+    assert f"Grillea{g['suf']}" in body          # les habitués sont pré-remplis
+    assert body.count("____/____") >= 3           # colonnes vides pour dates à la main
+    assert "ligne vide" in body                   # consigne nouvelle personne
+
+
+# ---------- Façade kiosque publique (hors les murs) ----------
+
+def test_facade_kiosque_bloque_tout_sauf_le_kiosque(app, atelier_grille):
+    """Par l'hôte public, seules les pages kiosque répondent."""
+    from app.extensions import db
+    from app.models import SessionActivite
+    g = atelier_grille
+    with app.app_context():
+        s = db.session.get(SessionActivite, g["s1"])
+        s.kiosk_open = True
+        s.kiosk_token = f"toktun{g['suf']}"
+        s.kiosk_pin = "4321"
+        db.session.commit()
+
+    app.config["KIOSK_PUBLIC_HOST"] = "kiosque.exemple.fr"
+    try:
+        c = app.test_client()
+        # Par l'hôte public : kiosque OK…
+        r = c.get(f"/kiosk/session/toktun{g['suf']}",
+                  headers={"Host": "kiosque.exemple.fr"})
+        assert r.status_code == 200
+        # …mais connexion, dashboard et données : porte close.
+        for chemin in ("/", "/dashboard", "/participants/", "/admin/users"):
+            r = c.get(chemin, headers={"Host": "kiosque.exemple.fr"})
+            assert r.status_code == 403, chemin
+            assert "uniquement" in r.get_data(as_text=True)
+        # L'accès habituel (LAN) n'est pas affecté.
+        r = c.get("/", headers={"Host": "gestion.cgb"})
+        assert r.status_code == 200
+    finally:
+        app.config["KIOSK_PUBLIC_HOST"] = ""
+
+
+def test_facade_inactive_sans_configuration(app):
+    """Sans KIOSK_PUBLIC_HOST, aucun hôte n'est bridé."""
+    assert not (app.config.get("KIOSK_PUBLIC_HOST") or "")
+    c = app.test_client()
+    r = c.get("/", headers={"Host": "nimporte.quoi.fr"})
+    assert r.status_code == 200
+
+
+def test_lien_kiosque_prefere_l_hote_public(app):
+    from app.services.public_urls import kiosk_public_base_url
+    app.config["KIOSK_PUBLIC_HOST"] = "kiosque.exemple.fr"
+    try:
+        with app.test_request_context():
+            assert kiosk_public_base_url() == "https://kiosque.exemple.fr"
+    finally:
+        app.config["KIOSK_PUBLIC_HOST"] = ""
+    with app.test_request_context():
+        assert "kiosque.exemple.fr" not in kiosk_public_base_url()

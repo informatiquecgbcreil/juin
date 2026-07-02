@@ -38,6 +38,7 @@ from app.models import (
     SuiviRappel,
 )
 from app.rbac import require_perm
+from app.services.poste_travail import MOIS_FR
 
 
 def _ateliers_visibles():
@@ -344,3 +345,44 @@ def emargements_relancer():
     db.session.commit()
     flash("Relance posée : elle apparaît dans « À traiter ».", "success")
     return redirect(url_for("activite.emargements_attente"))
+
+
+# ---------------------------------------------------------------------------
+# Feuille du mois imprimable (le papier, miroir exact de la grille)
+# ---------------------------------------------------------------------------
+
+@bp.route("/saisie-grille/imprimer")
+@login_required
+def saisie_grille_imprimer():
+    """Feuille d'émargement papier du mois : habitués en lignes, dates en
+    colonnes — le miroir exact de la grille de saisie. L'animateur coche
+    sur le papier, l'accueil recopie case pour case dans la grille."""
+    _require_any_perm("emargement:view", "emargement:edit")
+
+    ateliers = _ateliers_visibles()
+    annee, mois = _mois_arg()
+    try:
+        atelier_id = int(request.args.get("atelier_id") or 0)
+    except Exception:
+        atelier_id = 0
+    atelier = next((a for a in ateliers if a.id == atelier_id), None)
+    if atelier is None:
+        flash("Choisis d'abord un atelier dans la grille.", "warning")
+        return redirect(url_for("activite.saisie_grille", mois=f"{annee:04d}-{mois:02d}"))
+
+    seances = _seances_du_mois(atelier.id, annee, mois)
+    participants = _participants_de_l_atelier(atelier.id, [])
+    # Colonnes vides si les séances du mois n'existent pas encore : la date
+    # s'écrit à la main, la séance se crée au moment de la saisie.
+    nb_colonnes_vides = max(0, 5 - len(seances))
+    mois_label = f"{MOIS_FR[mois - 1]} {annee}"
+    return render_template(
+        "activite/saisie_grille_imprimer.html",
+        atelier=atelier,
+        mois_str=f"{annee:04d}-{mois:02d}",
+        mois_label=mois_label,
+        seances=seances,
+        participants=participants,
+        nb_colonnes_vides=nb_colonnes_vides,
+        lignes_vides=8,
+    )

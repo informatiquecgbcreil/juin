@@ -37,7 +37,7 @@ from .services.docx_utils import (
     generate_individuel_mensuel_docx,
 )
 from app.services.quartiers import normalize_quartier_for_ville
-from app.services.public_urls import public_base_url
+from app.services.public_urls import kiosk_public_base_url
 from app.services.consumption import (
     list_materiels_actifs,
     save_session_materiels_from_form,
@@ -549,8 +549,8 @@ def emargement(session_id: int):
         session_conso=session_conso,
         materiels=materiels,
         default_materiel_id=default_materiel_id,
-        kiosk_home_url=f"{public_base_url()}{url_for('kiosk.kiosk_home')}",
-        kiosk_session_url=f"{public_base_url()}{url_for('kiosk.kiosk_session', token=s.kiosk_token)}" if s.kiosk_token else "",
+        kiosk_home_url=f"{kiosk_public_base_url()}{url_for('kiosk.kiosk_home')}",
+        kiosk_session_url=f"{kiosk_public_base_url()}{url_for('kiosk.kiosk_session', token=s.kiosk_token)}" if s.kiosk_token else "",
         presence_conso_map=presence_conso_map,
         participant_conso_cumul_map=participant_conso_cumul_map,
         conso_period_start=conso_period_start,
