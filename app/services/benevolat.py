@@ -15,6 +15,15 @@ from app.models import BenevoleHeures, Participant
 
 
 def taux_horaire() -> float:
+    """Taux horaire de valorisation : réglage d'instance (modifiable dans
+    l'application, permission benevolat:taux) sinon config, sinon 13 €/h."""
+    try:
+        from app.models import InstanceSettings
+        row = InstanceSettings.query.first()
+        if row is not None and row.benevolat_taux_horaire:
+            return float(row.benevolat_taux_horaire)
+    except Exception:
+        pass
     try:
         return float(current_app.config.get("BENEVOLAT_TAUX_HORAIRE") or 13.0)
     except Exception:

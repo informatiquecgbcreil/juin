@@ -169,6 +169,9 @@ class InstanceSettings(db.Model):
     smtp_use_tls = db.Column(db.Boolean, nullable=True)
     smtp_sender = db.Column(db.String(255), nullable=True)
 
+    # Taux horaire de valorisation du bénévolat (prioritaire sur la config env).
+    benevolat_taux_horaire = db.Column(db.Float, nullable=True)
+
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -2593,3 +2596,44 @@ class SenacsEmploi(db.Model):
     @property
     def contrat_label(self):
         return SENACS_TYPES_CONTRAT_DICT.get(self.type_contrat or "autre", self.type_contrat or "—")
+
+
+# ---------- RH : SALARIÉS (réservé direction) ----------
+
+class Salarie(db.Model):
+    """Salarié du centre — module RH minimal, réservé à la direction.
+
+    Nourrit le SENACS (emplois/ETP) et la masse salariale ; la direction
+    affecte chaque salarié à son secteur et à son poste dans le secteur.
+    Peut être alimenté par import depuis un outil RH externe (source_ref
+    conserve l'identifiant externe pour les rapprochements).
+    """
+    __tablename__ = "salarie"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(160), nullable=False)
+    prenom = db.Column(db.String(120), nullable=True)
+    poste = db.Column(db.String(200), nullable=True)        # poste dans le secteur
+    secteur = db.Column(db.String(80), nullable=True, index=True)
+    type_contrat = db.Column(db.String(30), nullable=False, default="cdi")  # cf. SENACS_TYPES_CONTRAT
+    etp = db.Column(db.Float, nullable=False, default=1.0)
+    salaire_brut_charge = db.Column(db.Float, nullable=True)  # annuel, chargé (€)
+    date_entree = db.Column(db.Date, nullable=True)
+    date_sortie = db.Column(db.Date, nullable=True, index=True)
+    commentaire = db.Column(db.Text, nullable=True)
+    source_ref = db.Column(db.String(120), nullable=True, index=True)  # id dans l'outil RH externe
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    @property
+    def contrat_label(self):
+        return SENACS_TYPES_CONTRAT_DICT.get(self.type_contrat or "autre", self.type_contrat or "—")
+
+    def actif_sur(self, annee: int) -> bool:
+        """Présent au moins un jour sur l'exercice."""
+        debut, fin = date(annee, 1, 1), date(annee, 12, 31)
+        if self.date_entree and self.date_entree > fin:
+            return False
+        if self.date_sortie and self.date_sortie < debut:
+            return False
+        return True

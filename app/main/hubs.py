@@ -584,6 +584,16 @@ def hub_ressources():
             "tag": "Participation",
         })
 
+    if can("rh:view"):
+        cards.append({
+            "title": "RH — Salariés",
+            "subtitle": "Réservé direction : salariés, affectation secteur/poste, ETP, masse salariale. Alimente le SENACS et les finances. Import depuis votre outil RH.",
+            "primary_label": "Ouvrir le module RH",
+            "primary_url": url_for("main.rh"),
+            "secondary": [],
+            "tag": "Direction",
+        })
+
     if can("subventions:view"):
         cards.append({
             "title": "Dons & reçus fiscaux",

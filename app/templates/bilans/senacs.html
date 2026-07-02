@@ -114,6 +114,21 @@
 
   <div class="card">
     <h2>👥 Emplois / ETP ({{ annee }})</h2>
+    {% if emplois.rh_salaries %}
+      <h3>Depuis le module RH ({{ emplois.nb_rh }} salarié·e·s, {{ '%g'|format(emplois.rh_etp) }} ETP)</h3>
+      <div class="tablewrap">
+        <table class="table">
+          <thead><tr><th>Poste</th><th>Secteur</th><th>Contrat</th><th>ETP</th></tr></thead>
+          <tbody>
+            {% for s in emplois.rh_salaries %}
+              <tr><td>{{ s.poste or 'Salarié·e' }}</td><td>{{ s.secteur or '—' }}</td><td>{{ s.contrat_label }}</td><td>{{ '%g'|format(s.etp) }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Géré par la direction dans le <a href="{{ url_for('main.rh', annee=annee) }}">module RH</a>. Les postes ci-dessous restent pour les compléments (personnel mis à disposition non suivi en RH…).</p>
+      <h3>Compléments manuels</h3>
+    {% endif %}
     <div class="tablewrap">
       <table class="table">
         <thead><tr><th>Fonction</th><th>Contrat</th><th>ETP</th><th>Commentaire</th><th></th></tr></thead>
@@ -136,9 +151,7 @@
           {% else %}
             <tr><td colspan="5" class="muted">Aucun poste déclaré pour {{ annee }} : ajoute les postes salariés ci-dessous (fonction, contrat, quotité).</td></tr>
           {% endfor %}
-          {% if emplois.postes %}
-            <tr><th>TOTAL</th><th>{{ emplois.nb_postes }} poste(s)</th><th>{{ '%g'|format(emplois.total_etp) }} ETP</th><th colspan="2"></th></tr>
-          {% endif %}
+          <tr><th>TOTAL (RH + manuels)</th><th>{{ emplois.nb_rh + emplois.nb_postes }} poste(s)</th><th>{{ '%g'|format(emplois.etp_global) }} ETP</th><th colspan="2"></th></tr>
         </tbody>
       </table>
     </div>
@@ -172,6 +185,7 @@
           {% endfor %}
           <tr><th>TOTAL subventions</th><th>{{ '%.2f'|format(finances.total_attribue) }}</th><th>{{ '%.2f'|format(finances.total_recu) }}</th></tr>
           <tr><th>Charges réalisées (lignes budgétaires)</th><td colspan="2">{{ '%.2f'|format(finances.total_charges_reelles) }} €</td></tr>
+          <tr><th>Masse salariale (module RH, brut chargé)</th><td colspan="2">{{ '%.2f'|format(finances.masse_salariale) }} €</td></tr>
           <tr><th>Valorisation du bénévolat (compte 87)</th><td colspan="2">{{ '%.2f'|format(finances.valorisation_benevolat) }} €</td></tr>
         </tbody>
       </table>

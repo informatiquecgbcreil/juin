@@ -41,7 +41,15 @@
     <div class="kpi-box"><div class="muted">Bénévoles actifs ({{ annee }})</div><strong>{{ stats.nb_actifs }}</strong></div>
     <div class="kpi-box"><div class="muted">Bénévoles déclarés (fiches)</div><strong>{{ stats.nb_declares }}</strong></div>
     <div class="kpi-box"><div class="muted">Heures données</div><strong>{{ '%g'|format(stats.total_heures) }} h</strong></div>
-    <div class="kpi-box"><div class="muted">Valorisation ({{ '%g'|format(stats.taux_horaire) }} €/h)</div><strong>{{ '%.2f'|format(stats.valorisation) }} €</strong></div>
+    <div class="kpi-box"><div class="muted">Valorisation ({{ '%g'|format(stats.taux_horaire) }} €/h)</div><strong>{{ '%.2f'|format(stats.valorisation) }} €</strong>
+      {% if peut_regler_taux %}
+        <form method="post" action="{{ url_for('main.benevolat_taux_update') }}" class="inline-actions no-print" style="margin-top:6px; gap:4px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="in" name="taux" inputmode="decimal" value="{{ '%g'|format(stats.taux_horaire) }}" style="width:70px;" title="Taux horaire de valorisation (€/h)">
+          <button class="btn" type="submit" style="padding:2px 8px;">Régler</button>
+        </form>
+      {% endif %}
+    </div>
   </div>
 
   {% if can_edit %}

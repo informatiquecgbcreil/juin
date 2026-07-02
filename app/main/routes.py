@@ -17,6 +17,7 @@ from app.main import (  # noqa: F401
     hubs,
     qualite_donnees,
     recherche,
+    rh,
     stats,
     subventions,
     suivi_rappels,

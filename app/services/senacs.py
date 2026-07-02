@@ -278,12 +278,18 @@ def construire_export_senacs(annee: int):
     feuille("Bénévolat", ["Indicateur", "Valeur"], lignes_benevolat)
 
     emplois = emplois_annee(annee)
-    lignes_emplois = [[p.intitule, p.contrat_label, p.etp, p.commentaire or ""] for p in emplois["postes"]]
+    lignes_emplois = [
+        [s.poste or "Salarié·e", s.contrat_label, s.etp, "Module RH"]
+        for s in emplois["rh_salaries"]
+    ] + [
+        [p.intitule, p.contrat_label, p.etp, p.commentaire or "Saisie manuelle"]
+        for p in emplois["postes"]
+    ]
     lignes_emplois.append(["", "", "", ""])
-    lignes_emplois.append(["TOTAL", f"{emplois['nb_postes']} poste(s)", emplois["total_etp"], ""])
+    lignes_emplois.append(["TOTAL", f"{emplois['nb_rh'] + emplois['nb_postes']} poste(s)", emplois["etp_global"], ""])
     for contrat, d in emplois["par_contrat"].items():
         lignes_emplois.append([f"  dont {contrat}", d["nb"], d["etp"], ""])
-    feuille("Emplois", ["Fonction", "Contrat", "ETP", "Commentaire"], lignes_emplois)
+    feuille("Emplois", ["Fonction", "Contrat", "ETP", "Source / commentaire"], lignes_emplois)
 
     finances = finances_annee(annee)
     lignes_finances = [
@@ -295,6 +301,7 @@ def construire_export_senacs(annee: int):
         ["TOTAL subventions", finances["total_attribue"], finances["total_recu"]],
         ["", "", ""],
         ["Charges réalisées (lignes budgétaires des subventions)", finances["total_charges_reelles"], ""],
+        ["Masse salariale (module RH, brut chargé)", finances["masse_salariale"], ""],
         ["Valorisation du bénévolat (compte 87)", finances["valorisation_benevolat"], ""],
     ]
     feuille("Finances", ["Poste", "Attribué (€)", "Reçu (€)"], lignes_finances)
@@ -349,19 +356,36 @@ def benevolat_annee(annee: int) -> dict:
 
 
 def emplois_annee(annee: int) -> dict:
-    """Onglet « emplois » : postes déclarés pour l'exercice + totaux."""
-    from app.models import SenacsEmploi
+    """Onglet « emplois » : salariés du module RH actifs sur l'exercice
+    + postes complémentaires saisis à la main, avec totaux consolidés."""
+    from app.models import SenacsEmploi, Salarie
+
     postes = (SenacsEmploi.query.filter_by(annee=annee)
               .order_by(SenacsEmploi.intitule.asc()).all())
+    rh_salaries = [s for s in Salarie.query.order_by(Salarie.nom.asc()).all()
+                   if s.actif_sur(annee)]
+
     par_contrat: dict[str, dict] = {}
     for p in postes:
         d = par_contrat.setdefault(p.contrat_label, {"nb": 0, "etp": 0.0})
         d["nb"] += 1
         d["etp"] = round(d["etp"] + float(p.etp or 0), 2)
+    for s in rh_salaries:
+        d = par_contrat.setdefault(s.contrat_label, {"nb": 0, "etp": 0.0})
+        d["nb"] += 1
+        d["etp"] = round(d["etp"] + float(s.etp or 0), 2)
+
+    total_etp_manuel = round(sum(float(p.etp or 0) for p in postes), 2)
+    rh_etp = round(sum(float(s.etp or 0) for s in rh_salaries), 2)
     return {
         "postes": postes,
         "nb_postes": len(postes),
-        "total_etp": round(sum(float(p.etp or 0) for p in postes), 2),
+        "total_etp": total_etp_manuel,
+        "rh_salaries": rh_salaries,
+        "nb_rh": len(rh_salaries),
+        "rh_etp": rh_etp,
+        "masse_salariale": round(sum(float(s.salaire_brut_charge or 0) for s in rh_salaries), 2),
+        "etp_global": round(total_etp_manuel + rh_etp, 2),
         "par_contrat": par_contrat,
     }
 
@@ -383,12 +407,14 @@ def finances_annee(annee: int) -> dict:
         total_charges_reelles += float(s.total_reel_lignes or 0)
 
     benevolat = benevolat_annee(annee)
+    emplois = emplois_annee(annee)
     return {
         "par_financeur": dict(sorted(par_financeur.items(), key=lambda kv: -kv[1]["attribue"])),
         "total_attribue": round(sum(d["attribue"] for d in par_financeur.values()), 2),
         "total_recu": round(sum(d["recu"] for d in par_financeur.values()), 2),
         "total_charges_reelles": round(total_charges_reelles, 2),
         "valorisation_benevolat": benevolat["valorisation"],
+        "masse_salariale": emplois["masse_salariale"],
     }
 
 

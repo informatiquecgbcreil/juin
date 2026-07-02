@@ -106,6 +106,11 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
     ("statsimpact:insertion_export", "Exporter les stats insertion nominatives"),
     ("bilans:view", "Voir les bilans"),
 
+    # Bénévolat / RH
+    ("benevolat:taux", "Modifier le taux horaire de valorisation du bénévolat"),
+    ("rh:view", "Voir le module RH (salariés, ETP, masse salariale)"),
+    ("rh:edit", "Gérer les salariés (RH : créer, affecter, importer)"),
+
     # Contrôle / activité / admin
     ("controle:view", "Accéder au module contrôle"),
     ("activite:delete", "Supprimer une activité"),
@@ -178,9 +183,10 @@ ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
         "perms": [p for (p, _) in DEFAULT_PERMS],
     },
 
-    # Finance: accès global total (pilotage complet)
+    # Finance: accès global total (pilotage complet) — SAUF le module RH,
+    # réservé à la direction (données salariales).
     "finance": {
-        "perms": [p for (p, _) in DEFAULT_PERMS],
+        "perms": [p for (p, _) in DEFAULT_PERMS if not p.startswith("rh:")],
     },
 
     # Responsable secteur: "presque direction" MAIS borné au secteur (contrôlé dans les routes)
@@ -238,6 +244,18 @@ ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
 }
 
 
+# Permissions introduites APRÈS des mises en production : au moment précis de
+# leur première création en base, on les accorde aux rôles listés (AJOUT
+# uniquement — les personnalisations faites via l'UI ne sont jamais retirées).
+# Sans cela, seules les nouvelles installations en bénéficieraient (les
+# gabarits de rôles ne sont pas réappliqués sur les rôles existants).
+PERMS_AUTO_GRANT = {
+    "benevolat:taux": ("direction", "directrice", "finance"),
+    "rh:view": ("direction", "directrice"),
+    "rh:edit": ("direction", "directrice"),
+}
+
+
 def _category_from_code(code: str) -> str:
     """Retourne une catégorie lisible depuis un code 'module:action'."""
     module = (code.split(":", 1)[0] if ":" in code else code).strip()
@@ -251,6 +269,8 @@ def _category_from_code(code: str) -> str:
         "ateliers": "Ateliers",
         "emargement": "Émargement",
         "participants": "Participants",
+        "benevolat": "Bénévolat",
+        "rh": "Ressources humaines",
         "insertion": "Insertion",
         "quartiers": "Quartiers",
         "partenaires": "Partenaires",
@@ -282,9 +302,11 @@ def bootstrap_rbac() -> None:
     existing = {p.code: p for p in Permission.query.all()}
     changed = False
 
+    nouvelles_perms: set[str] = set()
     for code, label in DEFAULT_PERMS:
         if code not in existing:
             db.session.add(Permission(code=code, label=label, category=_category_from_code(code)))
+            nouvelles_perms.add(code)
             changed = True
         else:
             p = existing[code]
@@ -325,6 +347,21 @@ def bootstrap_rbac() -> None:
             role.permissions = [perms_by_code[c] for c in desired if c in perms_by_code]
 
     db.session.commit()
+
+    # Attribution additive des permissions nouvellement introduites : un rôle
+    # existant en production reçoit la permission à sa première apparition,
+    # sans que ses autres réglages soient touchés.
+    for code in nouvelles_perms:
+        cibles = PERMS_AUTO_GRANT.get(code)
+        perm = perms_by_code.get(code) or Permission.query.filter_by(code=code).first()
+        if not cibles or perm is None:
+            continue
+        for role_code in cibles:
+            role = Role.query.filter_by(code=role_code).first()
+            if role is not None and perm not in role.permissions:
+                role.permissions = list(role.permissions) + [perm]
+    if nouvelles_perms:
+        db.session.commit()
 
     # Auto-réparation du compte technique : garantir qu'admin_tech dispose
     # toujours des permissions de son gabarit (AJOUT seulement, jamais de

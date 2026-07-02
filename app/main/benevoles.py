@@ -49,7 +49,33 @@ def benevolat():
         portee_globale=can("scope:all_secteurs"),
         today=date.today(),
         can_edit=can("participants:edit"),
+        peut_regler_taux=can("benevolat:taux"),
     )
+
+
+@bp.route("/benevolat/taux", methods=["POST"])
+@login_required
+@require_perm("benevolat:taux")
+def benevolat_taux_update():
+    """Règle le taux horaire de valorisation (réservé direction/finance)."""
+    from app.services.instance_settings import get_or_create_instance_settings
+
+    try:
+        taux = round(float(str(request.form.get("taux") or "0").replace(",", ".")), 2)
+    except Exception:
+        taux = 0.0
+    if not (0 < taux <= 100):
+        flash("Le taux horaire doit être compris entre 0 et 100 €.", "danger")
+        return redirect(url_for("main.benevolat"))
+
+    row = get_or_create_instance_settings()
+    ancien = row.benevolat_taux_horaire
+    row.benevolat_taux_horaire = taux
+    db.session.commit()
+    journaliser("benevolat.taux", cible="instance_settings",
+                details={"ancien": ancien, "nouveau": taux})
+    flash(f"Taux horaire de valorisation réglé à {taux:g} €/h.", "success")
+    return redirect(url_for("main.benevolat", annee=_annee_demandee()))
 
 
 @bp.route("/benevolat/heures", methods=["POST"])
