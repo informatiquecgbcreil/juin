@@ -309,6 +309,25 @@
         </form>
       </details>
     </div>
+
+    {% if benevolat and (benevolat.total or participant.est_benevole) %}
+    <div class="ref-card">
+      <div class="ref-head">
+        <h3 class="ref-title">🤲 Bénévolat</h3>
+        <div class="ref-meta">
+          {{ '%g'|format(benevolat.annee or 0) }} h cette année · {{ '%g'|format(benevolat.total) }} h au total
+        </div>
+      </div>
+      {% if benevolat.dernieres %}
+        <ul style="margin:8px 0 0 0; padding-left:18px;">
+          {% for l in benevolat.dernieres %}
+            <li>{{ l.date_action.strftime('%d/%m/%Y') }} — {{ '%g'|format(l.heures) }} h{% if l.mission %} · {{ l.mission }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <div style="margin-top:8px;"><a class="btn" href="{{ url_for('main.benevolat') }}">Ouvrir la page bénévolat</a></div>
+    </div>
+    {% endif %}
   </div>
 
   {# -----------------------------

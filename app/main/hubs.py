@@ -575,6 +575,14 @@ def hub_ressources():
             "secondary": [],
             "tag": "Participation",
         })
+        cards.append({
+            "title": "Bénévolat",
+            "subtitle": "Heures données par les habitants, missions, valorisation € (compte 87). Alimente l'onglet vitalité démocratique du SENACS.",
+            "primary_label": "Ouvrir le bénévolat",
+            "primary_url": url_for("main.benevolat"),
+            "secondary": [],
+            "tag": "Participation",
+        })
 
     if can("subventions:view"):
         cards.append({

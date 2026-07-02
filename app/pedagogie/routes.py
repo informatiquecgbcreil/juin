@@ -1248,6 +1248,10 @@ def participant_passeport(participant_id: int):
         .all()
     )
     hart_due = hart_service.evaluation_due(participant_id)
+
+    # --- Bénévolat (heures données, pour l'onglet Participation) ---
+    from app.services.benevolat import heures_participant
+    benevolat = heures_participant(participant_id, annee=datetime.date.today().year)
     # Détail des compétences alimentées par le portail (traçabilité).
     portail_comp_ids = list(portail_progress.keys())
     portail_comp_lookup = {
@@ -1292,6 +1296,7 @@ def participant_passeport(participant_id: int):
         hart_niveaux=hart_service.HART_NIVEAUX,
         hart_couleurs={n: info["couleur"] for n, info in hart_service.HART_NIVEAUX_DICT.items()},
         hart_types=HART_TYPES_EVALUATION,
+        benevolat=benevolat,
     )
 
 

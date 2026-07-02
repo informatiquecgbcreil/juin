@@ -1346,6 +1346,9 @@ class Participant(db.Model):
     # Type de public (ex: H/S/B/A/P). Par défaut: H
     type_public = db.Column(db.String(2), nullable=False, default="H")
 
+    # Bénévole du centre (SENACS « vitalité démocratique », valorisation compte 87).
+    est_benevole = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
     quartier_id = db.Column(db.Integer, db.ForeignKey("quartier.id"), nullable=True)
     quartier = db.relationship("Quartier")
 
@@ -2502,4 +2505,28 @@ class Don(db.Model):
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
+    user = db.relationship("User")
+
+
+# ---------- BÉNÉVOLAT (heures, missions, valorisation) ----------
+
+class BenevoleHeures(db.Model):
+    """Heures de bénévolat réalisées par un habitant.
+
+    Alimente l'onglet « bénévolat / vitalité démocratique » du SENACS et la
+    valorisation comptable des contributions volontaires (compte 87).
+    """
+    __tablename__ = "benevole_heures"
+
+    id = db.Column(db.Integer, primary_key=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), nullable=False, index=True)
+    date_action = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    heures = db.Column(db.Float, nullable=False, default=0.0)
+    mission = db.Column(db.String(200), nullable=True)     # ex. accueil, accompagnement scolaire, CA
+    secteur = db.Column(db.String(80), nullable=True, index=True)
+    commentaire = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    participant = db.relationship("Participant", backref=db.backref("benevolat_heures", cascade="all, delete-orphan"))
     user = db.relationship("User")
