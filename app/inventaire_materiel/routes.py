@@ -84,8 +84,6 @@ def _next_id_interne(secteur: str, date_ref) -> str:
 @login_required
 @require_perm("inventaire:view")
 def list_items():
-    if False:
-        abort(403)
 
     q = InventaireItem.query
     if not current_user.has_perm("scope:all_secteurs"):
@@ -145,8 +143,6 @@ def list_items():
 @login_required
 @require_perm("inventaire:edit")
 def new_item():
-    if False:
-        abort(403)
 
     if request.method == "POST":
         secteur = (request.form.get("secteur") or "").strip()
@@ -227,8 +223,6 @@ def new_item():
 @login_required
 @require_perm("inventaire:edit")
 def edit_item(item_id: int):
-    if False:
-        abort(403)
 
     item = db.get_or_404(InventaireItem, item_id)
     _require_can_see_item(item)
@@ -285,8 +279,6 @@ def edit_item(item_id: int):
 @login_required
 @require_perm("inventaire:edit")
 def delete_item(item_id: int):
-    if False:
-        abort(403)
 
     item = db.get_or_404(InventaireItem, item_id)
     _require_can_see_item(item)
@@ -307,8 +299,6 @@ def delete_item(item_id: int):
 @require_perm("inventaire:edit")
 def create_from_facture_ligne(ligne_id: int):
     """Créer une entrée inventaire pré-remplie depuis une ligne de facture."""
-    if False:
-        abort(403)
 
     fl = db.get_or_404(FactureLigne, ligne_id)
     if not can_see_secteur(fl.secteur):
@@ -346,8 +336,6 @@ def create_from_facture_ligne(ligne_id: int):
 @require_perm("inventaire:edit")
 def create_bulk_from_facture_ligne(ligne_id: int):
     """Créer N items unitaires (quantite=1) depuis une ligne de facture (quantite=N)."""
-    if False:
-        abort(403)
 
     fl = db.get_or_404(FactureLigne, ligne_id)
     if not can_see_secteur(fl.secteur):
@@ -393,8 +381,6 @@ def create_bulk_from_facture_ligne(ligne_id: int):
 @login_required
 def create_from_depense(depense_id: int):
     """Créer une entrée inventaire depuis une dépense (non liée à une facture)."""
-    if False:
-        abort(403)
 
     dep = db.get_or_404(Depense, depense_id)
     ligne = dep.budget_source

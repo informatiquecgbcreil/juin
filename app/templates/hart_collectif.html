@@ -46,6 +46,8 @@
         {% if stats.secteur %}Secteur <strong>{{ stats.secteur }}</strong>{% else %}Tous secteurs{% endif %}
         · habitants ayant au moins une participation du {{ stats.date_from.strftime('%d/%m/%Y') }} au {{ stats.date_to.strftime('%d/%m/%Y') }}.
         Niveau retenu : dernière évaluation connue à la fin de période (instant T).
+        <br><strong>L'échelle de Hart n'est pas calculée automatiquement</strong> : c'est une évaluation humaine,
+        que l'application propose au bon moment à partir du parcours de participation (première venue, puis toutes les {{ seuil_seances }} séances).
       </p>
     </div>
     <div class="hero-actions no-print">

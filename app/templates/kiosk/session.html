@@ -82,6 +82,28 @@
     </div>
   </form>
 
+  {% if doublons_candidats %}
+  <div class="k-card" style="border:2px solid #f2bd6b;">
+    <h2 class="k-card__title">🤔 On a trouvé des personnes qui vous ressemblent</h2>
+    <p class="k-card__sub">Pour éviter les fiches en double : est-ce vous ?</p>
+    {% for c in doublons_candidats %}
+      <div class="k-row" style="justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-top:1px solid #eee; flex-wrap:wrap;">
+        <strong>{{ c.nom }} {{ c.prenom }}</strong>{% if c.ville %}<span class="k-hint">{{ c.ville }}</span>{% endif %}
+        <a class="k-btn" href="{{ url_for('kiosk.kiosk_session', token=token, highlight=c.id) }}">✔ C'est moi</a>
+      </div>
+    {% endfor %}
+    <form method="post" style="margin-top:12px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add_participant">
+      <input type="hidden" name="force_creation" value="1">
+      {% for champ in ['nom','prenom','ville','email','telephone','type_public','genre','date_naissance','quartier_id'] %}
+        <input type="hidden" name="{{ champ }}" value="{{ pending.get(champ, '') }}">
+      {% endfor %}
+      <button class="k-btn k-btn--ghost" type="submit">Non, ce n'est pas moi — créer ma fiche</button>
+    </form>
+  </div>
+  {% endif %}
+
   <div id="newParticipant" style="display:none;">
     <div class="k-card">
       <h2 class="k-card__title">Créer ma fiche</h2>

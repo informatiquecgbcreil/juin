@@ -37,9 +37,9 @@ def hub_publics():
 
     if can("participants:view") or can("participants:view_all"):
         cards.append({
-            "title": "Participants",
-            "subtitle": "Retrouver, créer ou mettre à jour une fiche habitant.",
-            "primary_label": "Ouvrir les participants",
+            "title": "Tous les participants",
+            "subtitle": "L'annuaire complet des habitants (tous secteurs) : retrouver, créer ou mettre à jour une fiche. La liste « Participants du secteur » reste accessible depuis Activités.",
+            "primary_label": "Ouvrir l'annuaire",
             "primary_url": url_for("participants.list_participants"),
             "secondary": [
                 {"label": "Attestations", "url": url_for("activite.attestations")} if can("participants:view") or can("participants:view_all") else None,
@@ -594,7 +594,7 @@ def hub_ressources():
             "tag": "Direction",
         })
 
-    if can("subventions:view"):
+    if can("dons:view"):
         cards.append({
             "title": "Dons & reçus fiscaux",
             "subtitle": "Registre numéroté des dons et reçus fiscaux (modèle CERFA 11580) : montant en lettres, mentions légales, impression PDF, export Excel.",

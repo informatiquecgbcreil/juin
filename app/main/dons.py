@@ -33,7 +33,7 @@ def _dernier_organisme() -> tuple[str, str]:
 
 @bp.route("/dons")
 @login_required
-@require_perm("subventions:view")
+@require_perm("dons:view")
 def dons_registre():
     annees = sorted({a for (a,) in db.session.query(Don.annee).distinct().all() if a}, reverse=True)
     try:
@@ -53,13 +53,13 @@ def dons_registre():
         formes=FORMES_DON, modes=MODES_VERSEMENT, types_donateur=TYPES_DONATEUR,
         org_nom=org_nom, org_adresse=org_adresse,
         today=date.today(),
-        can_edit=can("subventions:edit"),
+        can_edit=can("dons:edit"),
     )
 
 
 @bp.route("/dons/nouveau", methods=["POST"])
 @login_required
-@require_perm("subventions:edit")
+@require_perm("dons:edit")
 def don_create():
     nom = (request.form.get("donateur_nom") or "").strip()
     if not nom:
@@ -120,7 +120,7 @@ def don_create():
 
 @bp.route("/dons/<int:don_id>/recu")
 @login_required
-@require_perm("subventions:view")
+@require_perm("dons:view")
 def don_recu(don_id: int):
     don = db.get_or_404(Don, don_id)
     return render_template(
@@ -136,7 +136,7 @@ def don_recu(don_id: int):
 
 @bp.route("/dons/<int:don_id>/annuler", methods=["POST"])
 @login_required
-@require_perm("subventions:edit")
+@require_perm("dons:edit")
 def don_annuler(don_id: int):
     don = db.get_or_404(Don, don_id)
     don.est_annule = True
@@ -149,7 +149,7 @@ def don_annuler(don_id: int):
 
 @bp.route("/dons/export.xlsx")
 @login_required
-@require_perm("subventions:view")
+@require_perm("dons:view")
 def dons_export_xlsx():
     from openpyxl import Workbook
 

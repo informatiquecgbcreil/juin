@@ -30,7 +30,7 @@
               <noscript><button class="btn" type="submit">Changer</button></noscript>
             </form>
           {% endif %}
-          <a class="btn" href="{{ url_for('activite.participants') }}">Voir les participants inscrits</a>
+          <a class="btn" href="{{ url_for('activite.participants') }}" title="Personnes inscrites ou présentes dans les activités de ce secteur. L'annuaire complet est dans Publics → Tous les participants.">Participants du secteur (activité)</a>
           <a class="btn ok" href="{{ url_for('activite.atelier_new', secteur=secteur or None) }}">Ajouter un atelier</a>
           <details class="nav-more">
             <summary class="btn">Options avancées</summary>

@@ -314,8 +314,6 @@ def _quality_flags_for_participant(p: Participant) -> list[str]:
 @login_required
 @require_perm("participants:view")
 def list_participants():
-    if False:
-        abort(403)
 
     q = (request.args.get("q") or "").strip()
     scope = (request.args.get("scope") or "").strip()
@@ -618,8 +616,6 @@ def export_csat_csv():
 @login_required
 def search_participants():
     """Annuaire global (lecture seule) pour l'auto-complétion côté émargement."""
-    if False:
-        abort(403)
 
     q = (request.args.get("q") or "").strip()
     if not q or len(q) < 2:
@@ -1001,8 +997,6 @@ def synthese_participant(participant_id: int):
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new_participant():
-    if False:
-        abort(403)
 
     if request.method == "POST":
         nom = (request.form.get("nom") or "").strip()
@@ -1080,8 +1074,6 @@ def new_participant():
 @bp.route("/<int:participant_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_participant(participant_id: int):
-    if False:
-        abort(403)
 
     p = db.get_or_404(Participant, participant_id)
 
@@ -1217,8 +1209,6 @@ def export_rgpd(participant_id: int):
 @bp.route("/<int:participant_id>/anonymize", methods=["POST"])
 @login_required
 def anonymize_participant(participant_id: int):
-    if False:
-        abort(403)
 
     p = db.get_or_404(Participant, participant_id)
     if not _can_edit_participant(p):
@@ -1243,8 +1233,6 @@ def anonymize_participant(participant_id: int):
 @bp.route("/<int:participant_id>/delete", methods=["POST"])
 @login_required
 def delete_participant(participant_id: int):
-    if False:
-        abort(403)
     if not can('participants:delete'):
         abort(403)
 
