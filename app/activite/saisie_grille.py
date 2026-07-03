@@ -150,6 +150,7 @@ def saisie_grille():
                 session_type="COLLECTIF",
                 date_session=date_seance,
                 heure_debut=(request.form.get("heure_debut") or "").strip() or None,
+                heure_fin=(request.form.get("heure_fin") or "").strip() or None,
             )
             db.session.add(s)
             db.session.commit()
@@ -222,14 +223,23 @@ def saisie_grille():
         ).all():
             presences[(p.participant_id, p.session_id)] = p
 
-    # Choix rapide d'une personne à ajouter à la grille (hors habitués).
-    candidats = []
-    if atelier:
+    # Recherche d'une personne à ajouter à la grille : couvre TOUS les
+    # participants (une liste déroulante tronquée ne suffisait pas), en
+    # n'affichant que les correspondances — lisible même avec des milliers
+    # de fiches.
+    q_personne = (request.args.get("q_personne") or "").strip()
+    resultats_ajout = []
+    if atelier and q_personne:
         deja = {p.id for p in participants}
-        candidats = [
-            p for p in Participant.query.order_by(Participant.nom.asc(), Participant.prenom.asc()).limit(2000).all()
-            if p.id not in deja
-        ]
+        motif = f"%{q_personne}%"
+        trouves = (
+            Participant.query
+            .filter(db.or_(Participant.nom.ilike(motif), Participant.prenom.ilike(motif)))
+            .order_by(Participant.nom.asc(), Participant.prenom.asc())
+            .limit(30)
+            .all()
+        )
+        resultats_ajout = [p for p in trouves if p.id not in deja]
 
     return render_template(
         "activite/saisie_grille.html",
@@ -239,7 +249,8 @@ def saisie_grille():
         seances=seances,
         participants=participants,
         presences=presences,
-        candidats=candidats,
+        q_personne=q_personne,
+        resultats_ajout=resultats_ajout,
         en_plus=en_plus,
     )
 
