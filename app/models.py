@@ -1362,6 +1362,10 @@ class Participant(db.Model):
     droit_image_date = db.Column(db.Date, nullable=True)
     droit_image_recueilli_par = db.Column(db.String(180), nullable=True)
 
+    # Foyer (famille) : rapproche des participants pour l'adhésion familiale.
+    foyer_id = db.Column(db.Integer, db.ForeignKey("foyer.id"), nullable=True, index=True)
+    foyer = db.relationship("Foyer", back_populates="membres")
+
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
@@ -2662,3 +2666,149 @@ class GlossaireTerme(db.Model):
     masque = db.Column(db.Boolean, nullable=False, default=False, index=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+
+# ---------- ADHÉSIONS, PARTICIPATION & FOYERS ----------
+
+class Foyer(db.Model):
+    """Foyer (famille) : rapproche des participants pour l'adhésion familiale.
+
+    L'adhésion familiale se règle une fois par foyer et par année scolaire ;
+    elle couvre tous les membres du foyer pour cette année-là.
+    """
+    __tablename__ = "foyer"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    membres = db.relationship("Participant", back_populates="foyer")
+    cotisations = db.relationship("Cotisation", back_populates="foyer", cascade="all, delete-orphan")
+
+
+TYPES_TARIF = ["adhesion_individuelle", "adhesion_familiale", "participation"]
+TYPES_TARIF_LABELS = {
+    "adhesion_individuelle": "Adhésion individuelle",
+    "adhesion_familiale": "Adhésion familiale",
+    "participation": "Participation",
+}
+
+MODES_PAIEMENT = ["especes", "cheque", "carte", "virement", "autre"]
+MODES_PAIEMENT_LABELS = {
+    "especes": "Espèces",
+    "cheque": "Chèque",
+    "carte": "Carte bancaire",
+    "virement": "Virement",
+    "autre": "Autre",
+}
+
+
+class TarifBareme(db.Model):
+    """Barème des tarifs (adhésions + participation) par année scolaire.
+
+    Plusieurs lignes peuvent coexister pour un même (année, type) avec des
+    dates de début différentes : le tarif « en vigueur » à une date donnée
+    est celui dont la date de début est la plus récente sans dépasser cette
+    date (permet de faire évoluer le prix de la participation en cours
+    d'année, ex. moins cher en fin d'année scolaire).
+    """
+    __tablename__ = "tarif_bareme"
+
+    id = db.Column(db.Integer, primary_key=True)
+    annee_scolaire = db.Column(db.Integer, nullable=False, index=True)  # année de rentrée (ex. 2026 -> "2026-2027")
+    type_tarif = db.Column(db.String(30), nullable=False, index=True)
+    montant = db.Column(db.Float, nullable=False)
+    date_debut = db.Column(db.Date, nullable=False)
+    commentaire = db.Column(db.String(255), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (
+        db.Index("ix_tarif_bareme_lookup", "annee_scolaire", "type_tarif", "date_debut"),
+    )
+
+    @property
+    def type_label(self):
+        return TYPES_TARIF_LABELS.get(self.type_tarif, self.type_tarif)
+
+    @property
+    def libelle_annee(self):
+        return f"{self.annee_scolaire}-{self.annee_scolaire + 1}"
+
+
+class Cotisation(db.Model):
+    """Une obligation de règlement : adhésion (individuelle ou familiale) ou
+    participation, pour une année scolaire donnée.
+
+    - adhesion_individuelle / participation : rattachées à un participant ;
+    - adhesion_familiale : rattachée à un foyer (couvre tous ses membres).
+    Le montant dû est calculé depuis le barème en vigueur à la date de
+    référence, mais reste modifiable au cas par cas (situations de
+    précarité, tarifs réduits négociés).
+    """
+    __tablename__ = "cotisation"
+
+    id = db.Column(db.Integer, primary_key=True)
+    annee_scolaire = db.Column(db.Integer, nullable=False, index=True)
+    type_cotisation = db.Column(db.String(30), nullable=False, index=True)
+
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), nullable=True, index=True)
+    foyer_id = db.Column(db.Integer, db.ForeignKey("foyer.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    montant_du = db.Column(db.Float, nullable=False, default=0.0)
+    date_reference = db.Column(db.Date, nullable=False)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    participant = db.relationship("Participant", backref=db.backref("cotisations", cascade="all, delete-orphan"))
+    foyer = db.relationship("Foyer", back_populates="cotisations")
+    paiements = db.relationship("Paiement", back_populates="cotisation", cascade="all, delete-orphan", order_by="Paiement.date_paiement")
+
+    __table_args__ = (
+        db.Index("ix_cotisation_participant_annee", "participant_id", "annee_scolaire", "type_cotisation"),
+        db.Index("ix_cotisation_foyer_annee", "foyer_id", "annee_scolaire"),
+    )
+
+    @property
+    def type_label(self):
+        return TYPES_TARIF_LABELS.get(self.type_cotisation, self.type_cotisation)
+
+    @property
+    def libelle_annee(self):
+        return f"{self.annee_scolaire}-{self.annee_scolaire + 1}"
+
+    @property
+    def montant_regle(self):
+        return round(sum(float(p.montant or 0) for p in self.paiements), 2)
+
+    @property
+    def reste_du(self):
+        return round(max(0.0, float(self.montant_du or 0) - self.montant_regle), 2)
+
+    @property
+    def solde(self):
+        return self.reste_du <= 0.009
+
+
+class Paiement(db.Model):
+    """Un versement (règlement partiel ou total) contre une cotisation."""
+    __tablename__ = "paiement"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cotisation_id = db.Column(db.Integer, db.ForeignKey("cotisation.id", ondelete="CASCADE"), nullable=False, index=True)
+    montant = db.Column(db.Float, nullable=False)
+    date_paiement = db.Column(db.Date, nullable=False)
+    mode = db.Column(db.String(20), nullable=False, default="especes")
+    commentaire = db.Column(db.String(255), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    cotisation = db.relationship("Cotisation", back_populates="paiements")
+
+    @property
+    def mode_label(self):
+        return MODES_PAIEMENT_LABELS.get(self.mode, self.mode)

@@ -186,6 +186,10 @@
     </aside>
   </div>
 
+  {% if show_cotisations %}
+    {% include "participants/_cotisations.html" %}
+  {% endif %}
+
   <section class="person-sections">
     <article class="person-card">
       <h2>Présences récentes</h2>

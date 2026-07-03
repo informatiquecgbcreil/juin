@@ -962,10 +962,19 @@ def synthese_participant(participant_id: int):
         "last_presence_date": last_presence_date,
     }
 
+    show_cotisations = can("cotisations:view")
+    cotisations_ctx = {}
+    if show_cotisations:
+        from app.participants.cotisations import cotisations_contexte
+        cotisations_ctx = cotisations_contexte(participant)
+
     return render_template(
         "participants/synthese.html",
         participant=participant,
         quality_flags=_quality_flags_for_participant(participant),
+        show_cotisations=show_cotisations,
+        can_edit_cotisations=can("cotisations:edit"),
+        **cotisations_ctx,
         latest_presences=latest_presences,
         atelier_stats=atelier_stats,
         secteur_stats=secteur_stats,
@@ -1719,3 +1728,6 @@ def import_annuaire_confirmer():
     else:
         flash("Aucune nouvelle fiche à créer (tout existait déjà).", "info")
     return redirect(url_for("participants.list_participants"))
+
+
+from app.participants import cotisations as _cotisations_routes  # noqa: E402,F401
