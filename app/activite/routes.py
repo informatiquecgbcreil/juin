@@ -11,5 +11,6 @@ from app.activite import (  # noqa: F401
     emargement_modeles,
     helpers,
     participants_secteur,
+    saisie_grille,
     sessions_gestion,
 )

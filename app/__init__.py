@@ -143,6 +143,31 @@ def create_app():
     app.register_blueprint(insertion_bp)
 
     @app.before_request
+    def _facade_kiosque_publique():
+        """Façade « hors les murs » : par l'hôte public (tunnel), SEUL le
+        kiosque répond. Connexion, données et admin restent introuvables
+        depuis l'extérieur — l'ERP ne sort pas du réseau local."""
+        hote_public = (app.config.get("KIOSK_PUBLIC_HOST") or "").strip().lower()
+        if not hote_public:
+            return None
+        hote_requete = (request.host or "").split(":", 1)[0].strip().lower()
+        if hote_requete != hote_public:
+            return None
+        endpoint = (request.endpoint or "")
+        if endpoint.startswith("kiosk.") or endpoint.startswith("static") or endpoint == "healthz":
+            return None
+        return (
+            "<!doctype html><html lang='fr'><meta charset='utf-8'>"
+            "<title>Émargement</title>"
+            "<body style='font-family:sans-serif;max-width:32em;margin:15vh auto;text-align:center;'>"
+            "<h1>🖐️ Cet accès sert uniquement à l'émargement</h1>"
+            "<p>Ouvre le lien ou scanne le QR code transmis par l'équipe pour pointer les présences "
+            "d'une séance. Le reste de l'application n'est accessible que depuis la structure.</p>"
+            "</body></html>",
+            403,
+        )
+
+    @app.before_request
     def _ensure_initial_setup():
         from app.models import User
 

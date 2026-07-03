@@ -86,6 +86,29 @@ GUIDES: dict[str, dict[str, Any]] = {
             },
         ],
     },
+    "rattraper_emargements": {
+        "titre": "Je rattrape les émargements papier",
+        "icone": "🗓️",
+        "resume": "Saisir en masse les feuilles en retard, sans tableur : la grille alimente directement les statistiques.",
+        "perm_any": ["emargement:edit"],
+        "etapes": [
+            {
+                "titre": "Voir ce qui manque",
+                "texte": "Cette page liste toutes les séances passées sans présence saisie, atelier par atelier, avec le retard en jours. Le bouton Relancer pose un rappel pour courir après une feuille.",
+                "endpoint": "activite.emargements_attente",
+            },
+            {
+                "titre": "Saisir en grille",
+                "texte": "Choisis l'atelier et le mois de la feuille : les participants sont en lignes, les dates en colonnes, comme dans un tableur. Coche les présents, ajoute une séance ou une personne manquante si besoin, puis Enregistrer.",
+                "endpoint": "activite.saisie_grille",
+            },
+            {
+                "titre": "C'est tout — les stats se font toutes seules",
+                "texte": "Chaque case cochée alimente directement les statistiques, les bilans et le SENACS. Plus aucun tableau à tenir à jour à côté.",
+                "endpoint": None,
+            },
+        ],
+    },
     "preparer_bilan": {
         "titre": "Je prépare un bilan pour un financeur",
         "icone": "📑",
