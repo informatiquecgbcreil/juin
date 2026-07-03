@@ -146,15 +146,25 @@ def create_app():
     def _facade_kiosque_publique():
         """Façade « hors les murs » : par l'hôte public (tunnel), SEUL le
         kiosque répond. Connexion, données et admin restent introuvables
-        depuis l'extérieur — l'ERP ne sort pas du réseau local."""
+        depuis l'extérieur — l'ERP ne sort pas du réseau local.
+
+        Le test se fait sur le CHEMIN de l'URL (request.path), pas sur
+        l'endpoint résolu : quand Flask doit encore rediriger vers la
+        version avec « / » final (ex. /kiosk -> /kiosk/), l'endpoint
+        n'est pas encore connu à ce stade et vaudrait None — un test sur
+        l'endpoint bloquerait alors à tort le kiosque lui-même."""
         hote_public = (app.config.get("KIOSK_PUBLIC_HOST") or "").strip().lower()
         if not hote_public:
             return None
         hote_requete = (request.host or "").split(":", 1)[0].strip().lower()
         if hote_requete != hote_public:
             return None
-        endpoint = (request.endpoint or "")
-        if endpoint.startswith("kiosk.") or endpoint.startswith("static") or endpoint == "healthz":
+        chemin = request.path or "/"
+        if (
+            chemin == "/kiosk" or chemin.startswith("/kiosk/")
+            or chemin == "/static" or chemin.startswith("/static/")
+            or chemin == "/healthz"
+        ):
             return None
         return (
             "<!doctype html><html lang='fr'><meta charset='utf-8'>"
