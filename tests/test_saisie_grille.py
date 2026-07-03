@@ -216,6 +216,23 @@ def test_facade_kiosque_bloque_tout_sauf_le_kiosque(app, atelier_grille):
         app.config["KIOSK_PUBLIC_HOST"] = ""
 
 
+def test_facade_kiosque_racine_sans_slash_final_nest_pas_bloquee(app):
+    """Bug réel : /kiosk (sans « / » final) était bloqué par la façade,
+    car l'endpoint n'est pas encore résolu tant que Flask n'a pas suivi
+    la redirection Werkzeug vers /kiosk/. Le test doit porter sur le
+    CHEMIN, pas sur l'endpoint, pour laisser la redirection s'opérer."""
+    app.config["KIOSK_PUBLIC_HOST"] = "kiosque.exemple.fr"
+    try:
+        c = app.test_client()
+        r = c.get("/kiosk", headers={"Host": "kiosque.exemple.fr"})
+        assert r.status_code == 308
+        assert r.headers["Location"].rstrip("/").endswith("/kiosk")
+        r2 = c.get("/kiosk/", headers={"Host": "kiosque.exemple.fr"})
+        assert r2.status_code == 200
+    finally:
+        app.config["KIOSK_PUBLIC_HOST"] = ""
+
+
 def test_facade_inactive_sans_configuration(app):
     """Sans KIOSK_PUBLIC_HOST, aucun hôte n'est bridé."""
     assert not (app.config.get("KIOSK_PUBLIC_HOST") or "")
@@ -234,3 +251,28 @@ def test_lien_kiosque_prefere_l_hote_public(app):
         app.config["KIOSK_PUBLIC_HOST"] = ""
     with app.test_request_context():
         assert "kiosque.exemple.fr" not in kiosk_public_base_url()
+def test_ouverture_kiosque_reservee_au_lan_puis_lien_public(app, atelier_grille, admin_client):
+    """L'ouverture du kiosque (bouton sur la page émargement admin) exige
+    d'être sur le LAN ; une fois ouvert, le lien/QR généré pointe bien
+    vers l'hôte public — utilisable ensuite hors les murs."""
+    app.config["KIOSK_PUBLIC_HOST"] = "kiosque.exemple.fr"
+    try:
+        g = atelier_grille
+        sid = g["s1"]
+        url = f"/activite/session/{sid}/emargement"
+
+        # Ouvrir le kiosque suppose d'être sur la page d'émargement admin —
+        # celle-ci reste (à raison) fermée par la façade depuis l'extérieur :
+        # ouvrir le kiosque se fait depuis le LAN (ou WireGuard), pas depuis
+        # le tunnel public.
+        r = admin_client.get(url, headers={"Host": "kiosque.exemple.fr"})
+        assert r.status_code == 403
+
+        # Depuis le LAN (Host normal), ouverture du kiosque : le lien/QR
+        # généré utilise bien l'hôte public du tunnel.
+        admin_client.post(f"/activite/session/{sid}/kiosk_open")
+        body = admin_client.get(url).get_data(as_text=True)
+        assert "kiosque.exemple.fr" in body
+        assert "Lien direct de cette" in body
+    finally:
+        app.config["KIOSK_PUBLIC_HOST"] = ""

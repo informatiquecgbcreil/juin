@@ -93,8 +93,17 @@ C'est tout. À partir de là :
 
 ## Étape 4 — Le circuit côté équipe
 
-1. Avant la séance hors les murs, l'animateur (ou l'accueil) ouvre la séance
-   dans l'application → bouton **Kiosque** → le lien + code PIN s'affichent.
+⚠️ **Point important** : le bouton qui ouvre le kiosque d'une séance (et donc
+qui génère le lien + le QR) se trouve sur la page d'émargement de
+l'application — une page réservée à l'équipe, donc **bloquée par la façade**
+depuis l'extérieur, comme toutes les pages hors kiosque. Il faut donc
+**ouvrir le kiosque AVANT de partir**, depuis un poste du centre (ou via
+votre VPN WireGuard perso si vous êtes déjà dehors). Une fois ouvert, le
+lien fonctionne ensuite sur n'importe quel téléphone, sans compte.
+
+1. Avant la séance hors les murs, depuis le centre (ou en WireGuard),
+   l'animateur ou l'accueil ouvre la séance dans l'application → bouton
+   **Kiosque** → le lien + code PIN + QR s'affichent.
 2. Envoyer le lien au bénévole/animateur (SMS, WhatsApp…) ou imprimer le QR.
 3. Sur place : ouvrir le lien sur le téléphone, saisir le code PIN, faire
    pointer les participants. Aucun compte nécessaire, aucune autre page
@@ -103,12 +112,23 @@ C'est tout. À partir de là :
 
 ## Vérifier que la façade protège bien
 
-Depuis un téléphone en 4G (hors du réseau de la structure) :
+Depuis un téléphone en 4G (hors du réseau de la structure, wifi ET
+WireGuard coupés) :
 
-- `https://ADRESSE-PUBLIQUE/kiosk` → doit afficher l'écran kiosque ✅
+- `https://ADRESSE-PUBLIQUE/kiosk/` (avec le « / » final) → doit afficher
+  l'écran kiosque ✅
 - `https://ADRESSE-PUBLIQUE/` (ou `/dashboard`) → doit afficher
   « Cet accès sert uniquement à l'émargement » ✅
 
 Si le second test montre la page de connexion : la variable
 `KIOSK_PUBLIC_HOST` est mal renseignée (vérifier l'orthographe exacte de
 l'hôte, sans `https://`), ou le service n'a pas été redémarré.
+
+**Si le premier test échoue** (le kiosque lui-même semble bloqué) :
+vérifiez que vous avez bien tapé l'adresse en entier, avec `/kiosk/` — un
+navigateur peut afficher l'adresse sans le « / » final, mais en la
+retapant à la main il arrive de l'omettre, ce qui déclenchait ce même
+blocage avant correction. Le lien généré par le bouton **Kiosque** de
+l'application, lui, est toujours complet et ne pose pas ce problème —
+en cas de doute, préférez toujours ce lien-là (ou le QR) à une adresse
+retapée à la main.
