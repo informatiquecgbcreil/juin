@@ -43,7 +43,7 @@
           <th class="nom">Nom et prénom</th>
           {% for s in seances %}
             {% set d = s.rdv_date or s.date_session %}
-            <th>{{ d.strftime('%d/%m') if d else '' }}{% if s.heure_debut %}<br><small>{{ s.heure_debut }}</small>{% endif %}</th>
+            <th>{{ d.strftime('%d/%m') if d else '' }}{% if s.heure_debut %}<br><small>{{ s.heure_debut }}{% if s.heure_fin %}–{{ s.heure_fin }}{% endif %}</small>{% endif %}</th>
           {% endfor %}
           {% for _ in range(nb_colonnes_vides) %}
             <th>____/____</th>

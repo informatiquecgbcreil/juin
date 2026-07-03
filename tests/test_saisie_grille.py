@@ -103,10 +103,39 @@ def test_grille_ajoute_une_seance(app, atelier_grille, admin_client):
     nouvelle = dt.date(annee, mois, 25)
     r = admin_client.post(f"/activite/saisie-grille?atelier_id={g['atelier_id']}&mois={g['mois']}",
                           data={"action": "add_session", "atelier_id": g["atelier_id"],
-                                "mois": g["mois"], "date_session": nouvelle.isoformat()})
+                                "mois": g["mois"], "date_session": nouvelle.isoformat(),
+                                "heure_debut": "14:00", "heure_fin": "16:30"})
     assert r.status_code == 302
     with app.app_context():
-        assert SessionActivite.query.filter_by(atelier_id=g["atelier_id"], date_session=nouvelle).count() == 1
+        s = SessionActivite.query.filter_by(atelier_id=g["atelier_id"], date_session=nouvelle).one()
+        assert s.heure_debut == "14:00"
+        assert s.heure_fin == "16:30"
+
+
+def test_recherche_de_personne_couvre_toutes_les_fiches(app, atelier_grille, admin_client):
+    """La recherche trouve n'importe quel participant, même jamais venu
+    dans l'atelier — et n'affiche que les correspondances (lisible)."""
+    import uuid as _uuid
+    from app.extensions import db
+    from app.models import Participant
+    g = atelier_grille
+    suf = _uuid.uuid4().hex[:6]
+    with app.app_context():
+        # Une personne totalement étrangère à l'atelier.
+        db.session.add(Participant(nom=f"Zorglub{suf}", prenom="Léon"))
+        db.session.commit()
+
+    url = f"/activite/saisie-grille?atelier_id={g['atelier_id']}&mois={g['mois']}"
+    # Sans recherche : la personne n'apparaît pas (grille = habitués seulement).
+    body = admin_client.get(url).get_data(as_text=True)
+    assert f"Zorglub{suf}" not in body
+    # Avec recherche : trouvée, avec son bouton d'ajout.
+    body = admin_client.get(url + f"&q_personne=zorglub{suf}").get_data(as_text=True)
+    assert f"Zorglub{suf}" in body
+    assert "add_participant" in body
+    # Recherche sans résultat : message clair, pas de bouton fantôme.
+    body = admin_client.get(url + "&q_personne=xyzintrouvable").get_data(as_text=True)
+    assert "Aucune fiche trouvée" in body
 
 
 def test_attente_liste_et_relance(app, atelier_grille, admin_client):

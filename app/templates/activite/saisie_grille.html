@@ -76,7 +76,7 @@
                 <th class="nom">Participant</th>
                 {% for s in seances %}
                   {% set d = s.rdv_date or s.date_session %}
-                  <th title="{{ d.strftime('%d/%m/%Y') if d else '' }}{% if s.heure_debut %} · {{ s.heure_debut }}{% endif %}">
+                  <th title="{{ d.strftime('%d/%m/%Y') if d else '' }}{% if s.heure_debut %} · {{ s.heure_debut }}{% if s.heure_fin %}–{{ s.heure_fin }}{% endif %}{% endif %}">
                     <a href="{{ url_for('activite.emargement', session_id=s.id) }}" title="Ouvrir la feuille d'émargement complète">{{ d.strftime('%d/%m') if d else '?' }}</a>
                   </th>
                 {% endfor %}
@@ -129,30 +129,49 @@
           <input class="in" type="date" name="date_session" required>
         </div>
         <div>
-          <label>Heure (optionnel)</label>
+          <label>Début (optionnel)</label>
           <input class="in" type="time" name="heure_debut">
+        </div>
+        <div>
+          <label>Fin (optionnel)</label>
+          <input class="in" type="time" name="heure_fin">
         </div>
         <button class="btn" type="submit">➕ Créer la séance</button>
       </form>
 
       {% if seances %}
-      <form method="post" action="{{ url_for('activite.saisie_grille', atelier_id=atelier.id, mois=mois_str, plus=en_plus|join(',') or None) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="action" value="add_participant">
-        <input type="hidden" name="atelier_id" value="{{ atelier.id }}">
-        <input type="hidden" name="mois" value="{{ mois_str }}">
-        <div>
-          <label for="grille-personne">Ajouter une personne à la grille</label>
-          <select id="grille-personne" class="in" name="participant_id">
-            <option value="">— Choisir —</option>
-            {% for c in candidats %}
-              <option value="{{ c.id }}">{{ c.nom }} {{ c.prenom }}{% if c.ville %} · {{ c.ville }}{% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <button class="btn" type="submit">➕ Ajouter la ligne</button>
-        <span class="muted">Personne pas encore dans la base ? <a href="{{ url_for('participants.new_participant') }}">Créer sa fiche</a> d'abord.</span>
-      </form>
+      <div>
+        <form method="get" action="{{ url_for('activite.saisie_grille') }}">
+          <input type="hidden" name="atelier_id" value="{{ atelier.id }}">
+          <input type="hidden" name="mois" value="{{ mois_str }}">
+          {% if en_plus %}<input type="hidden" name="plus" value="{{ en_plus|join(',') }}">{% endif %}
+          <div>
+            <label for="grille-personne">Ajouter une personne à la grille</label>
+            <input id="grille-personne" class="in" type="search" name="q_personne" value="{{ q_personne or '' }}"
+                   placeholder="Taper un nom ou un prénom…">
+          </div>
+          <button class="btn" type="submit">🔎 Chercher</button>
+          <span class="muted">La recherche couvre toutes les fiches. Personne introuvable ? <a href="{{ url_for('participants.new_participant') }}">Créer sa fiche</a> d'abord.</span>
+        </form>
+        {% if q_personne %}
+          {% if resultats_ajout %}
+            <div class="ui-actions inline-actions" style="flex-wrap:wrap; margin-top:8px;">
+              {% for c in resultats_ajout %}
+                <form method="post" action="{{ url_for('activite.saisie_grille', atelier_id=atelier.id, mois=mois_str, plus=en_plus|join(',') or None) }}" style="margin:0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="add_participant">
+                  <input type="hidden" name="atelier_id" value="{{ atelier.id }}">
+                  <input type="hidden" name="mois" value="{{ mois_str }}">
+                  <input type="hidden" name="participant_id" value="{{ c.id }}">
+                  <button class="btn" type="submit" title="Ajouter cette personne à la grille">➕ {{ c.nom }} {{ c.prenom }}{% if c.ville %} · {{ c.ville }}{% endif %}</button>
+                </form>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="muted" style="margin-top:8px;">Aucune fiche trouvée pour « {{ q_personne }} » (ou déjà dans la grille).</div>
+          {% endif %}
+        {% endif %}
+      </div>
       {% endif %}
     </div>
   {% endif %}
