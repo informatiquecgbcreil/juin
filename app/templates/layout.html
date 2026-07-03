@@ -716,6 +716,9 @@
                   {% if can('cotisations:tarifs') %}
                     <a class="pill {% if ep == 'main.tarifs_cotisations' %}active{% endif %}" href="{{ url_for('main.tarifs_cotisations') }}">Tarifs adhésions &amp; participation</a>
                   {% endif %}
+                  {% if can('caisse:view') %}
+                    <a class="pill {% if ep.startswith('main.caisse') %}active{% endif %}" href="{{ url_for('main.caisse') }}">Caisse</a>
+                  {% endif %}
                   {% if can('stats:view') %}
                     <a class="pill {% if ep == 'main.cout_unitaire' %}active{% endif %}" href="{{ url_for('main.cout_unitaire') }}">Coût unitaire</a>
                   {% endif %}

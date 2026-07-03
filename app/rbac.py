@@ -123,6 +123,10 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
     ("cotisations:edit", "Enregistrer des adhésions, la participation, les règlements et les foyers"),
     ("cotisations:tarifs", "Modifier le barème des tarifs (adhésions, participation)"),
 
+    # Caisse (espèces & chèques)
+    ("caisse:view", "Voir l'état de la caisse et son journal"),
+    ("caisse:edit", "Compter la caisse, faire les dépôts, régler le fond de caisse"),
+
     # Contrôle / activité / admin
     ("controle:view", "Accéder au module contrôle"),
     ("activite:delete", "Supprimer une activité"),
@@ -274,6 +278,8 @@ PERMS_AUTO_GRANT = {
     "cotisations:view": ("direction", "directrice", "finance", "responsable_secteur"),
     "cotisations:edit": ("direction", "directrice", "finance", "responsable_secteur"),
     "cotisations:tarifs": ("direction", "directrice", "finance"),
+    "caisse:view": ("direction", "directrice", "finance"),
+    "caisse:edit": ("direction", "directrice", "finance"),
 }
 
 
@@ -295,6 +301,7 @@ def _category_from_code(code: str) -> str:
         "rh": "Ressources humaines",
         "glossaire": "Glossaire",
         "cotisations": "Adhésions & participation",
+        "caisse": "Caisse",
         "insertion": "Insertion",
         "quartiers": "Quartiers",
         "partenaires": "Partenaires",

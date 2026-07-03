@@ -72,6 +72,16 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Une séance qui n'a réellement accueilli personne peut être annulée depuis sa page : elle sortira de cette liste.",
     },
+    "main.caisse": {
+        "titre": "La caisse",
+        "resume": "La boîte physique des espèces et chèques : les encaissements y entrent tout seuls, ici on compte et on dépose.",
+        "etapes": [
+            "Réglez d'abord le fond de caisse (la somme gardée en permanence pour rendre la monnaie).",
+            "Comptez régulièrement : saisissez le total, l'application calcule l'écart et le trace.",
+            "Pour un dépôt en banque : espèces au-dessus du fond + chèques, puis imprimez le bordereau.",
+        ],
+        "astuce": "Le guide « Je compte la caisse et je fais le dépôt » (page Guides) accompagne toute l'opération, pensé pour une première fois.",
+    },
     "main.dashboard_customize": {
         "titre": "Personnaliser votre tableau de bord",
         "resume": "Choisissez ici ce que VOUS voulez voir en arrivant dans l'application.",

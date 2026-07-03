@@ -376,6 +376,25 @@ GLOSSAIRE: list[dict] = [
                 "definition": "L'argent réellement disponible en caisse à un instant donné — à ne pas confondre avec le budget : on peut avoir un budget équilibré et une trésorerie vide si les subventions arrivent en retard.",
             },
             {
+                "terme": "Fond de caisse",
+                "definition": "La somme permanente laissée dans la caisse pour rendre la monnaie (souvent 30 à 50 €). Elle ne se dépose jamais à la banque : quand on fait un dépôt, on emporte la recette et on laisse le fond.",
+                "dans_app": "Page Caisse (Ressources) : à régler une fois au départ.",
+            },
+            {
+                "terme": "Arrêté de caisse (comptage)",
+                "definition": "Compter physiquement tout ce qu'il y a dans la caisse et comparer au montant théorique. S'il y a un écart, on le note noir sur blanc — l'important n'est pas d'être parfait, c'est de tracer. À faire régulièrement (chaque semaine, ou avant chaque dépôt).",
+                "dans_app": "Page Caisse : le comptage trace l'écart et réaligne le théorique automatiquement.",
+            },
+            {
+                "terme": "Dépôt en banque (remise)",
+                "definition": "Apporter la recette (espèces et chèques encaissés) à la banque, accompagnée d'un bordereau qui liste ce qu'on dépose. Pour les chèques, on parle de « remise de chèques ».",
+                "dans_app": "Page Caisse : l'application enregistre le dépôt et imprime le bordereau.",
+            },
+            {
+                "terme": "Bordereau",
+                "definition": "Le papier qui accompagne un dépôt en banque : il détaille les montants (espèces, nombre de chèques) et sert de preuve des deux côtés. La banque y appose son cachet.",
+            },
+            {
                 "terme": "Cofinancement",
                 "definition": "Quand plusieurs financeurs paient ensemble la même action : la CAF 40 %, la ville 30 %, le reste en fonds propres. Quasiment toutes les actions d'un centre social sont cofinancées — d'où l'importance de bien ventiler les dépenses.",
             },

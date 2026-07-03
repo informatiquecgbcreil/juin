@@ -166,6 +166,13 @@ POSTE_ACTIONS: dict[str, dict[str, Any]] = {
         "perm_any": ["statsimpact:view", "stats:view"],
         "endpoint": "statsimpact.dashboard",
     },
+    "caisse": {
+        "label": "Tenir la caisse",
+        "desc": "Compter les espèces, faire le dépôt en banque, suivre le journal.",
+        "icon": "💶",
+        "perm_any": ["caisse:view", "caisse:edit"],
+        "endpoint": "main.caisse",
+    },
     "saisir_depense": {
         "label": "Saisir une dépense",
         "desc": "Enregistrer une facture ou un achat sur la bonne enveloppe.",
@@ -253,7 +260,7 @@ ROLE_POSTES: dict[str, list[str]] = {
 # Ordre de repli pour un rôle inconnu : du plus quotidien au plus pilotage.
 FALLBACK_ORDER = [
     "appel", "accueillir", "retrouver", "rattraper_emargements", "a_traiter", "suivre_activite",
-    "saisir_depense", "suivre_subventions", "preparer_bilan", "monter_projet",
+    "caisse", "saisir_depense", "suivre_subventions", "preparer_bilan", "monter_projet",
     "suivre_apprentissages", "gerer_equipe", "regler_droits",
 ]
 
