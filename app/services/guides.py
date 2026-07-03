@@ -109,6 +109,34 @@ GUIDES: dict[str, dict[str, Any]] = {
             },
         ],
     },
+    "compter_caisse": {
+        "titre": "Je compte la caisse et je fais le dépôt",
+        "icone": "💶",
+        "resume": "L'arrêté de caisse puis le dépôt en banque, expliqués pas à pas — même sans jamais l'avoir fait.",
+        "perm_any": ["caisse:edit"],
+        "etapes": [
+            {
+                "titre": "Ouvrir la caisse et lire l'état",
+                "texte": "Les quatre chiffres du haut disent tout : ce qu'il devrait y avoir dans la boîte (théorique), le fond de caisse (la monnaie qu'on garde toujours), la recette déposable et les chèques en attente. Première fois ? Commence par régler le fond de caisse (bloc de droite).",
+                "endpoint": "main.caisse",
+            },
+            {
+                "titre": "Compter les espèces",
+                "texte": "Sors tout ce qu'il y a dans la boîte et compte (billets + pièces, fond compris). Saisis le total dans « Compter la caisse » : l'application compare au théorique. Un écart n'est pas un drame — il est tracé, et le théorique repart du réel.",
+                "endpoint": None,
+            },
+            {
+                "titre": "Préparer le dépôt",
+                "texte": "Dans « Faire un dépôt » : les espèces au-dessus du fond de caisse (le montant maximum est affiché), les chèques avec leur nombre. Le fond de caisse, lui, reste dans la boîte.",
+                "endpoint": None,
+            },
+            {
+                "titre": "Imprimer le bordereau et aller à la banque",
+                "texte": "Le bordereau s'ouvre tout seul après l'enregistrement : imprime-le, il accompagne les fonds et la banque y met son cachet. C'est terminé — le journal de la caisse garde la trace de tout.",
+                "endpoint": None,
+            },
+        ],
+    },
     "preparer_bilan": {
         "titre": "Je prépare un bilan pour un financeur",
         "icone": "📑",

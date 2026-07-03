@@ -2812,3 +2812,48 @@ class Paiement(db.Model):
     @property
     def mode_label(self):
         return MODES_PAIEMENT_LABELS.get(self.mode, self.mode)
+
+
+# ---------- CAISSE (espèces & chèques) ----------
+
+TYPES_MOUVEMENT_CAISSE = ["fond", "depot", "comptage", "ajustement"]
+TYPES_MOUVEMENT_CAISSE_LABELS = {
+    "fond": "Fond de caisse",
+    "depot": "Dépôt en banque",
+    "comptage": "Comptage (arrêté de caisse)",
+    "ajustement": "Ajustement",
+}
+
+
+class CaisseMouvement(db.Model):
+    """Journal de la caisse (la boîte physique : espèces + chèques).
+
+    Les ENCAISSEMENTS n'apparaissent pas ici : ce sont les règlements
+    (Paiement) en espèces/chèque et les dons en numéraire déjà saisis
+    ailleurs — la caisse les lit, jamais de double saisie. Cette table ne
+    stocke que ce qui est propre à la caisse :
+    - ``fond``       : nouveau montant du fond de caisse (le dernier fait foi) ;
+    - ``depot``      : sortie vers la banque (montant déposé, positif) ;
+    - ``comptage``   : arrêté de caisse (montant = constaté, ecart = constaté − théorique) ;
+    - ``ajustement`` : correction signée du théorique (auto-créée par un
+                       comptage en écart, ou manuelle avec motif).
+    """
+    __tablename__ = "caisse_mouvement"
+
+    id = db.Column(db.Integer, primary_key=True)
+    type_mouvement = db.Column(db.String(20), nullable=False, index=True)
+    canal = db.Column(db.String(10), nullable=False, default="especes", index=True)  # especes | cheque
+    montant = db.Column(db.Float, nullable=False, default=0.0)
+    ecart = db.Column(db.Float, nullable=True)          # comptage uniquement
+    nb_cheques = db.Column(db.Integer, nullable=True)   # dépôt de chèques
+    date_mouvement = db.Column(db.Date, nullable=False, index=True)
+    commentaire = db.Column(db.String(255), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    user = db.relationship("User")
+
+    @property
+    def type_label(self):
+        return TYPES_MOUVEMENT_CAISSE_LABELS.get(self.type_mouvement, self.type_mouvement)

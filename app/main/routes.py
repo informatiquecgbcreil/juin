@@ -8,6 +8,7 @@ from app.main.common import bp  # noqa: F401
 from app.main import (  # noqa: F401
     benevoles,
     bilan_global,
+    caisse,
     comparaison,
     controle,
     couts,
