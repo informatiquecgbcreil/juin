@@ -12,6 +12,27 @@ répond : la page de connexion, les données et l'administration renvoient
 
 ---
 
+## « J'ai déjà WireGuard, ça ne suffit pas ? »
+
+Non, et il ne faut pas le remplacer : les deux outils font des choses opposées.
+
+- **WireGuard (votre VPN)** : un accès **privé** et total. La personne
+  connectée entre virtuellement dans le réseau local et voit toute
+  l'application. Parfait pour la direction ou l'admin en déplacement —
+  mais il faut installer et configurer un client sur chaque appareil,
+  et chaque appareil configuré a accès à tout.
+- **Le tunnel kiosque** : un accès **public** et minuscule. N'importe quel
+  téléphone avec le lien peut pointer les présences d'une séance (jeton +
+  code PIN), et ne peut rien faire d'autre — la façade kiosque bloque tout
+  le reste. Rien à installer côté bénévole.
+
+Donner WireGuard à un bénévole reviendrait à lui donner les clés de tout le
+bâtiment pour qu'il signe une feuille dans l'entrée. Gardez WireGuard pour
+vous ; le tunnel, c'est pour eux.
+
+Bon signe au passage : si WireGuard fonctionne, le serveur sait déjà établir
+des connexions sortantes — le tunnel s'installera sans difficulté.
+
 ## Étape 1 — Choisir le tunnel
 
 Deux solutions gratuites et sans ouverture de port sur la box :
