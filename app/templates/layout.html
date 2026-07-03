@@ -713,6 +713,9 @@
                   {% if can('dons:view') %}
                     <a class="pill {% if ep in ('main.dons_registre', 'main.don_recu') %}active{% endif %}" href="{{ url_for('main.dons_registre') }}">Dons &amp; reçus fiscaux</a>
                   {% endif %}
+                  {% if can('cotisations:tarifs') %}
+                    <a class="pill {% if ep == 'main.tarifs_cotisations' %}active{% endif %}" href="{{ url_for('main.tarifs_cotisations') }}">Tarifs adhésions &amp; participation</a>
+                  {% endif %}
                   {% if can('stats:view') %}
                     <a class="pill {% if ep == 'main.cout_unitaire' %}active{% endif %}" href="{{ url_for('main.cout_unitaire') }}">Coût unitaire</a>
                   {% endif %}

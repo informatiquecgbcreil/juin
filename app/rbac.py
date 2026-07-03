@@ -118,6 +118,11 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
     # Glossaire (dico du social)
     ("glossaire:edit", "Modifier le glossaire (ajouter, corriger, importer des mots)"),
 
+    # Adhésions, participation & foyers
+    ("cotisations:view", "Voir les adhésions, la participation et les règlements"),
+    ("cotisations:edit", "Enregistrer des adhésions, la participation, les règlements et les foyers"),
+    ("cotisations:tarifs", "Modifier le barème des tarifs (adhésions, participation)"),
+
     # Contrôle / activité / admin
     ("controle:view", "Accéder au module contrôle"),
     ("activite:delete", "Supprimer une activité"),
@@ -229,6 +234,9 @@ ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
             "participants:view_all", "participants:edit", "participants:delete", "participants:anonymize",
             "insertion:view",
 
+            # Adhésions & participation (pas le barème des tarifs, réservé direction/finance)
+            "cotisations:view", "cotisations:edit",
+
             # Quartiers (lecture seule)
             "quartiers:view",
 
@@ -263,6 +271,9 @@ PERMS_AUTO_GRANT = {
     "rh:view": ("direction", "directrice"),
     "rh:edit": ("direction", "directrice"),
     "glossaire:edit": ("direction", "directrice"),
+    "cotisations:view": ("direction", "directrice", "finance", "responsable_secteur"),
+    "cotisations:edit": ("direction", "directrice", "finance", "responsable_secteur"),
+    "cotisations:tarifs": ("direction", "directrice", "finance"),
 }
 
 
@@ -283,6 +294,7 @@ def _category_from_code(code: str) -> str:
         "dons": "Dons & reçus fiscaux",
         "rh": "Ressources humaines",
         "glossaire": "Glossaire",
+        "cotisations": "Adhésions & participation",
         "insertion": "Insertion",
         "quartiers": "Quartiers",
         "partenaires": "Partenaires",
