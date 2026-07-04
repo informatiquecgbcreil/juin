@@ -560,6 +560,76 @@ def _csat_gender_code(genre: str | None) -> str:
     return "N"
 
 
+@bp.route("/export-contacts-emailing.csv")
+@login_required
+@require_perm("participants:view")
+def export_contacts_emailing_csv():
+    """Export des contacts (avec e-mail) au format CSV générique, pensé pour
+    l'import dans un outil d'e-mailing (Brevo, Mailjet…) : ces outils
+    proposent d'associer chaque colonne à sa case au moment de l'import,
+    donc les intitulés ci-dessous n'ont pas besoin de correspondre au pixel
+    près à ce qu'ils attendent.
+
+    Seules les personnes avec une adresse e-mail renseignée sont incluses ;
+    les fiches anonymisées (RGPD) sont exclues comme pour tous les exports.
+    """
+    participants_q = Participant.query.filter(
+        Participant.nom != NOM_ANONYME,
+        Participant.email.isnot(None),
+        Participant.email != "",
+    )
+
+    if not current_user.has_perm("participants:view_all"):
+        sec = _current_secteur()
+        if not sec:
+            abort(403)
+        subq_presence_ids = (
+            db.session.query(PresenceActivite.participant_id)
+            .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+            .filter(SessionActivite.secteur == sec)
+            .distinct()
+        )
+        participants_q = participants_q.filter(
+            (Participant.created_secteur == sec) | (Participant.id.in_(subq_presence_ids))
+        )
+    else:
+        secteur_filtre = (request.args.get("secteur") or "").strip()
+        if secteur_filtre:
+            participants_q = participants_q.filter(Participant.created_secteur == secteur_filtre)
+
+    participants = participants_q.order_by(Participant.nom.asc(), Participant.prenom.asc()).all()
+
+    # Un e-mail identique ne doit apparaître qu'une fois (import propre côté outil d'e-mailing).
+    vus: set[str] = set()
+    lignes = []
+    for p in participants:
+        email = (p.email or "").strip().lower()
+        if not email or email in vus:
+            continue
+        vus.add(email)
+        lignes.append(p)
+
+    output = StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["EMAIL", "PRENOM", "NOM", "VILLE", "QUARTIER", "SECTEUR", "TYPE_PUBLIC"])
+    for p in lignes:
+        writer.writerow([
+            (p.email or "").strip(),
+            p.prenom,
+            p.nom,
+            p.ville or "",
+            p.quartier.nom if p.quartier else "",
+            p.created_secteur or "",
+            p.type_public or "",
+        ])
+
+    content = output.getvalue().encode("utf-8-sig")
+    filename = f"contacts_emailing_{date.today().isoformat()}.csv"
+    return Response(content, mimetype="text/csv", headers={
+        "Content-Disposition": f"attachment; filename={filename}"
+    })
+
+
 @bp.route("/export-csat.csv")
 @login_required
 @require_perm("participants:view")
