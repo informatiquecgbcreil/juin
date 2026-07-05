@@ -16,6 +16,7 @@ from app.main import (  # noqa: F401
     dons,
     guides,
     hart,
+    impayes,
     hubs,
     qualite_donnees,
     recherche,

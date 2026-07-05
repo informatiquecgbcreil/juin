@@ -49,53 +49,13 @@ def _ensure_month_capacity(atelier: AtelierActivite, session: SessionActivite):
     db.session.commit()
 
 
-def _normaliser_nom(texte: str) -> str:
-    """Minuscules, sans accents ni caractères non alphabétiques (Mohamed == Mohamed)."""
-    import unicodedata
-    texte = unicodedata.normalize("NFKD", (texte or "")).encode("ascii", "ignore").decode("ascii")
-    return "".join(c for c in texte.lower() if c.isalpha())
-
-
-def _squelette_nom(texte: str) -> str:
-    """Forme normalisée avec les lettres doublées réduites : rend identiques
-    « Mohammed » et « Mohamed », « Alard » et « Allard »."""
-    normalise = _normaliser_nom(texte)
-    out = []
-    for c in normalise:
-        if not out or out[-1] != c:
-            out.append(c)
-    return "".join(out)
-
-
-def _candidats_doublons(nom: str, prenom: str) -> list[Participant]:
-    """Personnes proches d'un nom/prénom saisi au kiosque (anti-doublons).
-
-    Deux champs sont « proches » si, après normalisation (casse/accents) :
-    identiques, mêmes squelettes (lettres doublées réduites), ou l'un préfixe
-    de l'autre (>= 3 lettres). Match global si le nom ET le prénom sont
-    proches, avec au moins l'un des deux strictement identique.
-    """
-    n, p = _normaliser_nom(nom), _normaliser_nom(prenom)
-    if not n or not p:
-        return []
-
-    def _proches(a: str, b: str) -> bool:
-        if a == b:
-            return True
-        if _squelette_nom(a) == _squelette_nom(b):
-            return True
-        return len(a) >= 3 and len(b) >= 3 and (a.startswith(b) or b.startswith(a))
-
-    candidats = []
-    for cand in Participant.query.filter(Participant.nom.ilike(f"{nom[:2]}%")).limit(400).all():
-        cn, cp = _normaliser_nom(cand.nom), _normaliser_nom(cand.prenom)
-        if not cn or not cp:
-            continue
-        if (cn == n or cp == p) and _proches(cn, n) and _proches(cp, p):
-            candidats.append(cand)
-        if len(candidats) >= 5:
-            break
-    return candidats
+# Détection d'homonymes : logique partagée avec la création manuelle
+# (/participants/new). Les alias conservent les noms historiques du module.
+from app.services.doublons import (  # noqa: E402
+    candidats_doublons as _candidats_doublons,
+    normaliser_nom as _normaliser_nom,
+    squelette_nom as _squelette_nom,
+)
 
 
 def _get_open_session_by_pin(pin: str):

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from flask import abort, flash, redirect, request, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
@@ -249,6 +249,25 @@ def cotisation_relancer(participant_id: int, cotisation_id: int):
     db.session.commit()
     flash("Relance posée : elle apparaît dans « À traiter ».", "success")
     return redirect(lien)
+
+
+@bp.route("/<int:participant_id>/cotisation/<int:cotisation_id>/recu")
+@login_required
+@require_perm("cotisations:view")
+def cotisation_recu(participant_id: int, cotisation_id: int):
+    """Reçu / attestation de règlement imprimable — preuve pour la famille
+    (CAF, comité d'entreprise…). Reflète l'état actuel (dû, réglé, reste)."""
+    participant = _get_participant_autorise(participant_id, edition=False)
+    cotisation = _get_cotisation_liee(participant, cotisation_id)
+    from app.services.dons import montant_en_lettres
+    return render_template(
+        "participants/cotisation_recu.html",
+        participant=participant,
+        cotisation=cotisation,
+        organisme_nom=current_app.config.get("ORGANIZATION_NAME") or current_app.config.get("APP_NAME") or "",
+        montant_regle_lettres=montant_en_lettres(cotisation.montant_regle),
+        today=date.today(),
+    )
 
 
 @bp.post("/<int:participant_id>/foyer/rapprocher")

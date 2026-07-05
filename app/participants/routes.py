@@ -1089,6 +1089,28 @@ def new_participant():
             flash("Adresse e-mail invalide (ex. nom@domaine.fr).", "err")
             return redirect(url_for("participants.new_participant"))
 
+        # Anti-doublon : avant de créer, on propose les fiches ressemblantes.
+        # « force_creation=1 » (bouton « Créer quand même ») passe outre.
+        if (request.form.get("force_creation") or "") != "1":
+            from app.services.doublons import candidats_doublons
+            candidats = candidats_doublons(nom, prenom)
+            if candidats:
+                quartiers = Quartier.query.order_by(Quartier.ville.asc(), Quartier.nom.asc()).all()
+                return render_template(
+                    "participants/form.html",
+                    item=None,
+                    secteur=_current_secteur(),
+                    is_editable=True,
+                    can_view_sensitive_insertion=_can_view_sensitive_insertion(),
+                    can_edit_insertion=_can_edit_insertion(),
+                    quartiers=quartiers,
+                    titre_sejour_options=_active_reference_options(InsertionTitreSejourTypeRef, legacy_column="titre_sejour_type"),
+                    diplome_options=_active_reference_options(InsertionDiplomeRef, legacy_column="diplome_obtenu"),
+                    secteurs_creation=get_secteur_labels(active_only=True),
+                    doublons_candidats=candidats,
+                    pending=request.form,
+                )
+
         p = Participant(
             nom=nom,
             prenom=prenom,
