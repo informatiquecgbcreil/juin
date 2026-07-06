@@ -2861,3 +2861,58 @@ class CaisseMouvement(db.Model):
     @property
     def type_label(self):
         return TYPES_MOUVEMENT_CAISSE_LABELS.get(self.type_mouvement, self.type_mouvement)
+
+
+# ---------- AGENDA : préférences du flux + créneaux hors ateliers ----------
+
+TYPES_CRENEAU = ["reunion", "preparation", "formation", "partenariat", "administratif", "autre"]
+TYPES_CRENEAU_LABELS = {
+    "reunion": "Réunion",
+    "preparation": "Préparation",
+    "formation": "Formation",
+    "partenariat": "Partenariat",
+    "administratif": "Administratif",
+    "autre": "Autre",
+}
+
+
+class AgendaPreference(db.Model):
+    """Réglages personnels du flux calendrier iCal (titre, description,
+    fenêtre, préparation automatique…). Stockés en JSON : on peut ajouter
+    des options sans migration."""
+    __tablename__ = "agenda_preference"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    options_json = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    user = db.relationship("User", backref=db.backref("agenda_pref", uselist=False, cascade="all, delete-orphan"))
+
+
+class AgendaCreneau(db.Model):
+    """Créneau de travail hors ateliers (réunion, préparation, formation…).
+
+    Complète les séances dans le flux calendrier : l'agenda extrait par les
+    financeurs reflète alors TOUT le temps effectif, pas seulement le
+    face-à-face. Personnel à chaque utilisateur. La répétition hebdomadaire
+    est matérialisée à la création (une ligne par occurrence) : simple,
+    fiable, chaque occurrence reste modifiable/supprimable individuellement.
+    """
+    __tablename__ = "agenda_creneau"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    type_creneau = db.Column(db.String(20), nullable=False, default="reunion")
+    titre = db.Column(db.String(200), nullable=False)
+    date_creneau = db.Column(db.Date, nullable=False, index=True)
+    heure_debut = db.Column(db.String(10), nullable=True)
+    heure_fin = db.Column(db.String(10), nullable=True)
+    description = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    user = db.relationship("User")
+
+    @property
+    def type_label(self):
+        return TYPES_CRENEAU_LABELS.get(self.type_creneau, self.type_creneau)
