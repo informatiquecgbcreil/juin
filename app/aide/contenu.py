@@ -72,6 +72,16 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Une séance qui n'a réellement accueilli personne peut être annulée depuis sa page : elle sortira de cette liste.",
     },
+    "main.mon_agenda": {
+        "titre": "Synchroniser mon agenda",
+        "resume": "Abonnez votre agenda (Google, Apple, Outlook) à vos séances : ajouté une fois, il se met à jour tout seul.",
+        "etapes": [
+            "Copiez votre lien personnel.",
+            "Dans Google Agenda, « Autres agendas » → + → « À partir de l'URL » → collez le lien.",
+            "Vos séances apparaissent ; Google les rafraîchit ensuite automatiquement (comptez quelques heures, ce n'est pas instantané).",
+        ],
+        "astuce": "Le lien est secret et ne contient aucun nom de participant. En cas de doute, régénérez-le : l'ancien cesse aussitôt de fonctionner.",
+    },
     "main.impayes": {
         "titre": "Les impayés",
         "resume": "La liste de toutes les cotisations non soldées de l'année scolaire, la plus grosse ardoise en premier.",

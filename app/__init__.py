@@ -164,6 +164,9 @@ def create_app():
             chemin == "/kiosk" or chemin.startswith("/kiosk/")
             or chemin == "/static" or chemin.startswith("/static/")
             or chemin == "/healthz"
+            # Flux calendrier iCal : lu par Google/Apple depuis internet, protégé
+            # par un jeton secret dans l'URL (aucune donnée personnelle exposée).
+            or chemin.startswith("/calendrier/")
         ):
             return None
         return (

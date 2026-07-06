@@ -16,6 +16,10 @@ class User(db.Model):
     # Compte actif : un compte désactivé ne peut plus se connecter (sans
     # perdre son historique, contrairement à une suppression).
     actif = db.Column(db.Boolean, nullable=False, default=True)
+    # Jeton secret du flux calendrier iCal personnel (abonnement Google
+    # Agenda / Apple / Outlook). NULL tant que la personne n'a pas activé la
+    # synchro ; régénérable pour révoquer un ancien lien.
+    calendar_token = db.Column(db.String(64), nullable=True, unique=True, index=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     # Flask-Login
