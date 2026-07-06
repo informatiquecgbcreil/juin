@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block title %}Mon agenda{% endblock %}
+{% block body %}
+<style>
+  .agenda-url{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+  .agenda-url code{ flex:1; min-width:280px; background:var(--surface-soft,#f1f4fb); padding:10px 12px; border-radius:8px; font-size:.88rem; word-break:break-all; }
+  .agenda-etapes{ counter-reset:et; list-style:none; padding:0; margin:14px 0; }
+  .agenda-etapes li{ position:relative; padding:8px 0 8px 40px; line-height:1.5; }
+  .agenda-etapes li::before{ counter-increment:et; content:counter(et); position:absolute; left:0; top:6px; width:26px; height:26px; border-radius:50%; background:rgba(90,120,255,.15); color:#3346c0; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .agenda-carte{ border:1px solid var(--border,#e3e6ef); border-radius:12px; padding:16px 18px; background:var(--panel,#fff); }
+</style>
+<div class="ui-page">
+  <section class="ui-header page-hero-soft">
+    <div class="page-title-wrap">
+      <h1 class="ui-title page-title">📅 Mon agenda — synchro automatique</h1>
+      <p class="ui-subtitle page-subtitle">
+        Abonne ton agenda (Google, Apple, Outlook) à tes séances : tu l'ajoutes une seule fois,
+        et ensuite tout ce que tu crées dans l'application y apparaît tout seul.
+      </p>
+    </div>
+  </section>
+
+  <div class="agenda-carte" style="margin-top:14px;">
+    <h2 style="margin-top:0; font-size:1.05rem;">🔗 Ton lien personnel</h2>
+    <p class="muted" style="margin-top:0;">Garde-le pour toi : ce lien secret donne accès à ton planning.</p>
+    <div class="agenda-url">
+      <code id="agenda-lien">{{ url_https }}</code>
+      <button class="btn primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('agenda-lien').textContent).then(()=>{this.textContent='✔ Copié';setTimeout(()=>this.textContent='📋 Copier le lien',1500);})">📋 Copier le lien</button>
+      <a class="btn" href="{{ url_webcal }}" title="Ouvre directement l'application d'agenda de ton appareil">➕ Ajouter (webcal)</a>
+    </div>
+  </div>
+
+  <div class="agenda-carte" style="margin-top:12px;">
+    <h2 style="margin-top:0; font-size:1.05rem;">Dans Google Agenda (sur ordinateur)</h2>
+    <ol class="agenda-etapes">
+      <li>Ouvre <strong>Google Agenda</strong> sur un ordinateur (calendar.google.com).</li>
+      <li>À gauche, à côté de <strong>« Autres agendas »</strong>, clique sur le <strong>+</strong>.</li>
+      <li>Choisis <strong>« À partir de l'URL »</strong>.</li>
+      <li>Colle le lien copié ci-dessus, puis <strong>« Ajouter l'agenda »</strong>.</li>
+      <li>C'est fait : tes séances apparaissent. Google les rafraîchit ensuite tout seul (compter quelques heures pour les mises à jour — ce n'est pas instantané).</li>
+    </ol>
+    <p class="muted">Sur iPhone/Mac : Réglages → Calendrier → Comptes → Ajouter un compte → « Autre » → « Ajouter un abonnement à un calendrier », puis colle le lien.</p>
+  </div>
+
+  <div class="agenda-carte no-print" style="margin-top:12px;">
+    <h2 style="margin-top:0; font-size:1.05rem;">🔒 Sécurité</h2>
+    <p class="muted" style="margin-top:0;">Le lien ne contient <strong>aucun nom de participant</strong> — seulement tes ateliers, horaires et secteur. Si tu penses l'avoir partagé par erreur, régénère-le : l'ancien cessera aussitôt de fonctionner (tu devras alors remettre le nouveau lien dans ton agenda).</p>
+    <form method="post" action="{{ url_for('main.mon_agenda_regenerer') }}" onsubmit="return confirm('Régénérer le lien ? L\'ancien ne fonctionnera plus.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-danger-outline" type="submit">♻️ Régénérer mon lien</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

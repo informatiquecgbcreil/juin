@@ -137,6 +137,13 @@ POSTE_ACTIONS: dict[str, dict[str, Any]] = {
         "endpoint": "activite.emargements_attente",
         "context": _ctx_emargements_en_attente,
     },
+    "agenda": {
+        "label": "Synchroniser mon agenda",
+        "desc": "Retrouver mes séances dans Google Agenda ou Apple Calendrier.",
+        "icon": "📅",
+        "perm_any": ["emargement:view"],
+        "endpoint": "main.mon_agenda",
+    },
     "accueillir": {
         "label": "Accueillir une nouvelle personne",
         "desc": "Créer sa fiche en quelques champs, le reste peut attendre.",
