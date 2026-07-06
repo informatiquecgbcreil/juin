@@ -241,3 +241,164 @@ def test_mon_agenda_exige_emargement_view(app):
             db.session.commit()
     c = _login_role(app, "agenda-refuse@example.org", "agenda_sans_droit")
     assert c.get("/mon-agenda").status_code == 403
+
+
+# ---------- Personnalisation, créneaux, préparation, export ----------
+
+def _client_et_token(app, email, secteur, role="responsable_secteur"):
+    c = _login_role(app, email, role, secteur=secteur)
+    token = _user_avec_token(app, email=email, secteur=secteur, role=role)
+    return c, token
+
+
+def test_reglages_titre_et_champs_description(app, client):
+    suf = uuid.uuid4().hex[:6]
+    sect = f"Regl{suf}"
+    _seance(app, secteur=sect, nom=f"Yoga{suf}")
+    c, token = _client_et_token(app, f"regl-{suf}@ex.org", sect)
+
+    # Titre personnalisé + description réduite au seul horaire
+    r = c.post("/mon-agenda/preferences", data={
+        "titre_format": "{secteur} · {atelier}",
+        "champs_description": ["horaire"],
+        "inclure_annulees": "1",
+        "inclure_creneaux": "1",
+        "preparation_minutes": "0", "jours_passe": "30", "jours_futur": "180",
+    })
+    assert r.status_code == 302
+
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True).replace("\r\n ", "")
+    assert f"SUMMARY:{sect} · Yoga{suf}" in body
+    assert "Horaire : 14:00" in body
+    assert "Capacité" not in body            # champ décoché
+    assert "Secteur :" not in body           # champ décoché
+
+
+def test_seances_annulees_exclues_si_option_decochee(app, client):
+    suf = uuid.uuid4().hex[:6]
+    sect = f"Excl{suf}"
+    _seance(app, secteur=sect, nom=f"Annulee{suf}", statut="annulee")
+    c, token = _client_et_token(app, f"excl-{suf}@ex.org", sect)
+
+    c.post("/mon-agenda/preferences", data={
+        "titre_format": "{atelier}", "champs_description": ["type"],
+        # inclure_annulees ABSENT -> décoché
+        "preparation_minutes": "0", "jours_passe": "30", "jours_futur": "180",
+    })
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True)
+    assert f"Annulee{suf}" not in body
+
+
+def test_creneaux_hors_ateliers_dans_le_flux(app, client):
+    import datetime as _dt
+    suf = uuid.uuid4().hex[:6]
+    sect = f"Cren{suf}"
+    c, token = _client_et_token(app, f"cren-{suf}@ex.org", sect)
+
+    r = c.post("/mon-agenda/creneau", data={
+        "type_creneau": "reunion", "titre": f"Équipe{suf}",
+        "date_creneau": (_dt.date.today() + _dt.timedelta(days=2)).isoformat(),
+        "heure_debut": "09:00", "heure_fin": "10:30",
+        "description": "point hebdo", "repeter_semaines": "0",
+    })
+    assert r.status_code == 302
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True).replace("\r\n ", "")
+    assert f"Réunion — Équipe{suf}" in body
+    assert "point hebdo" in body
+
+    # Un autre utilisateur ne voit PAS mes créneaux dans son flux.
+    _, token_autre = _client_et_token(app, f"cren2-{suf}@ex.org", sect)
+    body_autre = client.get(f"/calendrier/{token_autre}.ics").get_data(as_text=True)
+    assert f"Équipe{suf}" not in body_autre
+
+
+def test_creneau_repetition_hebdomadaire(app):
+    import datetime as _dt
+    from app.models import AgendaCreneau, User
+    suf = uuid.uuid4().hex[:6]
+    c = _login_role(app, f"rep-{suf}@ex.org", "responsable_secteur", secteur=f"R{suf}")
+    d0 = _dt.date.today() + _dt.timedelta(days=1)
+    c.post("/mon-agenda/creneau", data={
+        "type_creneau": "preparation", "titre": f"Prep{suf}",
+        "date_creneau": d0.isoformat(), "repeter_semaines": "3",
+    })
+    with app.app_context():
+        uid = User.query.filter_by(email=f"rep-{suf}@ex.org").first().id
+        rows = AgendaCreneau.query.filter_by(user_id=uid, titre=f"Prep{suf}").order_by(AgendaCreneau.date_creneau).all()
+        assert len(rows) == 4  # occurrence initiale + 3 répétitions
+        assert rows[1].date_creneau == d0 + _dt.timedelta(weeks=1)
+        assert rows[3].date_creneau == d0 + _dt.timedelta(weeks=3)
+
+
+def test_preparation_automatique_avant_seance(app, client):
+    suf = uuid.uuid4().hex[:6]
+    sect = f"Prep{suf}"
+    _seance(app, secteur=sect, nom=f"Cuisine{suf}", heure_debut="14:00", heure_fin="16:00")
+    c, token = _client_et_token(app, f"prep-{suf}@ex.org", sect)
+
+    c.post("/mon-agenda/preferences", data={
+        "titre_format": "{atelier}", "champs_description": ["type"],
+        "inclure_annulees": "1", "preparation_minutes": "30",
+        "jours_passe": "30", "jours_futur": "180",
+    })
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True).replace("\r\n ", "")
+    assert f"Préparation — Cuisine{suf}" in body
+    assert "T133000" in body      # début de préparation 13:30
+    assert "-prep@" in body       # UID distinct de la séance
+
+
+def test_evenements_globaux_tous_secteurs(app, client):
+    import datetime as _dt
+    from app.extensions import db
+    from app.models import AtelierActivite, SessionActivite
+    suf = uuid.uuid4().hex[:6]
+    mien, autre = f"Mien{suf}", f"Autre{suf}"
+    with app.app_context():
+        at = AtelierActivite(nom=f"FeteQuartier{suf}", secteur=autre, type_atelier="COLLECTIF")
+        db.session.add(at); db.session.flush()
+        db.session.add(SessionActivite(atelier_id=at.id, secteur=autre, session_type="COLLECTIF",
+            date_session=_dt.date.today() + _dt.timedelta(days=5), est_evenement=True))
+        # séance ordinaire d'un autre secteur : ne doit JAMAIS apparaître
+        at2 = AtelierActivite(nom=f"Ordinaire{suf}", secteur=autre, type_atelier="COLLECTIF")
+        db.session.add(at2); db.session.flush()
+        db.session.add(SessionActivite(atelier_id=at2.id, secteur=autre, session_type="COLLECTIF",
+            date_session=_dt.date.today() + _dt.timedelta(days=5)))
+        db.session.commit()
+    c, token = _client_et_token(app, f"glob-{suf}@ex.org", mien)
+
+    # Sans l'option : rien de l'autre secteur.
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True)
+    assert f"FeteQuartier{suf}" not in body
+
+    # Avec l'option : l'événement oui, la séance ordinaire non.
+    c.post("/mon-agenda/preferences", data={
+        "titre_format": "{atelier}", "champs_description": ["type"],
+        "inclure_annulees": "1", "evenements_tous_secteurs": "1",
+        "preparation_minutes": "0", "jours_passe": "30", "jours_futur": "180",
+    })
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True).replace("\r\n ", "")
+    assert f"FeteQuartier{suf}" in body
+    assert f"Ordinaire{suf}" not in body
+
+
+def test_export_ponctuel_par_periode(app):
+    import datetime as _dt
+    suf = uuid.uuid4().hex[:6]
+    sect = f"Exp{suf}"
+    # Une séance dans la période, une hors période.
+    _seance(app, secteur=sect, nom=f"Dedans{suf}", jour_offset=10)
+    _seance(app, secteur=sect, nom=f"Dehors{suf}", jour_offset=40)
+    c, _ = _client_et_token(app, f"exp-{suf}@ex.org", sect)
+
+    du = (_dt.date.today() + _dt.timedelta(days=5)).isoformat()
+    au = (_dt.date.today() + _dt.timedelta(days=15)).isoformat()
+    r = c.get(f"/mon-agenda/export.ics?du={du}&au={au}")
+    assert r.status_code == 200
+    assert "attachment" in r.headers.get("Content-Disposition", "")
+    body = r.get_data(as_text=True)
+    assert f"Dedans{suf}" in body
+    assert f"Dehors{suf}" not in body
+
+    # Période invalide -> retour à la page avec message.
+    r = c.get(f"/mon-agenda/export.ics?du={au}&au={du}")
+    assert r.status_code == 302
