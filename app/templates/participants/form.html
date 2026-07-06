@@ -49,6 +49,29 @@
     <div class="guide-card">🔒 <strong>Lecture seule :</strong> ce participant a été créé pour <strong>{{ item.created_secteur or '—' }}</strong>. Tu peux consulter la fiche et l’utiliser pour l’émargement, mais pas la modifier.</div>
   {% endif %}
 
+  {% if doublons_candidats %}
+    <div class="section-card" style="border:2px solid rgba(245,158,11,.5); background:rgba(245,158,11,.07);">
+      <h2 class="section-card__title" style="margin-top:0;">🤔 Cette personne existe peut-être déjà</h2>
+      <p class="section-card__subtitle">Avant de créer une nouvelle fiche, vérifie qu'il ne s'agit pas d'une de ces personnes (une fiche en double fausse toutes les statistiques) :</p>
+      <div class="person-list" style="display:flex; flex-direction:column; gap:6px;">
+        {% for c in doublons_candidats %}
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid rgba(15,23,42,.12); border-radius:8px; padding:8px 12px; background:#fff;">
+            <span><strong>{{ c.nom }} {{ c.prenom }}</strong>{% if c.ville %} · {{ c.ville }}{% endif %}{% if c.date_naissance %} · né(e) le {{ c.date_naissance.strftime('%d/%m/%Y') }}{% endif %}{% if c.created_secteur %} · secteur {{ c.created_secteur }}{% endif %}</span>
+            <a class="btn" href="{{ url_for('participants.synthese_participant', participant_id=c.id) }}">✔ C'est cette personne</a>
+          </div>
+        {% endfor %}
+      </div>
+      <form method="post" style="margin-top:12px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="force_creation" value="1">
+        {% for champ, valeur in pending.items() %}
+          {% if champ not in ('csrf_token', 'force_creation') %}<input type="hidden" name="{{ champ }}" value="{{ valeur }}">{% endif %}
+        {% endfor %}
+        <button class="btn btn-danger-outline" type="submit">Non, c'est une nouvelle personne → créer quand même</button>
+      </form>
+    </div>
+  {% endif %}
+
   <form method="post" class="stack" data-pending-form="participant">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 

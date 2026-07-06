@@ -72,6 +72,16 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Une séance qui n'a réellement accueilli personne peut être annulée depuis sa page : elle sortira de cette liste.",
     },
+    "main.impayes": {
+        "titre": "Les impayés",
+        "resume": "La liste de toutes les cotisations non soldées de l'année scolaire, la plus grosse ardoise en premier.",
+        "etapes": [
+            "Choisissez l'année scolaire (et le secteur si vous avez la vue globale).",
+            "Le total à recouvrer est affiché en haut.",
+            "Cliquez sur une personne pour ouvrir sa fiche : c'est là qu'on enregistre un règlement ou une relance.",
+        ],
+        "astuce": "Sur la fiche, le bouton « Relancer » pose un rappel dans « À traiter » ; le bouton « 🧾 Reçu » imprime une preuve de règlement pour la famille.",
+    },
     "main.caisse": {
         "titre": "La caisse",
         "resume": "La boîte physique des espèces et chèques : les encaissements y entrent tout seuls, ici on compte et on dépose.",

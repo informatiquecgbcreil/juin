@@ -278,14 +278,13 @@
 
   function pos(e){
     const r = canvas.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    // Pointer/souris ont clientX direct ; le tactile ancien passe par touches[].
+    const cx = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+    const cy = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+    const x = cx - r.left, y = cy - r.top;
     return {x: x * (canvas.width/r.width), y: y * (canvas.height/r.height)};
   }
-  function start(e){ drawing = true; last = pos(e); e.preventDefault(); }
-  function move(e){
-    if(!drawing) return;
-    const p = pos(e);
+  function trace(p){
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -295,16 +294,43 @@
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     last = p;
-    e.preventDefault();
   }
-  function end(e){ drawing = false; last = null; e.preventDefault(); }
 
-  canvas.addEventListener('mousedown', start);
-  canvas.addEventListener('mousemove', move);
-  window.addEventListener('mouseup', end);
-  canvas.addEventListener('touchstart', start, {passive:false});
-  canvas.addEventListener('touchmove', move, {passive:false});
-  canvas.addEventListener('touchend', end, {passive:false});
+  if(window.PointerEvent){
+    // Voie moderne : un seul flux pour souris, doigt ET stylet actif.
+    // setPointerCapture + touch-action:none (CSS) garantissent que le geste
+    // reste dans le canvas et NE fait PAS défiler la page.
+    canvas.addEventListener('pointerdown', (e) => {
+      drawing = true; last = pos(e);
+      try { canvas.setPointerCapture(e.pointerId); } catch(_) {}
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if(!drawing) return;
+      trace(pos(e));
+      e.preventDefault();
+    });
+    const stopPointer = (e) => {
+      if(!drawing) return;
+      drawing = false; last = null;
+      try { canvas.releasePointerCapture(e.pointerId); } catch(_) {}
+      e.preventDefault();
+    };
+    canvas.addEventListener('pointerup', stopPointer);
+    canvas.addEventListener('pointercancel', stopPointer);
+    canvas.addEventListener('pointerleave', stopPointer);
+  } else {
+    // Repli navigateurs anciens : souris + tactile classique.
+    const start = (e) => { drawing = true; last = pos(e); e.preventDefault(); };
+    const move = (e) => { if(!drawing) return; trace(pos(e)); e.preventDefault(); };
+    const end = (e) => { drawing = false; last = null; if(e.cancelable) e.preventDefault(); };
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start, {passive:false});
+    canvas.addEventListener('touchmove', move, {passive:false});
+    canvas.addEventListener('touchend', end, {passive:false});
+  }
 
   document.getElementById('clearSig').addEventListener('click', paintSignatureSurface);
 

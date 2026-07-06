@@ -228,7 +228,13 @@
   border: 2px solid var(--k-border);
   border-radius: var(--k-radius-sm);
   background: #fff;
+  /* Le canvas gère lui-même le geste : ni défilement ni zoom pendant qu'on
+     signe (doigt ou stylet actif). -ms- pour les anciennes tablettes Windows. */
   touch-action: none;
+  -ms-touch-action: none;
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ---- Choix tactiles (échelle, oui/non) ---- */
