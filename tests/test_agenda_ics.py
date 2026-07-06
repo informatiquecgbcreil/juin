@@ -105,6 +105,59 @@ def test_aucun_nom_de_participant_dans_le_flux(app, client):
     assert "Confidentiel" not in body
 
 
+def test_details_dans_l_evenement(app, client):
+    """Description enrichie : type, horaire, capacité, présences (compteur),
+    marqueur événement, + lien vers la séance. Toujours sans nom."""
+    from app.extensions import db
+    from app.models import AtelierActivite, Participant, PresenceActivite, SessionActivite
+    import datetime as _dt
+    suf = uuid.uuid4().hex[:6]
+    sect = f"Det{suf}"
+    with app.app_context():
+        at = AtelierActivite(nom=f"CuisineDet{suf}", secteur=sect, type_atelier="COLLECTIF", capacite_defaut=12)
+        db.session.add(at); db.session.flush()
+        s = SessionActivite(atelier_id=at.id, secteur=sect, session_type="COLLECTIF",
+                            date_session=_dt.date.today() + _dt.timedelta(days=4),
+                            heure_debut="10:00", heure_fin="12:00", est_evenement=True)
+        db.session.add(s); db.session.flush()
+        # 2 présences (compteur) + une fiche au nom sensible
+        for i in range(2):
+            p = Participant(nom=f"NePasVoir{suf}{i}", prenom="X")
+            db.session.add(p); db.session.flush()
+            db.session.add(PresenceActivite(session_id=s.id, participant_id=p.id))
+        db.session.commit()
+        sid = s.id
+    token = _user_avec_token(app, email=f"det-{suf}@ex.org", secteur=sect)
+
+    raw = client.get(f"/calendrier/{token}.ics").get_data(as_text=True)
+    # Déplier (RFC 5545) avant d'asserter : les longues lignes sont repliées.
+    body = raw.replace("\r\n ", "")
+    assert f"🎉 CuisineDet{suf}" in body               # titre avec marqueur événement
+    assert "Événement / temps fort" in body            # 1re ligne de la description
+    assert "Horaire : 10:00" in body and "12:00" in body
+    assert "Capacité : 12 places" in body
+    assert "Présences saisies : 2" in body             # compteur, pas les noms
+    assert f"/activite/session/{sid}/emargement" in body  # lien cliquable
+    assert f"NePasVoir{suf}" not in body               # aucun nom exposé
+
+
+def test_emargement_a_faire_sur_seance_passee_sans_presence(app, client):
+    from app.extensions import db
+    from app.models import AtelierActivite, SessionActivite
+    import datetime as _dt
+    suf = uuid.uuid4().hex[:6]
+    sect = f"Pass{suf}"
+    with app.app_context():
+        at = AtelierActivite(nom=f"Passe{suf}", secteur=sect, type_atelier="COLLECTIF")
+        db.session.add(at); db.session.flush()
+        db.session.add(SessionActivite(atelier_id=at.id, secteur=sect, session_type="COLLECTIF",
+            date_session=_dt.date.today() - _dt.timedelta(days=3), heure_debut="14:00"))
+        db.session.commit()
+    token = _user_avec_token(app, email=f"pass-{suf}@ex.org", secteur=sect)
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True)
+    assert "Émargement à faire" in body
+
+
 def test_seance_annulee_marquee_cancelled(app, client):
     suf = uuid.uuid4().hex[:6]
     sect = f"Ann{suf}"
