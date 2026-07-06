@@ -22,7 +22,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.main.common import bp
-from app.models import AgendaCreneau, TYPES_CRENEAU, TYPES_CRENEAU_LABELS, User
+from app.models import AgendaCreneau, Subvention, TYPES_CRENEAU, TYPES_CRENEAU_LABELS, User
 from app.rbac import require_perm
 from app.services.calendrier import (
     CHAMPS_DESCRIPTION,
@@ -89,8 +89,18 @@ def mon_agenda():
     fin_mois_prec = premier_du_mois - timedelta(days=1)
     debut_mois_prec = fin_mois_prec.replace(day=1)
 
+    # Subventions proposables au rattachement d'un créneau (feuille de temps).
+    subventions = (
+        Subvention.query
+        .filter(Subvention.est_archive.is_(False))
+        .order_by(Subvention.annee_exercice.desc(), Subvention.nom.asc())
+        .limit(100)
+        .all()
+    )
+
     return render_template(
         "mon_agenda.html",
+        subventions=subventions,
         url_https=url_https,
         url_webcal=url_webcal,
         options=options,
@@ -146,6 +156,12 @@ def mon_agenda_creneau_creer():
         repetitions = max(0, min(52, int(request.form.get("repeter_semaines") or 0)))
     except Exception:
         repetitions = 0
+    try:
+        subvention_id = int(request.form.get("subvention_id") or 0) or None
+    except Exception:
+        subvention_id = None
+    if subvention_id is not None and db.session.get(Subvention, subvention_id) is None:
+        subvention_id = None
 
     for i in range(repetitions + 1):
         db.session.add(AgendaCreneau(
@@ -156,6 +172,7 @@ def mon_agenda_creneau_creer():
             heure_debut=heure_debut,
             heure_fin=heure_fin,
             description=description,
+            subvention_id=subvention_id,
         ))
     db.session.commit()
     if repetitions:

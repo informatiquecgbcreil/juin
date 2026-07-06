@@ -2909,10 +2909,24 @@ class AgendaCreneau(db.Model):
     heure_debut = db.Column(db.String(10), nullable=True)
     heure_fin = db.Column(db.String(10), nullable=True)
     description = db.Column(db.String(500), nullable=True)
+    # Rattachement facultatif à une subvention : le créneau compte alors dans
+    # la feuille de temps du financeur (réunion projet, préparation dédiée…).
+    subvention_id = db.Column(db.Integer, db.ForeignKey("subvention.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     user = db.relationship("User")
+    subvention = db.relationship("Subvention")
 
     @property
     def type_label(self):
         return TYPES_CRENEAU_LABELS.get(self.type_creneau, self.type_creneau)
+
+    @property
+    def duree_minutes(self):
+        try:
+            h1, m1 = (self.heure_debut or "").split(":")[:2]
+            h2, m2 = (self.heure_fin or "").split(":")[:2]
+            d = (int(h2) * 60 + int(m2)) - (int(h1) * 60 + int(m1))
+            return d if d > 0 else 0
+        except Exception:
+            return 0

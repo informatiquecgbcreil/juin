@@ -578,12 +578,100 @@ def subvention_justificatif(subvention_id):
     montant_global = round(montant_base * min(total_pct, 100.0) / 100.0, 2)
     couts_global = couts_unitaires(montant_global, mesures_global) if montant_global else None
 
+    # --- Dossier de justification : démographie, dépenses, bénévolat ---
+    from app.models import (
+        BenevoleHeures, DepenseAffectation, Participant,
+        PresenceActivite, SessionActivite,
+    )
+
+    atelier_ids = [l.atelier_id for l in liens]
+    demographie = None
+    if atelier_ids:
+        eff = db.func.coalesce(SessionActivite.rdv_date, SessionActivite.date_session)
+        participants = (
+            Participant.query
+            .join(PresenceActivite, PresenceActivite.participant_id == Participant.id)
+            .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+            .filter(
+                SessionActivite.atelier_id.in_(atelier_ids),
+                SessionActivite.is_deleted.is_(False),
+                eff >= d1, eff <= d2,
+            )
+            .distinct()
+            .all()
+        )
+        if participants:
+            genres: dict[str, int] = {}
+            tranches = {"0-11 ans": 0, "12-17 ans": 0, "18-25 ans": 0, "26-59 ans": 0, "60 ans et +": 0, "Âge inconnu": 0}
+            qpv = 0
+            for pers in participants:
+                g = (pers.genre or "Non renseigné").strip() or "Non renseigné"
+                genres[g] = genres.get(g, 0) + 1
+                age = pers.age
+                if age is None:
+                    tranches["Âge inconnu"] += 1
+                elif age <= 11:
+                    tranches["0-11 ans"] += 1
+                elif age <= 17:
+                    tranches["12-17 ans"] += 1
+                elif age <= 25:
+                    tranches["18-25 ans"] += 1
+                elif age <= 59:
+                    tranches["26-59 ans"] += 1
+                else:
+                    tranches["60 ans et +"] += 1
+                if pers.is_qpv:
+                    qpv += 1
+            total = len(participants)
+            demographie = {
+                "total": total,
+                "genres": sorted(genres.items(), key=lambda kv: -kv[1]),
+                "tranches": [(k, v) for k, v in tranches.items() if v],
+                "qpv": qpv,
+                "qpv_pct": round(qpv * 100.0 / total) if total else 0,
+            }
+
+    # Dépenses imputées à la subvention sur l'exercice.
+    affectations = (
+        db.session.query(DepenseAffectation, Depense)
+        .join(Depense, Depense.id == DepenseAffectation.depense_id)
+        .filter(
+            DepenseAffectation.subvention_id == sub.id,
+            Depense.est_supprimee.is_(False),
+        )
+        .order_by(Depense.date_paiement.asc())
+        .all()
+    )
+    depenses = [{"libelle": dep.libelle, "date": dep.date_paiement,
+                 "fournisseur": dep.fournisseur, "montant": float(aff.montant or 0)}
+                for aff, dep in affectations]
+    total_depenses = round(sum(x["montant"] for x in depenses), 2)
+
+    # Bénévolat du secteur de la subvention sur l'exercice (valorisé).
+    from app.services.benevolat import taux_horaire
+    heures_benevolat = float(
+        db.session.query(db.func.coalesce(db.func.sum(BenevoleHeures.heures), 0.0))
+        .filter(
+            BenevoleHeures.secteur == sub.secteur,
+            BenevoleHeures.date_action >= d1,
+            BenevoleHeures.date_action <= d2,
+        ).scalar() or 0.0
+    )
+    benevolat = {
+        "heures": round(heures_benevolat, 1),
+        "taux": taux_horaire(),
+        "valorisation": round(heures_benevolat * taux_horaire(), 2),
+    } if heures_benevolat else None
+
     return render_template(
         "subvention_justificatif.html",
         sub=sub, annee=annee, lignes=lignes,
         montant_base=montant_base, base_label=base_label,
         total_pct=total_pct, montant_global=montant_global,
         mesures_global=mesures_global, couts_global=couts_global,
+        demographie=demographie,
+        depenses=depenses, total_depenses=total_depenses,
+        benevolat=benevolat,
     )
 
 
@@ -1139,3 +1227,122 @@ def export_subventions_xlsx():
 # RBAC Test (diagnostic)
 # ---------------------------------------------------------------------
 
+
+
+# ---------------------------------------------------------------------------
+# Feuille de temps par financeur : le temps effectif passé sur la subvention
+# ---------------------------------------------------------------------------
+
+@bp.route("/subvention/<int:subvention_id>/feuille-de-temps")
+@login_required
+@require_perm("subventions:view")
+def subvention_feuille_temps(subvention_id):
+    """État des heures passées sur la subvention, jour par jour, sur une
+    période choisie : séances des ateliers financés (face-à-face) + créneaux
+    d'agenda rattachés au projet (réunions, préparation dédiée…) + option
+    de temps de préparation forfaitaire par séance. Imprimable et signable —
+    exactement ce que les plateformes de financeurs font ressaisir à la main.
+    """
+    from datetime import datetime as _dt
+
+    from app.main.couts import _duree_session_minutes
+    from app.models import AgendaCreneau, PresenceActivite, SessionActivite, SubventionAtelier
+
+    sub = db.get_or_404(Subvention, subvention_id)
+    if not can_see_secteur(sub.secteur):
+        abort(403)
+
+    def _parse(raw):
+        try:
+            return _dt.strptime((raw or "").strip(), "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    # Période : par défaut le mois précédent (celui que la plateforme extrait).
+    today = date.today()
+    fin_mois_prec = today.replace(day=1) - timedelta(days=1)
+    du = _parse(request.args.get("du")) or fin_mois_prec.replace(day=1)
+    au = _parse(request.args.get("au")) or fin_mois_prec
+    if du > au:
+        du, au = au, du
+    try:
+        prep_minutes = max(0, min(240, int(request.args.get("prep") or 0)))
+    except Exception:
+        prep_minutes = 0
+
+    atelier_ids = [l.atelier_id for l in
+                   SubventionAtelier.query.filter_by(subvention_id=sub.id).all()]
+
+    # --- Séances (face-à-face), jour par jour ---
+    eff = db.func.coalesce(SessionActivite.rdv_date, SessionActivite.date_session)
+    seances = []
+    if atelier_ids:
+        seances = (
+            SessionActivite.query
+            .filter(
+                SessionActivite.atelier_id.in_(atelier_ids),
+                SessionActivite.is_deleted.is_(False),
+                db.func.lower(db.func.coalesce(SessionActivite.statut, "")) != "annulee",
+                eff >= du, eff <= au,
+            )
+            .order_by(eff.asc(), SessionActivite.id.asc())
+            .all()
+        )
+    presences_par_sid = {}
+    if seances:
+        rows = (
+            db.session.query(PresenceActivite.session_id, db.func.count(PresenceActivite.id))
+            .filter(PresenceActivite.session_id.in_([s.id for s in seances]))
+            .group_by(PresenceActivite.session_id)
+            .all()
+        )
+        presences_par_sid = {sid: n for sid, n in rows}
+
+    lignes_seances = []
+    minutes_seances = 0
+    minutes_prep = 0
+    for s in seances:
+        d = s.rdv_date or s.date_session
+        duree = _duree_session_minutes(s)
+        minutes_seances += duree
+        heure_debut = s.rdv_debut or s.heure_debut
+        if prep_minutes and heure_debut:
+            minutes_prep += prep_minutes
+        lignes_seances.append({
+            "date": d,
+            "atelier": s.atelier.nom if s.atelier else f"Atelier #{s.atelier_id}",
+            "horaire": (f"{heure_debut}–{s.rdv_fin or s.heure_fin}"
+                        if heure_debut and (s.rdv_fin or s.heure_fin) else (heure_debut or "—")),
+            "duree_minutes": duree,
+            "presences": presences_par_sid.get(s.id, 0),
+        })
+
+    # --- Créneaux rattachés au projet (tous utilisateurs) ---
+    creneaux = (
+        AgendaCreneau.query
+        .filter(
+            AgendaCreneau.subvention_id == sub.id,
+            AgendaCreneau.date_creneau >= du,
+            AgendaCreneau.date_creneau <= au,
+        )
+        .order_by(AgendaCreneau.date_creneau.asc(), AgendaCreneau.id.asc())
+        .all()
+    )
+    minutes_creneaux = sum(c.duree_minutes for c in creneaux)
+
+    total_minutes = minutes_seances + minutes_prep + minutes_creneaux
+
+    def _h(minutes):
+        return round(minutes / 60.0, 2)
+
+    return render_template(
+        "subvention_feuille_temps.html",
+        sub=sub, du=du, au=au, prep_minutes=prep_minutes,
+        lignes_seances=lignes_seances, creneaux=creneaux,
+        heures_seances=_h(minutes_seances),
+        heures_prep=_h(minutes_prep),
+        heures_creneaux=_h(minutes_creneaux),
+        heures_total=_h(total_minutes),
+        nb_seances=len(lignes_seances),
+        today=today,
+    )

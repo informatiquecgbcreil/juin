@@ -146,6 +146,14 @@
       <div><label>Début</label><input type="time" name="heure_debut"></div>
       <div><label>Fin</label><input type="time" name="heure_fin"></div>
       <div><label>Répéter (semaines)</label><input type="number" name="repeter_semaines" min="0" max="52" value="0" title="0 = une seule fois ; 12 = chaque semaine pendant 12 semaines de plus"></div>
+      <div style="grid-column:span 2;"><label>Compte sur le projet (optionnel)</label>
+        <select name="subvention_id" title="Le créneau apparaîtra dans la feuille de temps de ce financeur">
+          <option value="">— Aucun —</option>
+          {% for sub in subventions %}
+            <option value="{{ sub.id }}">{{ sub.nom }}{% if sub.financeur %} · {{ sub.financeur }}{% endif %} ({{ sub.annee_exercice }})</option>
+          {% endfor %}
+        </select>
+      </div>
       <div style="grid-column:span 2;"><label>Détail (optionnel)</label><input type="text" name="description" maxlength="500" placeholder="ex. point projet CAF"></div>
       <div><button class="btn primary" type="submit">➕ Ajouter</button></div>
     </form>
@@ -159,6 +167,7 @@
               <strong>{{ c.titre }}</strong>
               · {{ c.date_creneau.strftime('%d/%m/%Y') }}
               {% if c.heure_debut %}· {{ c.heure_debut }}{% if c.heure_fin %}–{{ c.heure_fin }}{% endif %}{% endif %}
+              {% if c.subvention %}<span class="creneau-type" style="background:rgba(60,180,110,.16);">💶 {{ c.subvention.nom }}</span>{% endif %}
               {% if c.description %}<span class="muted">· {{ c.description }}</span>{% endif %}
             </span>
             <form method="post" action="{{ url_for('main.mon_agenda_creneau_supprimer', creneau_id=c.id) }}" style="margin:0;" onsubmit="return confirm('Supprimer ce créneau ?');">
