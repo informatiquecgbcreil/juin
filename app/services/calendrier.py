@@ -13,7 +13,7 @@ import secrets
 from datetime import date, datetime, timedelta
 
 from app.extensions import db
-from app.models import AtelierActivite, SessionActivite
+from app.models import AtelierActivite, PresenceActivite, SessionActivite
 
 # Fenêtre du flux : assez de passé pour le contexte, large sur l'avenir.
 JOURS_PASSE = 30
@@ -122,9 +122,45 @@ def _plus_une_heure(heure: str | None) -> str | None:
         return None
 
 
-def generer_ics(user, *, base_url: str, nom_calendrier: str = "Mes séances") -> str:
+def _presences_par_session(ids: list[int]) -> dict[int, int]:
+    """Nombre de présences saisies par séance, en une seule requête."""
+    if not ids:
+        return {}
+    rows = (
+        db.session.query(PresenceActivite.session_id, db.func.count(PresenceActivite.id))
+        .filter(PresenceActivite.session_id.in_(ids))
+        .group_by(PresenceActivite.session_id)
+        .all()
+    )
+    return {sid: n for sid, n in rows}
+
+
+def _description_seance(s, atelier, presences: int) -> str:
+    """Corps de l'événement : détails utiles, jamais de nom de participant."""
+    today = date.today()
+    d = s.rdv_date or s.date_session
+    lignes = []
+    lignes.append("Événement / temps fort 🎉" if getattr(s, "est_evenement", False)
+                  else ("Séance individuelle" if s.session_type != "COLLECTIF" else "Séance collective"))
+    heure_debut = s.rdv_debut or s.heure_debut
+    heure_fin = s.rdv_fin or s.heure_fin
+    if heure_debut:
+        lignes.append(f"Horaire : {heure_debut}" + (f"–{heure_fin}" if heure_fin else ""))
+    if atelier and atelier.capacite_defaut:
+        lignes.append(f"Capacité : {atelier.capacite_defaut} places")
+    # Présences saisies (compteur seul) + rappel émargement pour le passé.
+    if presences:
+        lignes.append(f"Présences saisies : {presences}")
+    elif d and d < today and (s.statut or "").lower() != "annulee":
+        lignes.append("⏳ Émargement à faire")
+    lignes.append(f"Secteur : {s.secteur or '—'}")
+    return "\n".join(lignes)
+
+
+def generer_ics(user, *, base_url: str, lien_base: str = "", nom_calendrier: str = "Mes séances") -> str:
     host = (base_url or "").split("//", 1)[-1].split("/", 1)[0] or "erp.local"
     stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    lien_base = (lien_base or "").rstrip("/")
 
     lignes = [
         "BEGIN:VCALENDAR",
@@ -136,7 +172,10 @@ def generer_ics(user, *, base_url: str, nom_calendrier: str = "Mes séances") ->
         "X-WR-TIMEZONE:Europe/Paris",
     ]
 
-    for s in sessions_du_flux(user):
+    seances = sessions_du_flux(user)
+    presences_par_sid = _presences_par_session([s.id for s in seances])
+
+    for s in seances:
         d = s.rdv_date or s.date_session
         if d is None:
             continue
@@ -144,6 +183,8 @@ def generer_ics(user, *, base_url: str, nom_calendrier: str = "Mes séances") ->
         heure_fin = s.rdv_fin or s.heure_fin or _plus_une_heure(heure_debut)
         atelier = s.atelier
         titre = atelier.nom if atelier else f"Atelier #{s.atelier_id}"
+        if getattr(s, "est_evenement", False):
+            titre = f"🎉 {titre}"
 
         deb_val, all_day = _dt_local(d, heure_debut)
         lignes.append("BEGIN:VEVENT")
@@ -158,7 +199,10 @@ def generer_ics(user, *, base_url: str, nom_calendrier: str = "Mes séances") ->
             lignes.append(f"DTEND;TZID=Europe/Paris:{fin_val}")
         lignes.append(_plier(f"SUMMARY:{_echapper(titre)}"))
         lignes.append(_plier(f"LOCATION:{_echapper((s.secteur or '').strip())}"))
-        lignes.append(_plier(f"DESCRIPTION:{_echapper('Séance — secteur ' + (s.secteur or '—'))}"))
+        lignes.append(_plier(f"DESCRIPTION:{_echapper(_description_seance(s, atelier, presences_par_sid.get(s.id, 0)))}"))
+        # Lien pour ouvrir la séance dans l'application (depuis le réseau local).
+        if lien_base:
+            lignes.append(_plier(f"URL:{lien_base}/activite/session/{s.id}/emargement"))
         if (s.statut or "").strip().lower() == "annulee":
             lignes.append("STATUS:CANCELLED")
         else:

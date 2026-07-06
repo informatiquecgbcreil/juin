@@ -16,7 +16,7 @@ from app.main.common import bp
 from app.models import User
 from app.rbac import require_perm
 from app.services.calendrier import generer_ics, regenerer_token, token_ou_creer
-from app.services.public_urls import kiosk_public_base_url
+from app.services.public_urls import kiosk_public_base_url, public_base_url
 
 
 @bp.route("/calendrier/<token>.ics")
@@ -27,8 +27,12 @@ def calendrier_ics(token: str):
     user = User.query.filter_by(calendar_token=token).first() if token else None
     if user is None or not user.actif:
         abort(404)
-    ics = generer_ics(user, base_url=kiosk_public_base_url(),
-                      nom_calendrier=f"Séances — {user.nom}")
+    ics = generer_ics(
+        user,
+        base_url=kiosk_public_base_url(),   # identité du flux (hôte des UID)
+        lien_base=public_base_url(),        # adresse LAN pour ouvrir la séance
+        nom_calendrier=f"Séances — {user.nom}",
+    )
     return Response(ics, mimetype="text/calendar; charset=utf-8", headers={
         "Content-Disposition": "inline; filename=seances.ics",
         "Cache-Control": "no-cache",
