@@ -14,6 +14,7 @@
     <div class="hero-actions no-print">
       <a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=sub.id) }}">⬅ Pilotage</a>
       <a class="btn" href="{{ url_for('main.subvention_justificatif_xlsx', subvention_id=sub.id) }}">⬇ Export Excel</a>
+      <a class="btn" href="{{ url_for('main.subvention_feuille_temps', subvention_id=sub.id) }}">⏱️ Feuille de temps</a>
       <button class="btn ok" onclick="window.print()">🖨️ Imprimer / PDF</button>
     </div>
   </div>
@@ -77,6 +78,65 @@
         </tbody>
       </table>
     </div>
+  </section>
+  {% endif %}
+
+  {# ---------- Dossier de justification : publics, dépenses, bénévolat ---------- #}
+  {% if demographie %}
+  <section class="section-card">
+    <h2 class="section-title">Publics touchés ({{ demographie.total }} participant{{ 's' if demographie.total > 1 else '' }} unique{{ 's' if demographie.total > 1 else '' }})</h2>
+    <div class="form-grid-3">
+      <div>
+        <h3 style="margin:4px 0;">Genre</h3>
+        {% for g, n in demographie.genres %}
+          <div style="display:flex; justify-content:space-between; font-size:.9rem; padding:2px 0;"><span>{{ g }}</span><strong>{{ n }}</strong></div>
+        {% endfor %}
+      </div>
+      <div>
+        <h3 style="margin:4px 0;">Âges</h3>
+        {% for t, n in demographie.tranches %}
+          <div style="display:flex; justify-content:space-between; font-size:.9rem; padding:2px 0;"><span>{{ t }}</span><strong>{{ n }}</strong></div>
+        {% endfor %}
+      </div>
+      <div>
+        <h3 style="margin:4px 0;">Territoire</h3>
+        <div style="display:flex; justify-content:space-between; font-size:.9rem; padding:2px 0;"><span>Habitants QPV</span><strong>{{ demographie.qpv }} ({{ demographie.qpv_pct }} %)</strong></div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if depenses %}
+  <section class="section-card">
+    <h2 class="section-title">Dépenses imputées à cette subvention — {{ '%.2f'|format(total_depenses) }} €</h2>
+    <div class="tablewrap clean">
+      <table>
+        <thead><tr><th>Date</th><th>Libellé</th><th>Fournisseur</th><th style="text-align:right;">Montant imputé</th></tr></thead>
+        <tbody>
+          {% for d in depenses %}
+            <tr>
+              <td>{{ d.date.strftime('%d/%m/%Y') if d.date else '—' }}</td>
+              <td>{{ d.libelle }}</td>
+              <td class="muted">{{ d.fournisseur or '—' }}</td>
+              <td style="text-align:right;"><strong>{{ '%.2f'|format(d.montant) }} €</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if benevolat %}
+  <section class="section-card">
+    <h2 class="section-title">Contributions volontaires (bénévolat)</h2>
+    <p style="margin:4px 0;">
+      Secteur {{ sub.secteur }}, exercice {{ annee }} :
+      <strong>{{ benevolat.heures }} h</strong> de bénévolat,
+      valorisées <strong>{{ '%.2f'|format(benevolat.valorisation) }} €</strong>
+      (taux {{ '%.2f'|format(benevolat.taux) }} €/h — compte 87).
+    </p>
+    <p class="muted" style="font-size:.85rem;">Heures saisies pour l'ensemble du secteur (le bénévolat n'est pas rattaché atelier par atelier).</p>
   </section>
   {% endif %}
 </div>

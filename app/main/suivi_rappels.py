@@ -19,6 +19,7 @@ from app.models import (
     ProjetAction,
     ProjetJalon,
     OrientationAccesDroit,
+    Subvention,
     SuiviRappel,
 )
 
@@ -416,6 +417,61 @@ def suivi_rappels():
             created_by=creator,
             is_private=rappel.is_private,
         )
+
+    # --- Échéances de justification des subventions (radar financeurs) ---
+    if can("subventions:view"):
+        horizon_bilan = today + timedelta(days=45)
+        sub_q = Subvention.query.filter(
+            Subvention.est_archive.is_(False),
+            ~Subvention.statut_cycle.in_(["soldee", "refusee"]),
+        )
+        if not can("scope:all_secteurs"):
+            sub_q = sub_q.filter(Subvention.secteur == getattr(current_user, "secteur_assigne", None))
+        elif secteur_filter:
+            sub_q = sub_q.filter(Subvention.secteur == secteur_filter)
+
+        for sub in sub_q.all():
+            financeur = f" ({sub.financeur})" if sub.financeur else ""
+            # Bilan / compte-rendu à rendre
+            if sub.date_bilan_prevu and sub.date_bilan_prevu <= horizon_bilan:
+                en_retard = sub.date_bilan_prevu < today
+                _suivi_add_item(
+                    items,
+                    kind="subvention",
+                    type_label="Justification",
+                    tone="danger" if en_retard else "warn",
+                    title=f"Bilan à rendre : {sub.nom}{financeur}",
+                    subtitle=(
+                        "Échéance dépassée — le solde peut être bloqué tant que le bilan n'est pas rendu."
+                        if en_retard else
+                        "La feuille de temps et le justificatif d'activité sont prêts à générer."
+                    ),
+                    meta=[f"Exercice {sub.annee_exercice}", sub.statut_label],
+                    due_date=sub.date_bilan_prevu,
+                    secteur=sub.secteur,
+                    url=url_for("main.subvention_justificatif", subvention_id=sub.id),
+                    action_label="Ouvrir le justificatif",
+                    bucket="now" if en_retard else "soon",
+                    today=today,
+                )
+            # Versement attendu non reçu
+            if (sub.date_versement_prevu and sub.date_versement_prevu < today
+                    and float(sub.montant_recu or 0) < float(sub.montant_attribue or 0)):
+                _suivi_add_item(
+                    items,
+                    kind="subvention",
+                    type_label="Justification",
+                    tone="warn",
+                    title=f"Versement attendu non reçu : {sub.nom}{financeur}",
+                    subtitle=f"Prévu le {sub.date_versement_prevu.strftime('%d/%m/%Y')} — reçu {float(sub.montant_recu or 0):.2f} € sur {float(sub.montant_attribue or 0):.2f} €.",
+                    meta=[f"Exercice {sub.annee_exercice}", sub.statut_label],
+                    due_date=sub.date_versement_prevu,
+                    secteur=sub.secteur,
+                    url=url_for("main.subvention_pilotage", subvention_id=sub.id),
+                    action_label="Ouvrir le pilotage",
+                    bucket="soon",
+                    today=today,
+                )
 
     if can("partenaires:view"):
         orientation_q = OrientationAccesDroit.query.filter(
