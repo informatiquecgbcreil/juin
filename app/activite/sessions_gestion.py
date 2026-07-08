@@ -33,6 +33,8 @@ from app.services.consumption import (
 )
 from app.activite.helpers import (
     _can_access_activity_secteur,
+    _atelier_est_accessible,
+    _session_est_accessible,
     _collect_session_competences,
     _deny_activity_access,
     _require_any_perm,
@@ -54,7 +56,7 @@ def session_new(atelier_id: int):
     if atelier.is_deleted:
         flash("Cet atelier est dans la corbeille. Restaure-le pour créer une séance.", "warning")
         return redirect(url_for("activite.index", corbeille=1))
-    if not _can_access_activity_secteur(atelier.secteur):
+    if not _atelier_est_accessible(atelier):
         return _deny_activity_access()
 
     if request.method == "POST":
@@ -192,7 +194,7 @@ def session_bulk_new(atelier_id: int):
     if atelier.is_deleted:
         flash("Cet atelier est dans la corbeille.", "warning")
         return redirect(url_for("activite.index", corbeille=1))
-    if not _can_access_activity_secteur(atelier.secteur):
+    if not _atelier_est_accessible(atelier):
         return _deny_activity_access()
     if atelier.type_atelier == "INDIVIDUEL_MENSUEL":
         flash("La création en série concerne les ateliers collectifs (séances à dates régulières).", "warning")
@@ -274,7 +276,7 @@ def session_edit_schedule(session_id: int):
     if s.is_deleted or atelier.is_deleted:
         flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     if request.method == "POST":
@@ -366,7 +368,7 @@ def session_skills(session_id: int):
     if s.is_deleted or atelier.is_deleted:
         flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     referentiel_id = request.args.get("referentiel_id", type=int)
@@ -438,7 +440,7 @@ def session_skill_add(session_id: int):
     if s.is_deleted or atelier.is_deleted:
         flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     competence_id = request.form.get("competence_id", type=int)
@@ -470,7 +472,7 @@ def session_skill_remove(session_id: int):
     if s.is_deleted or atelier.is_deleted:
         flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     competence_id = request.form.get("competence_id", type=int)
@@ -505,7 +507,7 @@ def evaluation_batch(session_id: int):
     if s.is_deleted or atelier.is_deleted:
         flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     presences = PresenceActivite.query.filter_by(session_id=session_id).all()
@@ -558,7 +560,7 @@ def session_toggle_evenement(session_id: int):
     """Marque / démarque une séance comme événementielle (volet SENACS)."""
     require_perm("ateliers:edit")(lambda: None)()
     s = db.get_or_404(SessionActivite, session_id)
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
     s.est_evenement = not bool(s.est_evenement)
     db.session.commit()

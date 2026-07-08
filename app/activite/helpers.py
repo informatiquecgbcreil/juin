@@ -530,3 +530,22 @@ def _best_archive_path(arch: ArchiveEmargement, kind: str) -> str | None:
     return arch.corrected_docx_path or arch.docx_path
 
 
+
+
+def _atelier_est_accessible(atelier) -> bool:
+    """Un atelier intersecteur est utilisable par tous les secteurs ; sinon,
+    règle habituelle (secteur de la personne ou portée globale)."""
+    if atelier is None:
+        return False
+    if getattr(atelier, "est_intersecteur", False):
+        return True
+    return _can_access_activity_secteur(atelier.secteur)
+
+
+def _session_est_accessible(s) -> bool:
+    """Idem pour une séance : son atelier intersecteur ouvre l'accès, sinon
+    contrôle sur le secteur (d'imputation) de la séance."""
+    atelier = getattr(s, "atelier", None)
+    if atelier is not None and getattr(atelier, "est_intersecteur", False):
+        return True
+    return _can_access_activity_secteur(getattr(s, "secteur", None))

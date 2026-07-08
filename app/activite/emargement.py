@@ -53,6 +53,7 @@ from app.services.consumption import (
 )
 from app.activite.helpers import (
     _can_access_activity_secteur,
+    _session_est_accessible,
     _collect_session_competences,
     _consumption_period_request_args,
     _deny_activity_access,
@@ -82,7 +83,7 @@ def emargement(session_id: int):
     if s.is_deleted or atelier.is_deleted:
         flash("Cette séance (ou son atelier) est dans la corbeille.", "warning")
         return redirect(url_for("activite.sessions", atelier_id=atelier.id, corbeille=1))
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     quartiers = Quartier.query.order_by(Quartier.ville.asc(), Quartier.nom.asc()).all()
@@ -551,6 +552,12 @@ def emargement(session_id: int):
         default_materiel_id=default_materiel_id,
         kiosk_home_url=f"{kiosk_public_base_url()}{url_for('kiosk.kiosk_home')}",
         kiosk_session_url=f"{kiosk_public_base_url()}{url_for('kiosk.kiosk_session', token=s.kiosk_token)}" if s.kiosk_token else "",
+        signature_liens=[
+            {"presence": pr,
+             "url": f"{kiosk_public_base_url()}{url_for('kiosk.signer', token=pr.signature_token)}"}
+            for pr in presences if pr.signature_token and not pr.signature_path
+        ],
+        nb_sans_signature=sum(1 for pr in presences if not pr.signature_path),
         presence_conso_map=presence_conso_map,
         participant_conso_cumul_map=participant_conso_cumul_map,
         conso_period_start=conso_period_start,
@@ -572,7 +579,7 @@ def emargement(session_id: int):
 def kiosk_open(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     s = db.get_or_404(SessionActivite, session_id)
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     token = secrets.token_urlsafe(24)
@@ -600,7 +607,7 @@ def kiosk_open(session_id: int):
 def kiosk_close(session_id: int):
     require_perm("ateliers:edit")(lambda: None)()
     s = db.get_or_404(SessionActivite, session_id)
-    if not _can_access_activity_secteur(s.secteur):
+    if not _session_est_accessible(s):
         return _deny_activity_access()
 
     s.kiosk_open = False
@@ -612,3 +619,35 @@ def kiosk_close(session_id: int):
     return _redirect_emargement_with_period(session_id)
 
 
+
+
+@bp.route("/session/<int:session_id>/signature-liens", methods=["POST"])
+@login_required
+def signature_liens_generer(session_id: int):
+    """Génère un lien personnel de signature pour chaque présence non signée
+    de la séance : l'animateur saisit les noms en physique (hors connexion du
+    centre), puis envoie à chacun son lien (SMS, WhatsApp…) pour signer
+    depuis son propre téléphone. Complète le kiosque, ne le remplace pas."""
+    import secrets as _secrets
+
+    from app.activite.helpers import _require_any_perm, _session_est_accessible
+
+    _require_any_perm("emargement:edit")
+    s = db.get_or_404(SessionActivite, session_id)
+    if not _session_est_accessible(s):
+        from app.activite.helpers import _deny_activity_access
+        return _deny_activity_access()
+
+    presences = PresenceActivite.query.filter_by(session_id=s.id).all()
+    crees = 0
+    for pr in presences:
+        if pr.signature_path or pr.signature_token:
+            continue
+        pr.signature_token = _secrets.token_urlsafe(24)
+        crees += 1
+    db.session.commit()
+    if crees:
+        flash(f"{crees} lien(s) de signature générés : copie-les ci-dessous et envoie à chacun le sien.", "success")
+    else:
+        flash("Aucun lien à générer : toutes les présences sont déjà signées (ou ont déjà leur lien).", "info")
+    return redirect(url_for("activite.emargement", session_id=s.id) + "#signature-distance")

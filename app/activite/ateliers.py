@@ -57,7 +57,11 @@ def index():
     corbeille = (request.args.get("corbeille") == "1")
     show_inactive = (request.args.get("inactifs") == "1")
     if secteur:
-        q = AtelierActivite.query.filter_by(secteur=secteur)
+        # Son secteur + les ateliers intersecteur (visibles par tous).
+        q = AtelierActivite.query.filter(db.or_(
+            AtelierActivite.secteur == secteur,
+            AtelierActivite.est_intersecteur.is_(True),
+        ))
     elif _is_admin_global() or _has_all_secteurs_scope():
         q = AtelierActivite.query
     else:
@@ -104,6 +108,15 @@ def atelier_new():
         if form_secteur and (not secteurs_disponibles or form_secteur in secteurs_disponibles):
             secteur = form_secteur
 
+    # Atelier intersecteur : ouvert à tous les secteurs, et le créateur
+    # (même borné à son secteur) choisit le secteur d'IMPUTATION des stats.
+    est_intersecteur = request.method == "POST" and request.form.get("est_intersecteur") == "1"
+    if est_intersecteur:
+        tous_secteurs = _available_secteur_labels()
+        secteur_stats = (request.form.get("secteur_stats") or "").strip()
+        if secteur_stats and (not tous_secteurs or secteur_stats in tous_secteurs):
+            secteur = secteur_stats
+
     if not secteur and not peut_choisir_secteur:
         flash("Aucun secteur n'est associé à votre compte.", "warning")
         return redirect(url_for("activite.index"))
@@ -115,6 +128,7 @@ def atelier_new():
             referentiels = _load_referentiels()
             return render_template(
                 "activite/atelier_form.html",
+                tous_secteurs=_available_secteur_labels(),
                 secteur=secteur,
                 atelier=None,
                 referentiels=referentiels,
@@ -145,6 +159,7 @@ def atelier_new():
 
         a = AtelierActivite(
             secteur=secteur,
+            est_intersecteur=est_intersecteur,
             nom=nom,
             description=description,
             type_atelier=type_atelier,
@@ -171,6 +186,7 @@ def atelier_new():
         ateliers_continuite = AtelierActivite.query.filter(AtelierActivite.secteur == secteur, AtelierActivite.is_deleted.is_(False)).order_by(AtelierActivite.nom.asc()).all()
     return render_template(
         "activite/atelier_form.html",
+                tous_secteurs=_available_secteur_labels(),
         secteur=secteur,
         atelier=None,
         referentiels=referentiels,
@@ -191,10 +207,19 @@ def atelier_edit(atelier_id: int):
     if atelier.is_deleted:
         flash("Cet atelier est dans la corbeille. Restaure-le pour le modifier.", "warning")
         return redirect(url_for("activite.index", corbeille=1))
-    if not _can_access_activity_secteur(atelier.secteur):
+    from app.activite.helpers import _atelier_est_accessible, _available_secteur_labels
+    if not _atelier_est_accessible(atelier):
         return _deny_activity_access()
 
     if request.method == "POST":
+        # Statut intersecteur + secteur d'imputation des statistiques.
+        atelier.est_intersecteur = request.form.get("est_intersecteur") == "1"
+        if atelier.est_intersecteur:
+            tous_secteurs = _available_secteur_labels()
+            secteur_stats = (request.form.get("secteur_stats") or "").strip()
+            if secteur_stats and (not tous_secteurs or secteur_stats in tous_secteurs):
+                atelier.secteur = secteur_stats
+
         atelier.nom = (request.form.get("nom") or atelier.nom).strip()
         atelier.description = (request.form.get("description") or "").strip() or None
         atelier.type_atelier = request.form.get("type_atelier") or atelier.type_atelier
@@ -242,6 +267,7 @@ def atelier_edit(atelier_id: int):
     ateliers_continuite = AtelierActivite.query.filter(AtelierActivite.secteur == atelier.secteur, AtelierActivite.is_deleted.is_(False), AtelierActivite.id != atelier.id).order_by(AtelierActivite.nom.asc()).all()
     return render_template(
         "activite/atelier_form.html",
+                tous_secteurs=_available_secteur_labels(),
         secteur=secteur,
         atelier=atelier,
         motifs_str=motifs_str,
@@ -262,7 +288,8 @@ def sessions(atelier_id: int):
     if atelier.is_deleted and not corbeille:
         flash("Cet atelier est dans la corbeille.", "warning")
         return redirect(url_for("activite.index", corbeille=1))
-    if not _can_access_activity_secteur(atelier.secteur):
+    from app.activite.helpers import _atelier_est_accessible
+    if not _atelier_est_accessible(atelier):
         return _deny_activity_access()
 
     q = SessionActivite.query.filter_by(atelier_id=atelier.id)

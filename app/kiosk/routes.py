@@ -470,3 +470,54 @@ def kiosk_feedback(token: str):
         options_map=options_map,
         presences=presences,
     )
+
+
+# ---------------------------------------------------------------------------
+# Signature à distance : lien personnel à usage unique (/kiosk/signer/<jeton>)
+# ---------------------------------------------------------------------------
+
+@bp.route("/signer/<token>", methods=["GET", "POST"])
+@csrf.exempt
+def signer(token: str):
+    """La personne ouvre SON lien (reçu par SMS/WhatsApp), voit sa présence
+    (atelier, date) et signe sur son téléphone. Usage unique : le jeton est
+    effacé dès que la signature est posée."""
+    token = (token or "").strip()
+    pr = (
+        PresenceActivite.query.filter_by(signature_token=token).first()
+        if token else None
+    )
+    if pr is None or pr.signature_path:
+        return render_template("kiosk/signer.html", presence=None), 404
+
+    s = pr.session
+    atelier = s.atelier if s else None
+    participant = pr.participant
+
+    if request.method == "POST":
+        signature_data = request.form.get("signature_data")
+        sig_path = None
+        if signature_data and signature_data.startswith("data:image"):
+            try:
+                header, b64data = signature_data.split(",", 1)
+                binary = base64.b64decode(b64data)
+                sig_dir = os.path.join(current_app.instance_path, "signatures_tmp")
+                os.makedirs(sig_dir, exist_ok=True)
+                sig_filename = f"sig_distance_s{s.id}_p{participant.id}_{int(utcnow().timestamp())}.png"
+                sig_path = os.path.join(sig_dir, sig_filename)
+                with open(sig_path, "wb") as f:
+                    f.write(binary)
+            except Exception:
+                sig_path = None
+        if not sig_path:
+            flash("La signature est vide : signe dans le cadre puis valide.", "danger")
+            return redirect(url_for("kiosk.signer", token=token))
+
+        pr.signature_path = sig_path
+        pr.signature_token = None  # usage unique : le lien meurt ici
+        db.session.commit()
+        return render_template("kiosk/signer.html", presence=pr, session=s,
+                               atelier=atelier, participant=participant, signe=True)
+
+    return render_template("kiosk/signer.html", presence=pr, session=s,
+                           atelier=atelier, participant=participant, signe=False)

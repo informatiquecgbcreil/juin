@@ -23,6 +23,8 @@ from flask_login import current_user, login_required
 from app.activite import bp
 from app.activite.helpers import (
     _can_access_activity_secteur,
+    _atelier_est_accessible,
+    _session_est_accessible,
     _has_all_secteurs_scope,
     _is_admin_global,
     _require_any_perm,
@@ -44,7 +46,10 @@ from app.services.poste_travail import MOIS_FR
 def _ateliers_visibles():
     secteur = _user_secteur()
     if secteur:
-        q = AtelierActivite.query.filter_by(secteur=secteur)
+        q = AtelierActivite.query.filter(db.or_(
+            AtelierActivite.secteur == secteur,
+            AtelierActivite.est_intersecteur.is_(True),
+        ))
     elif _is_admin_global() or _has_all_secteurs_scope():
         q = AtelierActivite.query
     else:
@@ -131,7 +136,7 @@ def saisie_grille():
 
     if request.method == "POST":
         require_perm("emargement:edit")(lambda: None)()
-        if atelier is None or not _can_access_activity_secteur(atelier.secteur):
+        if atelier is None or not _atelier_est_accessible(atelier):
             flash("Atelier introuvable ou hors de ta portée.", "danger")
             return redirect(url_for("activite.saisie_grille", mois=mois_str))
 
@@ -329,7 +334,7 @@ def emargements_relancer():
     except Exception:
         session_id = 0
     s = db.session.get(SessionActivite, session_id)
-    if s is None or not _can_access_activity_secteur(s.secteur):
+    if s is None or not _session_est_accessible(s):
         flash("Séance introuvable ou hors de ta portée.", "danger")
         return redirect(url_for("activite.emargements_attente"))
     lien = url_for("activite.emargement", session_id=s.id)

@@ -1629,6 +1629,12 @@ class AtelierActivite(db.Model):
 
     motifs_json = db.Column(db.Text, nullable=True)  # liste JSON de motifs (dropdown)
 
+    # Atelier intersecteur : visible et utilisable par TOUS les secteurs
+    # (animation globale, temps forts partagés). Le champ ``secteur`` devient
+    # alors le secteur d'IMPUTATION des statistiques, choisi à la création —
+    # pas forcément celui de la personne qui crée.
+    est_intersecteur = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
     modele_docx_collectif = db.Column(db.String(255), nullable=True)
     modele_docx_individuel = db.Column(db.String(255), nullable=True)
 
@@ -1850,6 +1856,11 @@ class PresenceActivite(db.Model):
 
     # signature: stockée en fichier (temp), ici juste le chemin
     signature_path = db.Column(db.String(255), nullable=True)
+
+    # Signature à distance : jeton personnel à usage unique envoyé au
+    # participant (lien /signer/<jeton>). Effacé dès que la signature est
+    # posée — le lien ne fonctionne qu'une fois.
+    signature_token = db.Column(db.String(64), nullable=True, unique=True, index=True)
 
     created_at = db.Column(db.DateTime, default=utcnow)
 
