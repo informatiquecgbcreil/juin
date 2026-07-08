@@ -88,7 +88,7 @@
           <tbody>
             {% for a in ateliers %}
               <tr>
-                <td><strong>{{ a.nom }}</strong><br><span class="muted">{{ a.description or 'Aucune description renseignée.' }}</span></td>
+                <td><strong>{{ a.nom }}</strong>{% if a.est_intersecteur %} <span class="status-badge" title="Visible par tous les secteurs — stats imputées à {{ a.secteur }}">🤝 intersecteur · {{ a.secteur }}</span>{% endif %}<br><span class="muted">{{ a.description or 'Aucune description renseignée.' }}</span></td>
                 <td><span class="status-badge {{ 'status-info' if a.type_atelier == 'COLLECTIF' else 'status-warning' }}">{{ 'Collectif' if a.type_atelier == 'COLLECTIF' else 'Individuel mensuel' }}</span></td>
                 <td>
                   {% if a.type_atelier == 'COLLECTIF' %}
@@ -130,7 +130,7 @@
         {% for a in ateliers %}
         <article class="ui-record responsive-card">
           <header class="responsive-card__head">
-            <strong>{{ a.nom }}</strong>
+            <strong>{{ a.nom }}</strong>{% if a.est_intersecteur %} <span class="status-badge">🤝 intersecteur · {{ a.secteur }}</span>{% endif %}
             <span class="status-badge {{ 'status-info' if a.type_atelier == 'COLLECTIF' else 'status-warning' }}">{{ 'Collectif' if a.type_atelier == 'COLLECTIF' else 'Individuel mensuel' }}</span>
           </header>
           <p class="muted">{{ a.description or 'Aucune description renseignée.' }}</p>

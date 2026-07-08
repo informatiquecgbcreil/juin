@@ -386,6 +386,42 @@
   </section>
   {% endif %}
 
+  <section class="section-card" id="signature-distance">
+    <h2 style="margin-top:0;">✍️ Signatures à distance</h2>
+    <div class="muted" style="max-width:78ch;">
+      Pour les séances hors les murs ou les grands groupes : saisis d'abord les présences (ici ou
+      via la grille), puis génère un <strong>lien personnel</strong> par personne — chacun signe depuis
+      son propre téléphone, où qu'il soit. Chaque lien ne fonctionne qu'une fois et meurt après signature.
+    </div>
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <form method="post" action="{{ url_for('activite.signature_liens_generer', session_id=session.id) }}" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">🔗 Générer les liens pour les présences non signées ({{ nb_sans_signature }})</button>
+      </form>
+    </div>
+    {% if signature_liens %}
+      <div class="tablewrap" style="margin-top:12px;">
+        <table>
+          <thead><tr><th>Participant</th><th>Lien personnel de signature</th><th></th></tr></thead>
+          <tbody>
+            {% for l in signature_liens %}
+              <tr>
+                <td><strong>{{ l.presence.participant.nom }} {{ l.presence.participant.prenom }}</strong></td>
+                <td><code id="sig-lien-{{ l.presence.id }}" style="font-size:.8rem; word-break:break-all;">{{ l.url }}</code></td>
+                <td><button type="button" class="btn copy-btn" data-copy-target="#sig-lien-{{ l.presence.id }}">Copier</button></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <details style="margin-top:8px;">
+        <summary class="mini-link" style="cursor:pointer;">Copier tous les liens d'un coup (à coller dans WhatsApp/SMS)</summary>
+        <textarea class="in" rows="6" readonly onclick="this.select();" style="width:100%; font-size:.8rem; margin-top:6px;">{% for l in signature_liens %}{{ l.presence.participant.prenom }} {{ l.presence.participant.nom }} : {{ l.url }}
+{% endfor %}</textarea>
+      </details>
+    {% endif %}
+  </section>
+
   {% if schedule_edits %}
   <section class="section-card">
     <h2 style="margin-top:0;">Traçabilité des corrections de planning</h2>

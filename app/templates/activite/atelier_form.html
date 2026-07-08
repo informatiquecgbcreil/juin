@@ -19,6 +19,28 @@
             </select>
           </div>
         {% endif %}
+
+        {# ---- Portée : propre au secteur ou intersecteur ---- #}
+        <div class="section-card" style="margin-bottom:12px; padding:12px 14px; border:1px solid rgba(90,120,255,.25); border-radius:10px;">
+          <label class="case" style="display:flex; gap:8px; align-items:flex-start; font-weight:600;">
+            <input type="checkbox" name="est_intersecteur" value="1" id="est-intersecteur"
+                   {% if atelier and atelier.est_intersecteur %}checked{% endif %}
+                   onchange="document.getElementById('bloc-secteur-stats').style.display = this.checked ? 'block' : 'none';">
+            <span>Atelier <strong>intersecteur</strong> (animation globale, temps forts partagés)</span>
+          </label>
+          <div class="muted" style="font-size:.83rem; margin:4px 0 0 26px;">
+            Visible et utilisable par <strong>tous les secteurs</strong> (émargement, séances, grille).
+            Les statistiques sont imputées au secteur choisi ci-dessous — pas forcément le tien.
+          </div>
+          <div id="bloc-secteur-stats" style="margin:8px 0 0 26px; display:{% if atelier and atelier.est_intersecteur %}block{% else %}none{% endif %};">
+            <label>Secteur d'imputation des statistiques</label>
+            <select class="in" name="secteur_stats">
+              {% for s in tous_secteurs %}
+                <option value="{{ s }}" {% if (atelier and atelier.secteur == s) or (not atelier and secteur == s) %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
         <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
           <div>
             <label>Nom</label>
