@@ -4,6 +4,11 @@ Application web de gestion interne pour structure associative, sociale ou centre
 
 L'objectif principal est de relier le travail de terrain aux obligations de pilotage et de reporting : justificatifs de présence, suivi des financements, bilans financeurs, contrôle qualité des données et tableaux de bord.
 
+> **Reprise / passation** : si vous devez reprendre la maintenance ou faire
+> revivre l'application après une panne, commencez par
+> [`docs/PASSATION.md`](docs/PASSATION.md) — production réelle, procédure de
+> redéploiement d'urgence, sauvegardes et invariants à ne pas casser.
+
 ---
 
 ## Sommaire
