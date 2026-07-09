@@ -323,6 +323,7 @@ def list_participants():
     f_genre = (request.args.get("genre") or "").strip()
     f_type_public = (request.args.get("type_public") or "").strip()
     f_presence = (request.args.get("presence") or "").strip()
+    f_naissance = (request.args.get("naissance") or "").strip()
     f_created_secteur = (request.args.get("created_secteur") or "").strip()
 
     dashboard_from = _parse_iso_date(request.args.get("dashboard_from"))
@@ -478,6 +479,11 @@ def list_participants():
     elif f_presence == "without":
         participants_q = participants_q.filter(~has_presence)
 
+    if f_naissance == "sans":
+        participants_q = participants_q.filter(Participant.date_naissance.is_(None))
+    elif f_naissance == "avec":
+        participants_q = participants_q.filter(Participant.date_naissance.isnot(None))
+
     if q:
         like = f"%{q.lower()}%"
         participants_q = participants_q.filter(
@@ -543,6 +549,7 @@ def list_participants():
         f_genre=f_genre,
         f_type_public=f_type_public,
         f_presence=f_presence,
+        f_naissance=f_naissance,
         f_created_secteur=f_created_secteur,
         is_global=_is_global_role(),
         dashboard_filters=dashboard_filters,
@@ -1365,7 +1372,170 @@ def delete_participant(participant_id: int):
         blocked_message=f"Impossible de supprimer le participant « {p.nom_complet()} » : il est encore utilisé ailleurs. Utilisez plutôt l'anonymisation si vous souhaitez conserver l'historique.",
     )
     return redirect(url_for("participants.list_participants"))
-    
+
+
+# ---------------------------------------------------------------------------
+# Annuaire : ajout rapide et actions groupées (sélection par coches)
+# ---------------------------------------------------------------------------
+
+def _retour_annuaire():
+    """Retourne vers l'annuaire en conservant recherche et filtres.
+
+    Le formulaire envoie l'URL courante dans « retour » ; on ne suit que des
+    chemins internes (jamais une URL absolue) pour éviter toute redirection
+    ouverte.
+    """
+    retour = (request.form.get("retour") or "").strip()
+    if retour.startswith("/") and not retour.startswith("//"):
+        return redirect(retour)
+    return redirect(url_for("participants.list_participants"))
+
+
+@bp.post("/<int:participant_id>/date-naissance")
+@login_required
+@require_perm("participants:edit")
+def definir_date_naissance(participant_id: int):
+    """Ajout rapide de la date de naissance depuis l'annuaire, sans ouvrir la fiche."""
+    p = db.get_or_404(Participant, participant_id)
+    d = (request.form.get("date_naissance") or "").strip()
+    try:
+        p.date_naissance = datetime.strptime(d, "%Y-%m-%d").date()
+    except Exception:
+        flash("Date de naissance invalide.", "err")
+        return _retour_annuaire()
+    db.session.commit()
+    from app.services.audit import journaliser
+    journaliser("participant.edit", cible=f"{p.nom} {p.prenom} (date de naissance)")
+    flash(f"Date de naissance enregistrée pour {p.prenom} {p.nom}.", "ok")
+    return _retour_annuaire()
+
+
+@bp.post("/actions-groupees")
+@login_required
+@require_perm("participants:view")
+def actions_groupees():
+    """Agit sur les personnes cochées dans l'annuaire.
+
+    Chaque action revérifie SA permission : regrouper en famille demande
+    l'édition, anonymiser la permission dédiée, supprimer la suppression.
+    """
+    action = (request.form.get("action") or "").strip()
+    ids: list[int] = []
+    for brut in request.form.getlist("pid"):
+        try:
+            pid = int(brut)
+        except Exception:
+            continue
+        if pid not in ids:
+            ids.append(pid)
+    membres = [p for p in (db.session.get(Participant, pid) for pid in ids) if p is not None]
+
+    if not membres:
+        flash("Coche d'abord au moins une personne dans la liste.", "warning")
+        return _retour_annuaire()
+
+    from app.services.audit import journaliser
+
+    if action == "famille":
+        if not can("participants:edit"):
+            abort(403)
+        from app.services.cotisations import regrouper_en_foyer
+        ok, message = regrouper_en_foyer(membres)
+        if ok:
+            journaliser("participant.famille", cible=message)
+        flash(message, "ok" if ok else "err")
+        return _retour_annuaire()
+
+    if action == "anonymiser":
+        if not can("participants:anonymize"):
+            abort(403)
+        from app.services.purge_rgpd import anonymiser_participant
+        traites = 0
+        for p in membres:
+            if p.nom == NOM_ANONYME:
+                continue  # déjà anonymisée : on ne retouche pas la fiche
+            anonymiser_participant(p, actor_id=getattr(current_user, "id", None))
+            journaliser("participant.anonymize", cible=f"participant #{p.id}")
+            traites += 1
+        db.session.commit()
+        flash(
+            f"{traites} fiche(s) anonymisée(s). Les présences et statistiques sont conservées."
+            if traites else "Toutes les fiches cochées étaient déjà anonymisées.",
+            "ok" if traites else "info",
+        )
+        return _retour_annuaire()
+
+    if action == "supprimer":
+        if not can("participants:delete"):
+            abort(403)
+        from sqlalchemy.exc import IntegrityError
+        supprimes, proteges, bloques = 0, [], []
+        est_global = current_user.has_perm("participants:view_all")
+        sec = _current_secteur()
+        for p in membres:
+            # Même garde que la suppression unitaire : un agent borné à son
+            # secteur ne supprime pas une personne suivie ailleurs.
+            if not est_global:
+                ailleurs = (
+                    db.session.query(PresenceActivite.id)
+                    .join(SessionActivite, SessionActivite.id == PresenceActivite.session_id)
+                    .filter(PresenceActivite.participant_id == p.id)
+                    .filter(SessionActivite.secteur != sec)
+                    .first()
+                )
+                if ailleurs:
+                    proteges.append(f"{p.prenom} {p.nom}")
+                    continue
+            nom_complet = f"{p.prenom} {p.nom}"
+            try:
+                db.session.query(PresenceActivite).filter(PresenceActivite.participant_id == p.id).delete(synchronize_session=False)
+                db.session.query(Evaluation).filter(Evaluation.participant_id == p.id).delete(synchronize_session=False)
+                db.session.delete(p)
+                db.session.commit()
+                journaliser("participant.delete", cible=nom_complet)
+                supprimes += 1
+            except IntegrityError:
+                db.session.rollback()
+                bloques.append(nom_complet)
+        if supprimes:
+            flash(f"{supprimes} fiche(s) supprimée(s) définitivement.", "warning")
+        if proteges:
+            flash(
+                "Non supprimées (présentes dans d'autres secteurs — utilisez l'anonymisation) : "
+                + ", ".join(proteges), "err",
+            )
+        if bloques:
+            flash(
+                "Non supprimées (encore utilisées ailleurs dans l'application — utilisez l'anonymisation) : "
+                + ", ".join(bloques), "err",
+            )
+        return _retour_annuaire()
+
+    if action == "export":
+        sortie = StringIO()
+        w = csv.writer(sortie, delimiter=";")
+        w.writerow(["Nom", "Prénom", "Date de naissance", "Genre", "Email", "Téléphone",
+                    "Ville", "Quartier", "Type de public", "Famille"])
+        for p in membres:
+            w.writerow([
+                p.nom, p.prenom,
+                p.date_naissance.strftime("%d/%m/%Y") if p.date_naissance else "",
+                p.genre or "", p.email or "", p.telephone or "",
+                p.ville or "", p.quartier.nom if p.quartier else "",
+                p.type_public or "",
+                (p.foyer.nom or f"Foyer n°{p.foyer.id}") if getattr(p, "foyer", None) else "",
+            ])
+        journaliser("export.selection", cible=f"{len(membres)} participant(s)")
+        return Response(
+            "\ufeff" + sortie.getvalue(),  # BOM : accents corrects dans Excel
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=selection-participants.csv"},
+        )
+
+    flash("Choisis une action à appliquer à la sélection.", "warning")
+    return _retour_annuaire()
+
+
 from flask import current_app
 
 _FAKE_PREFIXES = (

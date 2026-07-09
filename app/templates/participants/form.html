@@ -99,6 +99,22 @@
           <input class="in" type="email" name="email" value="{{ item.email if item and item.email else '' }}" {% if item and not is_editable %}disabled{% endif %}>
           <div class="field-help">Laisse vide si la personne n’en a pas ou ne l’utilise pas.</div>
         </div>
+        <div class="field-stack">
+          <label>Date de naissance</label>
+          <input class="in" type="date" name="date_naissance" value="{% if item and item.date_naissance %}{{ item.date_naissance }}{% endif %}" {% if item and not is_editable %}disabled{% endif %}>
+          <div class="field-help">Sert aux statistiques par tranches d’âge (CAF, SENACS, bilans financeurs). Complétable plus tard depuis l’annuaire.</div>
+        </div>
+        <div class="field-stack">
+          <label>Genre</label>
+          {% set g = (item.genre if item and item.genre else '') %}
+          <select class="in" name="genre" {% if item and not is_editable %}disabled{% endif %}>
+            <option value="" {% if not g %}selected{% endif %}>—</option>
+            <option value="Homme" {% if g == 'Homme' %}selected{% endif %}>Homme</option>
+            <option value="Femme" {% if g == 'Femme' %}selected{% endif %}>Femme</option>
+            <option value="Autre" {% if g == 'Autre' %}selected{% endif %}>Autre</option>
+          </select>
+          <div class="field-help">Utilisé uniquement pour les statistiques agrégées.</div>
+        </div>
       </div>
     </section>
 
@@ -171,24 +187,45 @@
       </div>
     </section>
 
-    <details class="details-soft" {% if item %}open{% endif %}>
+    {% if item and is_editable and can('participants:anonymize') %}
+    <section class="section-card">
+      <h2 class="section-card__title">Anonymisation (RGPD)</h2>
+      <p class="section-card__subtitle">
+        Efface définitivement ce qui identifie la personne — nom, prénom, adresse, ville,
+        e-mail, téléphone, données du parcours insertion et droit à l'image — tout en
+        conservant les présences et les chiffres : vos statistiques et bilans restent justes.
+        La fiche devient « ANONYME P{{ item.id }} ». À utiliser quand la personne le demande
+        (droit à l'effacement) ou qu'elle ne fréquente plus la structure.
+      </p>
+      <div class="inline-actions" style="flex-wrap:wrap; gap:10px;">
+        <form method="post" action="{{ url_for('participants.anonymize_participant', participant_id=item.id) }}"
+              onsubmit="return confirm('Anonymiser définitivement cette fiche ? Le nom et les coordonnées seront effacés, les statistiques conservées. Cette action est irréversible.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn warn" type="submit">Anonymiser cette fiche</button>
+        </form>
+        {% if can('participants:view_all') or can('scope:all_secteurs') %}
+        <form method="post" action="{{ url_for('participants.anonymize_participant', participant_id=item.id) }}"
+              onsubmit="return confirm('Anonymisation renforcée : le genre, la date de naissance et le quartier seront AUSSI effacés (les statistiques démographiques perdront cette fiche). Continuer ?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="strict" value="1">
+          <button class="btn warn" type="submit">Anonymisation renforcée</button>
+        </form>
+        {% endif %}
+        {% if can('controle:view') %}
+        <a class="btn" href="{{ url_for('main.purge_rgpd') }}" title="Règles d'anonymisation automatique des personnes inactives.">⚙️ Purge automatique (règles)</a>
+        {% endif %}
+      </div>
+      <div class="field-help" style="margin-top:8px;">
+        L'anonymisation automatique s'occupe déjà des personnes sans activité depuis plusieurs
+        années (voir Contrôle → Purge RGPD). Ce bouton sert pour un cas individuel immédiat.
+      </div>
+    </section>
+    {% endif %}
+
+    <details class="details-soft" open>
       <summary>Informations complémentaires</summary>
       <div class="spacer"></div>
       <div class="form-grid-2 stretch-input">
-        <div class="field-stack">
-          <label>Date de naissance</label>
-          <input class="in" type="date" name="date_naissance" value="{% if item and item.date_naissance %}{{ item.date_naissance }}{% endif %}" {% if item and not is_editable %}disabled{% endif %}>
-        </div>
-        <div class="field-stack">
-          <label>Genre</label>
-          {% set g = (item.genre if item and item.genre else '') %}
-          <select class="in" name="genre" {% if item and not is_editable %}disabled{% endif %}>
-            <option value="" {% if not g %}selected{% endif %}>—</option>
-            <option value="Homme" {% if g == 'Homme' %}selected{% endif %}>Homme</option>
-            <option value="Femme" {% if g == 'Femme' %}selected{% endif %}>Femme</option>
-            <option value="Autre" {% if g == 'Autre' %}selected{% endif %}>Autre</option>
-          </select>
-        </div>
         <div class="field-stack">
           <label>Type de public {{ ux.tooltip("Distingue les habitants (comptés dans les statistiques CAF/SENACS) des bénévoles, salariés et partenaires. Dans le doute : Habitant.") }}</label>
           {% set tp = (item.type_public if item and item.type_public else 'H') %}

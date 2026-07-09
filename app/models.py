@@ -176,6 +176,11 @@ class InstanceSettings(db.Model):
     # Taux horaire de valorisation du bénévolat (prioritaire sur la config env).
     benevolat_taux_horaire = db.Column(db.Float, nullable=True)
 
+    # Purge RGPD (prioritaire sur les variables d'environnement) :
+    # délai d'inactivité avant anonymisation automatique, et activation.
+    purge_rgpd_annees = db.Column(db.Integer, nullable=True)
+    purge_rgpd_auto = db.Column(db.Boolean, nullable=True)
+
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 

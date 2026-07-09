@@ -92,6 +92,7 @@
             <a class="btn" href="{{ url_for('participants.list_participants', presence='without', scope=scope, created_secteur=f_created_secteur) }}">Sans présence</a>
             <a class="btn" href="{{ url_for('participants.list_participants', presence='with', scope=scope, created_secteur=f_created_secteur) }}">Avec présence</a>
             <a class="btn" href="{{ url_for('participants.list_participants', q='@', scope=scope, created_secteur=f_created_secteur) }}">Avec e-mail</a>
+            <a class="btn" href="{{ url_for('participants.list_participants', naissance='sans', scope=scope, created_secteur=f_created_secteur) }}" title="Repérer les fiches où la date de naissance manque, pour les compléter directement dans la liste.">Sans date de naissance</a>
           </div>
           <div class="filters-grid stretch-input">
             <div class="field-stack">
@@ -113,6 +114,10 @@
             <div class="field-stack">
               <label>Présence</label>
               <select name="presence" class="in"><option value="">Toutes</option><option value="with" {% if f_presence == 'with' %}selected{% endif %}>Avec présence</option><option value="without" {% if f_presence == 'without' %}selected{% endif %}>Sans présence</option></select>
+            </div>
+            <div class="field-stack">
+              <label>Date de naissance</label>
+              <select name="naissance" class="in"><option value="">Toutes</option><option value="sans" {% if f_naissance == 'sans' %}selected{% endif %}>Sans date de naissance</option><option value="avec" {% if f_naissance == 'avec' %}selected{% endif %}>Avec date de naissance</option></select>
             </div>
             {% if is_global %}
             <div class="field-stack">
@@ -136,6 +141,36 @@
     </form>
   </div>
 
+  {# Formulaire des actions groupées : les coches du tableau s'y rattachent
+     via l'attribut form="bulk-actions" (pas de formulaires imbriqués). #}
+  <form method="post" action="{{ url_for('participants.actions_groupees') }}" id="bulk-actions">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="retour" value="{{ request.full_path }}">
+  </form>
+
+  <div class="section-card compact" id="bulk-bar" style="display:none; position:sticky; top:8px; z-index:30; border:2px solid rgba(59,130,246,.45);">
+    <div class="inline-actions" style="flex-wrap:wrap; gap:10px; align-items:center;">
+      <strong><span id="bulk-count">0</span> personne(s) cochée(s)</strong>
+      {% if can('participants:edit') %}
+      <button class="btn ok" type="submit" form="bulk-actions" name="action" value="famille"
+              title="Rassemble les personnes cochées dans un même foyer : l'adhésion familiale se règle une fois pour toute la famille."
+              onclick="return confirm('Regrouper les personnes cochées dans une même famille (foyer) ?');">👪 Regrouper en famille</button>
+      {% endif %}
+      <button class="btn" type="submit" form="bulk-actions" name="action" value="export"
+              title="Télécharge la sélection en tableur (CSV).">⬇ Exporter la sélection</button>
+      {% if can('participants:anonymize') %}
+      <button class="btn warn" type="submit" form="bulk-actions" name="action" value="anonymiser"
+              title="Efface nom et coordonnées, conserve les présences et les statistiques."
+              onclick="return confirm('Anonymiser définitivement les fiches cochées ? Le nom et les coordonnées seront effacés, les statistiques conservées. Action irréversible.');">🕶️ Anonymiser la sélection</button>
+      {% endif %}
+      {% if can('participants:delete') %}
+      <button class="btn danger" type="submit" form="bulk-actions" name="action" value="supprimer"
+              onclick="return confirm('Supprimer DÉFINITIVEMENT les fiches cochées, avec leurs présences ? Si vous voulez garder les statistiques, utilisez plutôt l\'anonymisation. Action irréversible.');">🗑️ Supprimer la sélection</button>
+      {% endif %}
+      <button class="btn" type="button" id="bulk-clear">Tout décocher</button>
+    </div>
+  </div>
+
   <div class="section-card compact">
     <div class="table-toolbar">
       <h2 class="section-title" style="margin:0">Liste des participants</h2>
@@ -151,20 +186,40 @@
     <div class="tablewrap clean">
       <table class="js-sortable">
         <thead>
-          <tr><th>Nom</th><th>Coordonnées</th><th>Ville / quartier</th><th>Public</th><th>Présences</th><th style="width:220px">Actions</th></tr>
+          <tr>
+            <th style="width:34px;"><input type="checkbox" id="bulk-all" title="Tout cocher / décocher" aria-label="Tout cocher"></th>
+            <th>Nom</th><th>Coordonnées</th><th>Naissance</th><th>Ville / quartier</th><th>Public</th><th>Présences</th><th style="width:220px">Actions</th>
+          </tr>
         </thead>
         <tbody>
           {% for item in items %}
           <tr>
-            <td><strong>{{ item.nom }}</strong><br><span class="muted">{{ item.prenom or '—' }}</span></td>
+            <td><input type="checkbox" class="bulk-pid" name="pid" value="{{ item.id }}" form="bulk-actions" aria-label="Sélectionner {{ item.prenom }} {{ item.nom }}"></td>
+            <td><strong>{{ item.nom }}</strong><br><span class="muted">{{ item.prenom or '—' }}</span>
+              {% if item.foyer_id %}<br><a class="chip" style="text-decoration:none;" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}#famille" title="Membre d'une famille (foyer) — voir la synthèse pour la composition.">👪 {{ item.foyer.nom or 'Famille' }}</a>{% endif %}
+            </td>
             <td><div>{{ item.email or '—' }}</div><div class="muted">{{ item.telephone or '—' }}</div></td>
+            <td>
+              {% if item.date_naissance %}
+                {{ item.date_naissance.strftime('%d/%m/%Y') }}
+              {% elif can('participants:edit') %}
+                <form method="post" action="{{ url_for('participants.definir_date_naissance', participant_id=item.id) }}" class="inline-actions" style="gap:4px; flex-wrap:nowrap;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="retour" value="{{ request.full_path }}">
+                  <input class="in" type="date" name="date_naissance" required style="max-width:150px; padding:4px 6px;" aria-label="Date de naissance de {{ item.prenom }} {{ item.nom }}">
+                  <button class="btn" type="submit" title="Enregistrer la date de naissance sans ouvrir la fiche">✔</button>
+                </form>
+              {% else %}
+                —
+              {% endif %}
+            </td>
             <td><div>{{ item.ville or '—' }}</div><div class="muted">{{ item.quartier.nom if item.quartier else '—' }}</div></td>
             <td>{{ item.type_public or '—' }}</td>
             <td>{% if item._presence_count is defined %}<strong>{{ item._presence_count }}</strong><span class="muted"> visite(s)</span>{% else %}—{% endif %}</td>
-            <td><div class="inline-actions"><a class="btn ok" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}">Synthèse</a><a class="btn" href="{{ url_for('participants.edit_participant', participant_id=item.id) }}">Voir la fiche</a><a class="btn" href="{{ url_for('activite.participant_attestation', participant_id=item.id) }}">Attestation</a>{% if can('participants:delete') %}<form method="post" action="{{ url_for('participants.delete_participant', participant_id=item.id) }}" onsubmit="return confirm('Supprimer ce participant ? Cette action est irréversible.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn danger" type="submit">Supprimer</button></form>{% endif %}</div></td>
+            <td><div class="inline-actions"><a class="btn ok" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}">Synthèse</a><a class="btn" href="{{ url_for('participants.edit_participant', participant_id=item.id) }}">Voir la fiche</a><a class="btn" href="{{ url_for('activite.participant_attestation', participant_id=item.id) }}">Attestation</a>{% if can('participants:delete') %}<form method="post" action="{{ url_for('participants.delete_participant', participant_id=item.id) }}" onsubmit="return confirm('Supprimer ce participant ? Cette action est irréversible.');" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn danger" type="submit">Supprimer</button></form>{% endif %}</div></td>
           </tr>
           {% else %}
-          <tr><td colspan="6"><div class="quick-empty"><strong>Aucun participant ne correspond aux filtres sélectionnés.</strong>Modifiez un critère ou réinitialisez les filtres pour élargir la recherche.</div></td></tr>
+          <tr><td colspan="8"><div class="quick-empty"><strong>Aucun participant ne correspond aux filtres sélectionnés.</strong>Modifiez un critère ou réinitialisez les filtres pour élargir la recherche.</div></td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -173,11 +228,13 @@
       {% for item in items %}
       <article class="responsive-card">
         <header class="responsive-card__head">
-          <strong>{{ item.nom }} {{ item.prenom or '' }}</strong>
+          <strong><label style="display:inline-flex; align-items:center; gap:8px;"><input type="checkbox" class="bulk-pid" name="pid" value="{{ item.id }}" form="bulk-actions"> {{ item.nom }} {{ item.prenom or '' }}</label></strong>
           <span class="chip">{{ item.type_public or 'Public non renseigné' }}</span>
+          {% if item.foyer_id %}<a class="chip" style="text-decoration:none;" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}#famille">👪 {{ item.foyer.nom or 'Famille' }}</a>{% endif %}
         </header>
         <dl class="responsive-card__grid">
           <div><dt>Coordonnées</dt><dd>{{ item.email or '—' }}<br><span class="muted">{{ item.telephone or '—' }}</span></dd></div>
+          <div><dt>Naissance</dt><dd>{{ item.date_naissance.strftime('%d/%m/%Y') if item.date_naissance else '—' }}</dd></div>
           <div><dt>Ville / quartier</dt><dd>{{ item.ville or '—' }}<br><span class="muted">{{ item.quartier.nom if item.quartier else '—' }}</span></dd></div>
           <div><dt>Présences</dt><dd>{% if item._presence_count is defined %}<strong>{{ item._presence_count }}</strong> visite(s){% else %}—{% endif %}</dd></div>
         </dl>
@@ -207,4 +264,44 @@
   </div>
   {% endif %}
 </div>
+
+<script>
+(() => {
+  const bar = document.getElementById('bulk-bar');
+  const compteur = document.getElementById('bulk-count');
+  const toutes = () => Array.from(document.querySelectorAll('.bulk-pid'));
+  const global = document.getElementById('bulk-all');
+
+  function rafraichir(){
+    // Les coches existent en double (vue tableau + vue cartes mobiles) :
+    // on compte les personnes distinctes, pas les cases.
+    const cochees = new Set(toutes().filter(c => c.checked).map(c => c.value));
+    const total = new Set(toutes().map(c => c.value)).size;
+    const n = cochees.size;
+    compteur.textContent = n;
+    bar.style.display = n > 0 ? '' : 'none';
+    if(global){
+      global.checked = total > 0 && n === total;
+      global.indeterminate = n > 0 && n < total;
+    }
+  }
+  document.addEventListener('change', (e) => {
+    if(e.target.classList && e.target.classList.contains('bulk-pid')) rafraichir();
+  });
+  if(global){
+    global.addEventListener('change', () => {
+      toutes().forEach(c => { c.checked = global.checked; });
+      rafraichir();
+    });
+  }
+  const vider = document.getElementById('bulk-clear');
+  if(vider){
+    vider.addEventListener('click', () => {
+      toutes().forEach(c => { c.checked = false; });
+      rafraichir();
+    });
+  }
+  rafraichir();
+})();
+</script>
 {% endblock %}

@@ -136,6 +136,47 @@ def rapprocher_foyer(a: Participant, b: Participant) -> tuple[bool, str]:
     return True, f"{b.nom} {b.prenom} est maintenant rapproché·e du foyer de {a.nom} {a.prenom}."
 
 
+def regrouper_en_foyer(membres: list[Participant]) -> tuple[bool, str]:
+    """Regroupe plusieurs personnes dans un même foyer (famille).
+
+    Même règle de prudence que ``rapprocher_foyer`` : si la sélection couvre
+    déjà DEUX foyers différents, on refuse (fusionner deux familles peut
+    mélanger des adhésions familiales déjà réglées — l'agent doit d'abord
+    détacher les personnes concernées). Un seul foyer existant : tout le
+    monde le rejoint. Aucun foyer : on en crée un.
+    """
+    membres = [m for m in membres if m is not None]
+    if len(membres) < 2:
+        return False, "Sélectionne au moins deux personnes pour former une famille."
+
+    foyers_existants = {m.foyer_id for m in membres if m.foyer_id}
+    if len(foyers_existants) > 1:
+        return False, (
+            "La sélection contient des personnes de plusieurs familles différentes. "
+            "Détache d'abord celles qui changent de famille (depuis leur fiche, "
+            "partie Adhésion), puis recommence."
+        )
+
+    if foyers_existants:
+        foyer = db.session.get(Foyer, foyers_existants.pop())
+    else:
+        foyer = Foyer(nom=f"Famille {membres[0].nom}")
+        db.session.add(foyer)
+        db.session.flush()
+
+    nouveaux = 0
+    for m in membres:
+        if m.foyer_id != foyer.id:
+            m.foyer_id = foyer.id
+            nouveaux += 1
+    db.session.commit()
+
+    noms = ", ".join(f"{m.prenom} {m.nom}" for m in membres[:4])
+    if len(membres) > 4:
+        noms += f" (+{len(membres) - 4})"
+    return True, f"Famille « {foyer.nom or 'sans nom'} » : {len(membres)} membres ({noms})."
+
+
 def detacher_du_foyer(participant: Participant) -> None:
     """Retire le participant de son foyer (ne supprime pas les autres membres)."""
     foyer_id = participant.foyer_id
