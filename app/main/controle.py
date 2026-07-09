@@ -455,3 +455,43 @@ def purge_rgpd_lancer():
     else:
         flash("Aucun participant inactif à anonymiser.", "info")
     return redirect(url_for("main.purge_rgpd"))
+
+
+@bp.post("/controle/purge-rgpd/reglages")
+@login_required
+@require_perm("participants:anonymize")
+def purge_rgpd_reglages():
+    """Règle les critères de la purge : délai d'inactivité et activation.
+
+    Enregistré dans les paramètres d'instance (prioritaire sur les
+    variables d'environnement) — modifiable sans toucher au serveur.
+    """
+    from app.models import InstanceSettings
+    from app.services.audit import journaliser
+
+    reglages = InstanceSettings.query.first()
+    if reglages is None:
+        reglages = InstanceSettings()
+        db.session.add(reglages)
+
+    try:
+        annees = int(request.form.get("annees") or 0)
+    except ValueError:
+        annees = 0
+    if not 1 <= annees <= 10:
+        flash("Le délai d'inactivité doit être compris entre 1 et 10 ans.", "danger")
+        return redirect(url_for("main.purge_rgpd"))
+
+    reglages.purge_rgpd_annees = annees
+    reglages.purge_rgpd_auto = (request.form.get("auto") or "") == "1"
+    db.session.commit()
+    journaliser(
+        "purge_rgpd.reglages",
+        cible=f"{annees} an(s), auto {'activée' if reglages.purge_rgpd_auto else 'désactivée'}",
+    )
+    flash(
+        f"Réglages enregistrés : anonymisation après {annees} an(s) d'inactivité, "
+        f"purge automatique {'activée' if reglages.purge_rgpd_auto else 'désactivée'}.",
+        "success",
+    )
+    return redirect(url_for("main.purge_rgpd"))

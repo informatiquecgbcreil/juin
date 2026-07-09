@@ -39,11 +39,38 @@ NOM_ANONYME = "ANONYME"
 NOM_TACHE = "purge_rgpd"
 
 
+def _reglages_instance():
+    """Ligne des paramètres d'instance, ou None.
+
+    Défensif : au premier démarrage (table pas encore migrée), la requête
+    peut échouer — on retombe alors sur les variables d'environnement.
+    """
+    try:
+        from app.models import InstanceSettings
+        return InstanceSettings.query.first()
+    except Exception:
+        db.session.rollback()
+        return None
+
+
 def annees_inactivite() -> int:
+    """Délai d'inactivité (années) avant anonymisation automatique.
+
+    Réglable depuis la page Contrôle → Purge RGPD (prioritaire) ;
+    sinon variable d'environnement PURGE_INACTIFS_ANNEES (3 par défaut).
+    """
+    reglages = _reglages_instance()
+    valeur = getattr(reglages, "purge_rgpd_annees", None)
+    if valeur:
+        return max(1, min(int(valeur), 10))
     return int(os.environ.get("PURGE_INACTIFS_ANNEES", "3"))
 
 
 def purge_auto_active() -> bool:
+    reglages = _reglages_instance()
+    valeur = getattr(reglages, "purge_rgpd_auto", None)
+    if valeur is not None:
+        return bool(valeur)
     return os.environ.get("PURGE_INACTIFS_AUTO", "1") in {"1", "true", "True", "yes"}
 
 
