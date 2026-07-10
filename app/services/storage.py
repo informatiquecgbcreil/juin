@@ -14,7 +14,7 @@ def get_upload_root() -> str:
 def _safe_abs_under_root(*parts: str) -> str:
     root = get_upload_root()
     abs_path = os.path.abspath(os.path.join(root, *parts))
-    if not abs_path.startswith(root):
+    if os.path.commonpath([root, abs_path]) != root:
         abort(400)
     return abs_path
 
@@ -47,7 +47,7 @@ def send_media_file(relpath: str, *, as_attachment: bool = False, download_name:
         abort(404)
     root = get_upload_root()
     directory = os.path.abspath(os.path.join(root, os.path.dirname(relpath)))
-    if not directory.startswith(root):
+    if os.path.commonpath([root, directory]) != root:
         abort(400)
     filename = os.path.basename(relpath)
     return send_from_directory(directory, filename, as_attachment=as_attachment, download_name=download_name)

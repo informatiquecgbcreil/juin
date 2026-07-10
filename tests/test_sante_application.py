@@ -20,6 +20,13 @@ def test_endpoints_principaux_enregistres(app):
         "main.qualite_donnees_transverse",
         "main.bilan_global",
         "main.hub_publics",
+        "main.direction_pilotage",
+        "main.comite_pilotage",
+        "main.journal_metier",
+        "main.parcours_metier",
+        "main.assistant_bilan_financeur",
+        "main.qualite_bilans",
+        "admin.matrice_droits",
         "main.controle",
     }
     manquants = attendus - endpoints
