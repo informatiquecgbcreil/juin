@@ -67,7 +67,7 @@
         <a class="btn ok" href="{{ url_for('projets.projet_action_fiche_document', projet_id=projet.id, action_id=action.id, year=year) }}">Fiche prête</a>
         <a class="btn" href="{{ url_for('projets.projet_action_fiche_editer', projet_id=projet.id, action_id=action.id) }}">Fiche action (format imposé)</a>
         <a class="btn" href="{{ url_for('projets.projet_synthese', projet_id=projet.id, year=year) }}">Retour synthèse</a>
-        <a class="btn" href="{{ url_for('statsimpact.dashboard', secteur=projet.secteur) }}{% for atelier_id in action_atelier_ids %}&atelier_ids={{ atelier_id }}{% endfor %}&date_from={{ period_start }}&date_to={{ period_end }}">Ouvrir Stats-impact</a>
+        <a class="btn" href="{{ url_for('statsimpact.dashboard', secteur=projet.secteur) }}{% for atelier_id in action_atelier_ids %}&atelier_ids={{ atelier_id }}{% endfor %}&date_from={{ period_start }}&date_to={{ period_end }}">Ouvrir les résultats</a>
         <button class="btn no-print" type="button" onclick="window.print()">Imprimer</button>
       </div>
     </div>
@@ -92,7 +92,7 @@
         <div class="project-action-fact"><div class="project-action-fact__label">Référent</div><strong>{{ action.referent or "Non renseigné" }}</strong></div>
         <div class="project-action-fact"><div class="project-action-fact__label">Lieu</div><strong>{{ action.lieu or "Non renseigné" }}</strong></div>
         <div class="project-action-fact"><div class="project-action-fact__label">Période</div><strong>{{ action.date_debut.strftime("%d/%m/%Y") if action.date_debut else "?" }} → {{ action.date_fin.strftime("%d/%m/%Y") if action.date_fin else "?" }}</strong></div>
-        <div class="project-action-fact"><div class="project-action-fact__label">Ateliers stats-impact</div><strong>{{ action_atelier_ids|length }}</strong></div>
+        <div class="project-action-fact"><div class="project-action-fact__label">Ateliers suivis</div><strong>{{ action_atelier_ids|length }}</strong></div>
       </div>
     </section>
 
@@ -192,7 +192,7 @@
           </div>
 
           <div class="project-action-linked">
-            <h3 style="margin-top:0;">Ateliers stats-impact rattachés</h3>
+            <h3 style="margin-top:0;">Ateliers rattachés aux résultats</h3>
             <p class="muted">Ces liens servent uniquement à calculer les chiffres de cette fiche action depuis les présences existantes.</p>
             <div class="project-action-checks">
               {% for atelier in ateliers %}
@@ -230,7 +230,7 @@
     </section>
 
     <aside class="monster-card">
-      <h2>Lecture stats-impact</h2>
+      <h2>Résultats de l’action</h2>
       <p class="muted">Cette action ne crée pas une nouvelle source de statistiques. Elle filtre les ateliers liés sur sa période.</p>
       <div class="tablewrap clean wide">
         <table>

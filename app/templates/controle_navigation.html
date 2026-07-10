@@ -19,14 +19,14 @@
 
 <div class="audit-shell">
   <section class="audit-hero">
-    <h1>Audit navigation & templates</h1>
+    <h1>Vérification des liens et des pages</h1>
     <p class="muted">
-      Contrôle rapide des liens, endpoints, permissions de template et vieux fantômes SQLite.
-      Ce n’est pas un test complet, mais ça attrape les portes qui donnent sur le vide.
+      Repérez les liens ou pages qui risquent de ne pas fonctionner correctement.
+      Les détails techniques sont conservés plus bas pour la personne chargée de la maintenance.
     </p>
     <div class="inline" style="gap:8px;flex-wrap:wrap;">
       <a class="btn" href="{{ url_for('main.controle') }}">← Contrôle général</a>
-      <a class="btn ok" href="{{ url_for('main.controle_navigation') }}">Relancer l’audit</a>
+      <a class="btn ok" href="{{ url_for('main.controle_navigation') }}">Relancer la vérification</a>
     </div>
   </section>
 

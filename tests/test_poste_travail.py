@@ -138,14 +138,14 @@ def test_dashboard_affiche_le_poste_de_travail(app):
 
 
 def test_mode_simple_allege_l_accueil(app):
-    """En mode simple : pas de graphiques ni de « Je veux faire quoi ? » ;
+    """En mode simple : pas de graphiques ni de « Que voulez-vous faire ? » ;
     en mode expert, tout revient."""
     c = _login_role(app, "pt-simple@example.org", "direction")
 
     # Mode simple (défaut)
     body = c.get("/dashboard").get_data(as_text=True)
     assert "poste-card" in body
-    assert "Je veux faire quoi ?" not in body
+    assert "Que voulez-vous faire ?" not in body
     assert 'id="chartBudget"' not in body
     assert "À traiter en premier" in body
 
@@ -153,6 +153,101 @@ def test_mode_simple_allege_l_accueil(app):
     r = c.post("/ui-mode", data={"mode": "expert"})
     assert r.status_code == 302
     body = c.get("/dashboard").get_data(as_text=True)
-    assert "Je veux faire quoi ?" in body
+    assert "Que voulez-vous faire ?" in body
     assert 'id="chartBudget"' in body
     assert "poste-card" in body
+
+
+def test_dashboard_affiche_mes_actions_et_signaux_du_jour(app):
+    c = _login_role(app, "pt-signaux@example.org", "responsable_secteur", secteur="Numérique")
+    body = c.get("/dashboard").get_data(as_text=True)
+    assert "Mes actions du jour" in body
+    assert "Séances aujourd" in body
+    assert "Présences à compléter" in body
+    assert "Fiches à compléter" in body
+    assert "Rappels ouverts" in body
+
+
+def test_compteurs_sans_secteur_ne_deviennent_jamais_globaux(app):
+    """Un compte borné mais mal configuré voit une alerte, pas les totaux des autres secteurs."""
+    suf = uuid.uuid4().hex[:6]
+    with app.app_context():
+        from app.extensions import db
+        from app.models import AtelierActivite, SessionActivite
+
+        atelier = AtelierActivite(nom=f"PTGlobal{suf}", secteur=f"Autre{suf}", type_atelier="COLLECTIF")
+        db.session.add(atelier)
+        db.session.flush()
+        db.session.add(SessionActivite(
+            atelier_id=atelier.id,
+            secteur=f"Autre{suf}",
+            session_type="COLLECTIF",
+            date_session=dt.date.today(),
+        ))
+        db.session.commit()
+
+    _login_role(app, f"pt-sans-secteur-{suf}@example.org", "responsable_secteur", secteur=None)
+    with app.app_context():
+        from app.models import User
+        from app.services.poste_travail import build_poste_travail
+
+        user = User.query.filter_by(email=f"pt-sans-secteur-{suf}@example.org").first()
+        with app.test_request_context():
+            poste = build_poste_travail(user)
+
+    assert any(signal["key"] == "missing_scope" for signal in poste["signals"])
+    assert not any(signal["key"] == "today_sessions" for signal in poste["signals"])
+
+
+def test_date_du_rendez_vous_prime_sur_date_session(app):
+    """Une ancienne date_session ne doit pas faire compter un rendez-vous prévu demain aujourd'hui."""
+    suf = uuid.uuid4().hex[:6]
+    secteur = f"PTRdv{suf}"
+    with app.app_context():
+        from app.extensions import db
+        from app.models import AtelierActivite, SessionActivite
+
+        atelier = AtelierActivite(nom=f"PTRdv{suf}", secteur=secteur, type_atelier="COLLECTIF")
+        db.session.add(atelier)
+        db.session.flush()
+        db.session.add(SessionActivite(
+            atelier_id=atelier.id,
+            secteur=secteur,
+            session_type="COLLECTIF",
+            date_session=dt.date.today(),
+            rdv_date=dt.date.today() + dt.timedelta(days=1),
+        ))
+        db.session.commit()
+
+    _login_role(app, f"pt-rdv-{suf}@example.org", "responsable_secteur", secteur=secteur)
+    with app.app_context():
+        from app.models import User
+        from app.services.poste_travail import build_poste_travail
+
+        user = User.query.filter_by(email=f"pt-rdv-{suf}@example.org").first()
+        with app.test_request_context():
+            poste = build_poste_travail(user)
+
+    signal = next(row for row in poste["signals"] if row["key"] == "today_sessions")
+    assert signal["value"] == 0
+
+
+def test_dashboard_ne_montre_pas_les_noms_sans_droit_participants(app):
+    suf = uuid.uuid4().hex[:8]
+    nom_secret = f"NomInvisible{suf}"
+    role_code = f"pt_dash_only_{suf}"
+    email = f"pt-dash-only-{suf}@example.org"
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Participant, Permission, Role
+
+        role = Role(code=role_code, label="Tableau seul")
+        permission = Permission.query.filter_by(code="dashboard:view").first()
+        role.permissions.append(permission)
+        db.session.add_all([role, Participant(nom=nom_secret, prenom="Test", created_secteur="Numérique")])
+        db.session.commit()
+
+    c = _login_role(app, email, role_code, secteur="Numérique")
+    c.post("/ui-mode", data={"mode": "expert"})
+    body = c.get("/dashboard").get_data(as_text=True)
+    assert nom_secret not in body

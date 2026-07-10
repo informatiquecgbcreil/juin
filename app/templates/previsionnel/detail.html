@@ -38,7 +38,7 @@
     <a class="btn {% if tab == 'synthese' %}ok{% endif %}" href="{{ url_for('previsionnel.detail', budget_id=budget.id, tab='synthese') }}">Synthèse</a>
     <a class="btn {% if tab == 'charges' %}ok{% endif %}" href="{{ url_for('previsionnel.detail', budget_id=budget.id, tab='charges') }}">Charges</a>
     <a class="btn {% if tab == 'produits' %}ok{% endif %}" href="{{ url_for('previsionnel.detail', budget_id=budget.id, tab='produits') }}">Produits</a>
-    <a class="btn {% if tab == 'ventilation' %}ok{% endif %}" href="{{ url_for('previsionnel.detail', budget_id=budget.id, tab='ventilation') }}">Ventilation</a>
+    <a class="btn {% if tab == 'ventilation' %}ok{% endif %}" href="{{ url_for('previsionnel.detail', budget_id=budget.id, tab='ventilation') }}">Répartition par projet</a>
     <a class="btn {% if tab == 'realise' %}ok{% endif %}" href="{{ url_for('previsionnel.detail', budget_id=budget.id, tab='realise') }}">Prévu vs réalisé</a>
     <a class="btn {% if tab == 'appels' %}ok{% endif %}" href="{{ url_for('previsionnel.detail', budget_id=budget.id, tab='appels') }}">Appels à projet</a>
     <a class="btn" href="{{ url_for('previsionnel.referentiel') }}">Référentiel</a>
@@ -162,7 +162,7 @@
   <h2>Décomposition par projet</h2>
   <div class="tablewrap clean">
     <table class="table"><thead><tr><th>Projet</th><th>Charges</th><th>Produits</th><th>Solde</th></tr></thead><tbody>
-      {% for r in project_rows %}<tr><td>{{ r.label }}</td><td>{{ '%.2f'|format(r.charges) }} €</td><td>{{ '%.2f'|format(r.produits) }} €</td><td><strong>{{ '%.2f'|format(r.solde) }} €</strong></td></tr>{% else %}<tr><td colspan="4" class="muted">Pas encore de ventilation.</td></tr>{% endfor %}
+      {% for r in project_rows %}<tr><td>{{ r.label }}</td><td>{{ '%.2f'|format(r.charges) }} €</td><td>{{ '%.2f'|format(r.produits) }} €</td><td><strong>{{ '%.2f'|format(r.solde) }} €</strong></td></tr>{% else %}<tr><td colspan="4" class="muted">Aucune répartition par projet pour le moment.</td></tr>{% endfor %}
     </tbody></table>
   </div>
 </div>

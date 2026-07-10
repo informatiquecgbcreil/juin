@@ -59,3 +59,20 @@ def test_export_bilan_xlsx(admin_client):
 def test_export_depenses_csv(admin_client):
     r = admin_client.get("/export/depenses.csv")
     assert r.status_code == 200
+
+
+def test_etat_vide_explique_et_propose_une_action(admin_client):
+    r = admin_client.get("/participants/?q=personne-qui-n-existe-vraiment-pas")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "ui-empty-state" in body
+    assert "Aucune personne ne correspond à votre recherche" in body
+    assert "Réinitialiser les filtres" in body
+
+
+def test_menu_expert_utilise_des_mots_comprehensibles(admin_client):
+    admin_client.post("/ui-mode", data={"mode": "expert"})
+    body = admin_client.get("/dashboard").get_data(as_text=True)
+    for label in ["Budgets demandés", "Résultats &amp; bilans", "Droits d’accès", "Vérifier les liens"]:
+        assert label in body
+    assert ">Audit navigation<" not in body

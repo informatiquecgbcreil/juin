@@ -70,6 +70,22 @@ def test_flux_ics_public_par_jeton(app, client):
     assert "DTSTART;TZID=Europe/Paris:" in body
 
 
+def test_dtstamp_ics_utilise_l_heure_utc_partagee(app, client, monkeypatch):
+    """Le DTSTAMP reste UTC et passe par le helper non déprécié du projet."""
+    from app.services import calendrier
+
+    instant_utc = dt.datetime(2026, 7, 10, 12, 34, 56)
+    monkeypatch.setattr(calendrier, "utcnow", lambda: instant_utc)
+
+    suf = uuid.uuid4().hex[:6]
+    secteur = f"Stamp{suf}"
+    _seance(app, secteur=secteur, nom=f"Cours{suf}")
+    token = _user_avec_token(app, email=f"stamp-{suf}@ex.org", secteur=secteur)
+
+    body = client.get(f"/calendrier/{token}.ics").get_data(as_text=True)
+    assert "DTSTAMP:20260710T123456Z" in body
+
+
 def test_jeton_inconnu_404(app, client):
     assert client.get("/calendrier/nimportequoi.ics").status_code == 404
 

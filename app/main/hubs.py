@@ -99,9 +99,9 @@ def hub_activites():
 
     if can("statsimpact:view") or can("stats:view"):
         cards.append({
-            "title": "Données ateliers",
-            "subtitle": "Suivre les statistiques d’activité, présences et ateliers.",
-            "primary_label": "Voir les données",
+            "title": "Fréquentation et résultats",
+            "subtitle": "Suivre les présences, les publics accueillis et les résultats des activités.",
+            "primary_label": "Voir les résultats",
             "primary_url": url_for("statsimpact.dashboard"),
             "secondary": [],
             "tag": "Analyse",
@@ -147,9 +147,9 @@ def hub_bilans():
 
     if can("stats:view"):
         cards.append({
-            "title": "Stats & bilans",
+            "title": "Résultats & bilans",
             "subtitle": "Consulter les chiffres clés et les indicateurs de pilotage.",
-            "primary_label": "Ouvrir stats & bilans",
+            "primary_label": "Ouvrir les résultats & bilans",
             "primary_url": url_for("main.stats_bilans"),
             "secondary": [
                 {"label": "Bilan SENACS", "url": url_for("bilans.bilan_senacs")},
@@ -162,9 +162,9 @@ def hub_bilans():
 
     if can("bilans:view"):
         cards.append({
-            "title": "Bilans lourds",
+            "title": "Bilans complets",
             "subtitle": "Préparer les bilans annuels, narratifs et exports complets.",
-            "primary_label": "Ouvrir bilans lourds",
+            "primary_label": "Ouvrir les bilans complets",
             "primary_url": url_for("bilans.bilans_lourds", year=date.today().year),
             "secondary": [
                 {"label": "Bilans financeurs", "url": url_for("bilans.bilans_financeurs")},
@@ -389,9 +389,9 @@ def documents_exports():
             groups.append({"title": title, "intro": intro, "cards": cards})
 
     if can("statsimpact:view") or can("stats:view"):
-        add_group("Présences et stats-impact", "Exports alimentés par les présences d'émargement.", [
+        add_group("Fréquentation et résultats", "Exports alimentés par les présences d'émargement.", [
             {
-                "title": "Exports stats-impact",
+                "title": "Exports des activités",
                 "meta": "Présences, ateliers, démographie",
                 "actions": [
                     {"label": "Ouvrir", "url": url_for("statsimpact.exports", **stat_args), "primary": True},
@@ -561,14 +561,14 @@ def hub_ressources():
             "primary_label": "Ouvrir le générateur",
             "primary_url": url_for("previsionnel.generateur"),
             "secondary": [
-                {"label": "Prévisionnels & demandes", "url": url_for("previsionnel.index")},
+                {"label": "Budgets demandés", "url": url_for("previsionnel.index")},
             ],
             "tag": "Budget",
         })
 
     if can("participants:view"):
         cards.append({
-            "title": "Échelle de Hart — participation",
+            "title": "Participation des habitants",
             "subtitle": "Pyramide de la participation des habitants : répartition par étage, évolution entre périodes, détail par participant. Alimentée par l'émargement.",
             "primary_label": "Ouvrir la pyramide",
             "primary_url": url_for("main.hart_collectif"),
@@ -586,7 +586,7 @@ def hub_ressources():
 
     if can("rh:view"):
         cards.append({
-            "title": "RH — Salariés",
+            "title": "Équipe salariée",
             "subtitle": "Réservé direction : salariés, affectation secteur/poste, ETP, masse salariale. Alimente le SENACS et les finances. Import depuis votre outil RH.",
             "primary_label": "Ouvrir le module RH",
             "primary_url": url_for("main.rh"),

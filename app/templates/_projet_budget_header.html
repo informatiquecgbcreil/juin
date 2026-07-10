@@ -16,7 +16,7 @@
         <div class="btn-group" role="group" aria-label="Budget du projet">
           <a class="btn btn-sm {{ 'btn-primary' if request.path.endswith('/budget/charges') else 'btn-outline-primary' }}" href="{{ url_for('projets.projet_budget_charges', projet_id=projet.id) }}">Charges</a>
           <a class="btn btn-sm {{ 'btn-primary' if request.path.endswith('/budget/produits') else 'btn-outline-primary' }}" href="{{ url_for('projets.projet_budget_produits', projet_id=projet.id) }}">Produits</a>
-          <a class="btn btn-sm {{ 'btn-primary' if request.path.endswith('/budget/ventilation') else 'btn-outline-primary' }}" href="{{ url_for('projets.projet_budget_ventilation', projet_id=projet.id) }}">Ventilation</a>
+          <a class="btn btn-sm {{ 'btn-primary' if request.path.endswith('/budget/ventilation') else 'btn-outline-primary' }}" href="{{ url_for('projets.projet_budget_ventilation', projet_id=projet.id) }}">Répartition du budget</a>
           <a class="btn btn-sm {{ 'btn-primary' if request.path.endswith('/budget/synthese') else 'btn-outline-primary' }}" href="{{ url_for('projets.projet_budget_synthese', projet_id=projet.id) }}">Synthèse</a>
         </div>
       </div>

@@ -1,5 +1,7 @@
 {% extends "layout.html" %}
+{% import "_ux_macros.html" as ui %}
 {% block body %}
+{% set has_filters = q or secteurs or competence %}
 
 <div class="stack">
   <div class="card">
@@ -146,7 +148,13 @@
             </tr>
           {% endfor %}
           {% if partenaires|length == 0 %}
-            <tr><td colspan="7" class="muted">Aucun partenaire trouvé.</td></tr>
+            <tr><td colspan="7">{{ ui.empty_state(
+              "Aucun partenaire ne correspond aux filtres" if has_filters else "L’annuaire des partenaires est vide",
+              "Réinitialisez les filtres pour revoir tout l’annuaire." if has_filters else "Ajoutez une structure partenaire pour retrouver ses contacts, compétences et modalités d’orientation.",
+              url_for('partenaires.index') if has_filters else (url_for('partenaires.create') if can('partenaires:edit') else None),
+              "Réinitialiser les filtres" if has_filters else ("Ajouter un partenaire" if can('partenaires:edit') else None),
+              "🤝"
+            ) }}</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -184,7 +192,13 @@
           </div>
         </article>
       {% else %}
-        <div class="quick-empty"><strong>Aucun partenaire trouvé.</strong>Ajoutez un partenaire pour constituer l’annuaire.</div>
+        {{ ui.empty_state(
+          "Aucun partenaire ne correspond aux filtres" if has_filters else "L’annuaire des partenaires est vide",
+          "Réinitialisez les filtres pour revoir tout l’annuaire." if has_filters else "Ajoutez une structure partenaire pour retrouver ses contacts, compétences et modalités d’orientation.",
+          url_for('partenaires.index') if has_filters else (url_for('partenaires.create') if can('partenaires:edit') else None),
+          "Réinitialiser les filtres" if has_filters else ("Ajouter un partenaire" if can('partenaires:edit') else None),
+          "🤝"
+        ) }}
       {% endfor %}
     </div>
   </div>

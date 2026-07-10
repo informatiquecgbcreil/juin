@@ -5,7 +5,7 @@
   <div class="card">
     {% include "_projet_budget_header.html" %}
     <div class="muted" style="margin-top:8px;">
-      Laissez un montant vide ou saisissez 0 pour supprimer une ventilation existante.
+      Laissez un montant vide ou saisissez 0 pour supprimer une répartition existante.
     </div>
   </div>
 
@@ -22,7 +22,7 @@
       <div class="kpi-card">
         <div class="kpi-label">Charges totales</div>
         <div class="kpi-value">{{ "%.2f"|format(total_charges) }}€</div>
-        <div class="kpi-help">Base de ventilation.</div>
+        <div class="kpi-help">Base de répartition.</div>
       </div>
 
       <div class="kpi-card">
@@ -45,7 +45,7 @@
     </div>
 
     <div style="margin-top:12px;">
-      <div class="kpi-label">Progression de ventilation</div>
+      <div class="kpi-label">Progression de la répartition</div>
       <div class="meter">
         <div class="meter__fill" style="width:{{ pct_ventile }}%;"></div>
       </div>
@@ -169,14 +169,14 @@
 				</td>
               </tr>
             {% else %}
-              <tr><td colspan="{{ (produits|length) + 3 }}"><div class="quick-empty"><strong>La ventilation ne peut pas encore être renseignée.</strong>Ajoutez d’abord des charges et des financeurs.</div></td></tr>
+              <tr><td colspan="{{ (produits|length) + 3 }}"><div class="quick-empty"><strong>La répartition ne peut pas encore être renseignée.</strong>Ajoutez d’abord des charges et des financeurs.</div></td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
       <div style="margin-top:12px; display:flex; justify-content:flex-end;">
-        <button class="btn ok" type="submit">Enregistrer la ventilation</button>
+        <button class="btn ok" type="submit">Enregistrer la répartition</button>
       </div>
     </form>
   </div>

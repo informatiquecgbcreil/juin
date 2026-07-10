@@ -30,7 +30,7 @@
         <a class="btn" href="{{ url_for('projets.projets_edit', projet_id=projet.id) }}">Retour au projet</a>
         <a class="btn" href="{{ url_for('projets.projet_indicateurs_export', projet_id=projet.id) }}">⬇ Export Excel</a>
         <a class="btn" href="{{ url_for('main.stats', secteur=projet.secteur, projet_id=projet.id) }}">Voir dans Stats</a>
-        <a class="btn ok" href="{{ url_for('statsimpact.dashboard', secteur=projet.secteur) }}{% for atelier_id in linked_ateliers %}&atelier_ids={{ atelier_id }}{% endfor %}">Ouvrir Stats-impact</a>
+        <a class="btn ok" href="{{ url_for('statsimpact.dashboard', secteur=projet.secteur) }}{% for atelier_id in linked_ateliers %}&atelier_ids={{ atelier_id }}{% endfor %}">Ouvrir les résultats</a>
       </div>
     </div>
 
@@ -38,7 +38,7 @@
       <div class="ui-kpi-card"><div class="ui-kpi-card__label">Indicateurs</div><div class="ui-kpi-card__value">{{ indicator_counts.total }}</div></div>
       <div class="ui-kpi-card"><div class="ui-kpi-card__label">Actifs</div><div class="ui-kpi-card__value">{{ indicator_counts.active }}</div></div>
       <div class="ui-kpi-card"><div class="ui-kpi-card__label">Manuels</div><div class="ui-kpi-card__value">{{ indicator_counts.manual }}</div></div>
-      <div class="ui-kpi-card"><div class="ui-kpi-card__label">Stats-impact</div><div class="ui-kpi-card__value">{{ indicator_counts.stats }}</div></div>
+      <div class="ui-kpi-card"><div class="ui-kpi-card__label">Calculés depuis les présences</div><div class="ui-kpi-card__value">{{ indicator_counts.stats }}</div></div>
     </div>
   </section>
 
@@ -61,7 +61,7 @@
   <section class="ui-panel">
     <div class="ui-section-head">
       <div><h2 style="margin:0;">Restitution visuelle ({{ indicator_year }})</h2>
-        <div class="muted">Valeur atteinte par rapport à l'objectif. Les valeurs « Stats-impact » sont recalculées.</div></div>
+        <div class="muted">Valeur atteinte par rapport à l'objectif. Les valeurs issues des présences sont recalculées automatiquement.</div></div>
     </div>
     <div class="gauge-list">
       {% for row in indicator_computed %}

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_ux_macros.html" as ui %}
 {% block body %}
 
 {#
@@ -98,9 +99,9 @@
       </div>
     </section>
 
-    <section class="section-card">
+    <section class="section-card" id="creer-subvention">
       <div class="page-header">
-        <div class="page-title-wrap"><h2>Créer une subvention</h2><p class="muted">Une fois créée, vous pourrez y rattacher des projets, ventiler les montants et suivre les dépenses.</p></div>
+        <div class="page-title-wrap"><h2>Créer une subvention</h2><p class="muted">Une fois créée, vous pourrez y rattacher des projets, répartir les montants et suivre les dépenses.</p></div>
       </div>
       <form method="POST" action="{{ url_for('main.subvention_create') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -186,7 +187,13 @@
               </div></td>
             </tr>
           {% endfor %}
-          {% if subs|length == 0 %}<tr><td colspan="10"><div class="quick-empty"><strong>Aucune subvention n’est enregistrée pour le moment.</strong>Créez une subvention pour démarrer le suivi financier.</div></td></tr>{% endif %}
+          {% if subs|length == 0 %}<tr><td colspan="10">{{ ui.empty_state(
+            "Aucune subvention archivée" if voir_archives else "Aucun financement enregistré pour cet exercice",
+            "Aucun ancien dossier n’attend d’être consulté." if voir_archives else "Créez la première subvention pour suivre le montant demandé, accordé, reçu et dépensé.",
+            url_for('main.subventions_list', annee=selected_year) if voir_archives else "#creer-subvention",
+            "Voir les dossiers actifs" if voir_archives else "Créer une subvention",
+            "💶"
+          ) }}</td></tr>{% endif %}
         </tbody>
       </table>
     </div>
@@ -219,7 +226,13 @@
           </div>
         </article>
       {% else %}
-        <div class="quick-empty"><strong>Aucune subvention n’est enregistrée pour le moment.</strong>Créez une subvention pour démarrer le suivi financier.</div>
+        {{ ui.empty_state(
+          "Aucune subvention archivée" if voir_archives else "Aucun financement enregistré pour cet exercice",
+          "Aucun ancien dossier n’attend d’être consulté." if voir_archives else "Créez la première subvention pour suivre le montant demandé, accordé, reçu et dépensé.",
+          url_for('main.subventions_list', annee=selected_year) if voir_archives else "#creer-subvention",
+          "Voir les dossiers actifs" if voir_archives else "Créer une subvention",
+          "💶"
+        ) }}
       {% endfor %}
     </div>
     <div class="callout-soft" id="subvNoResult" style="display:none;">Aucun dossier ne correspond aux filtres sélectionnés.</div>

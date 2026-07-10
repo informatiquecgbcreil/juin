@@ -465,15 +465,19 @@
     }
 
 
-    /* Aide contextuelle « Comprendre cette page » */
-    .aide-page{border:1px solid var(--border-soft);border-radius:14px;margin:0 0 14px;background:color-mix(in srgb, var(--surface-soft) 88%, transparent)}
-    .aide-page > summary{cursor:pointer;list-style:none;padding:10px 14px;font-weight:700;user-select:none}
-    .aide-page > summary::-webkit-details-marker{display:none}
-    .aide-page[open] > summary{border-bottom:1px solid var(--border-soft)}
-    .aide-page__corps{padding:10px 16px 14px}
+    /* Aide contextuelle : l'utilité de la page reste visible, les étapes se déplient. */
+    .aide-page{border:1px solid var(--border-soft);border-radius:14px;margin:0 0 14px;background:color-mix(in srgb, var(--surface-soft) 88%, transparent);padding:12px 14px}
+    .aide-page__intro{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start}
+    .aide-page__icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:color-mix(in srgb,var(--accent) 12%,transparent);font-size:18px}
+    .aide-page__label{display:block;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+    .aide-page__resume{margin:0;line-height:1.5;max-width:90ch}
+    .aide-page__details{margin:8px 0 0 44px}
+    .aide-page__details > summary{cursor:pointer;width:max-content;max-width:100%;font-weight:700;color:var(--accent);user-select:none}
+    .aide-page__corps{padding:8px 0 0}
     .aide-page__corps p{margin:6px 0;line-height:1.5;max-width:80ch}
     .aide-page__corps ol{margin:6px 0 6px 20px;line-height:1.6}
     .aide-page__astuce{opacity:.85}
+    @media(max-width:560px){.aide-page__details{margin-left:0}.aide-page{padding:11px 12px}}
 
     /* Fil d'Ariane : page courante mise en valeur, niveaux cliquables soulignés au survol */
     .breadcrumb__current{ color:var(--text); font-weight:700; }
@@ -604,13 +608,13 @@
                       <a class="pill {% if ep.startswith('admin.users') %}active{% endif %}" href="{{ url_for('admin.users') }}">Équipe</a>
                     {% endif %}
                     {% if can('admin:rbac') %}
-                      <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
-                      <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">Santé système</a>
-                      <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Journal d'audit</a>
+                      <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits d’accès</a>
+                      <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">État de l’application</a>
+                      <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Historique sensible</a>
                     {% endif %}
                     {% if can('controle:view') %}
                       <a class="pill {% if ep == 'main.controle' %}active{% endif %}" href="{{ url_for('main.controle') }}">Contrôle</a>
-                  <a class="pill {% if ep == 'main.controle_navigation' %}active{% endif %}" href="{{ url_for('main.controle_navigation') }}">Audit navigation</a>
+                  <a class="pill {% if ep == 'main.controle_navigation' %}active{% endif %}" href="{{ url_for('main.controle_navigation') }}">Vérifier les liens</a>
                     {% endif %}
                   {% endif %}
                 </div>
@@ -650,7 +654,7 @@
                     <a class="pill {% if ep.startswith('main.mon_agenda') %}active{% endif %}" href="{{ url_for('main.mon_agenda') }}">📅 Mon agenda (synchro)</a>
                   {% endif %}
                   {% if can('statsimpact:view') or can('stats:view') %}
-                    <a class="pill {% if ep.startswith('statsimpact.') %}active{% endif %}" href="{{ url_for('statsimpact.dashboard') }}">Données ateliers</a>
+                    <a class="pill {% if ep.startswith('statsimpact.') %}active{% endif %}" href="{{ url_for('statsimpact.dashboard') }}">Fréquentation &amp; résultats</a>
                   {% endif %}
                   {% if can('pedagogie:view') %}
                     <a class="pill {% if ep.startswith('pedagogie.') and not ep.startswith('pedagogie.suivi_pedagogique') %}active{% endif %}" href="{{ url_for('pedagogie.index') }}">Apprentissages</a>
@@ -670,9 +674,9 @@
                     <a class="pill {% if ep == 'projets.finance_secteur' %}active{% endif %}" href="{{ url_for('projets.finance_secteur') }}">Pilotage annuel</a>
                   {% endif %}
                   {% if can('subventions:view') %}
-                    <a class="pill {% if ep.startswith('previsionnel.') and ep != 'previsionnel.generateur' %}active{% endif %}" href="{{ url_for('previsionnel.index') }}">Prévisionnels &amp; demandes</a>
+                    <a class="pill {% if ep.startswith('previsionnel.') and ep != 'previsionnel.generateur' %}active{% endif %}" href="{{ url_for('previsionnel.index') }}">Budgets demandés</a>
                     <a class="pill {% if ep == 'previsionnel.generateur' %}active{% endif %}" href="{{ url_for('previsionnel.generateur') }}">Générateur de budget</a>
-                    <a class="pill {% if ep.startswith('main.subventions') %}active{% endif %}" href="{{ url_for('main.subventions_list') }}">Enveloppes</a>
+                    <a class="pill {% if ep.startswith('main.subventions') %}active{% endif %}" href="{{ url_for('main.subventions_list') }}">Financements accordés</a>
                   {% endif %}
                   {% if can('depenses:view') %}
                     <a class="pill {% if ep.startswith('budget.') %}active{% endif %}" href="{{ url_for('budget.depenses_list') }}">Dépenses</a>
@@ -689,10 +693,10 @@
                   <a class="pill {% if ep == 'main.hub_bilans' %}active{% endif %}" href="{{ url_for('main.hub_bilans') }}">Accueil bilans</a>
                   <a class="pill {% if ep == 'main.documents_exports' %}active{% endif %}" href="{{ url_for('main.documents_exports') }}">Documents prêts</a>
                   {% if can('stats:view') %}
-                    <a class="pill {% if ep.startswith('main.stats_bilans') or ep.startswith('main.bilan_global') or ep.startswith('main.stats') %}active{% endif %}" href="{{ url_for('main.stats_bilans') }}">Stats &amp; bilans</a>
+                    <a class="pill {% if ep.startswith('main.stats_bilans') or ep.startswith('main.bilan_global') or ep.startswith('main.stats') %}active{% endif %}" href="{{ url_for('main.stats_bilans') }}">Résultats &amp; bilans</a>
                   {% endif %}
                   {% if can('bilans:view') %}
-                    <a class="pill {% if ep.startswith('bilans.') %}active{% endif %}" href="{{ url_for('bilans.bilans_lourds', year=2026) }}">Bilans lourds</a>
+                    <a class="pill {% if ep.startswith('bilans.') %}active{% endif %}" href="{{ url_for('bilans.bilans_lourds', year=2026) }}">Bilans complets</a>
                   {% endif %}
                   {% if can('questionnaires:view') %}
                     <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires d’impact</a>
@@ -705,11 +709,11 @@
                 <div class="nav-more-panel">
                   <a class="pill {% if ep == 'main.hub_ressources' %}active{% endif %}" href="{{ url_for('main.hub_ressources') }}">Accueil ressources</a>
                   {% if can('participants:view') %}
-                    <a class="pill {% if ep == 'main.hart_collectif' %}active{% endif %}" href="{{ url_for('main.hart_collectif') }}">Échelle de Hart</a>
+                    <a class="pill {% if ep == 'main.hart_collectif' %}active{% endif %}" href="{{ url_for('main.hart_collectif') }}">Participation des habitants</a>
                     <a class="pill {% if ep == 'main.benevolat' %}active{% endif %}" href="{{ url_for('main.benevolat') }}">Bénévolat</a>
                   {% endif %}
                   {% if can('rh:view') %}
-                    <a class="pill {% if ep == 'main.rh' %}active{% endif %}" href="{{ url_for('main.rh') }}">RH — Salariés</a>
+                    <a class="pill {% if ep == 'main.rh' %}active{% endif %}" href="{{ url_for('main.rh') }}">Équipe salariée</a>
                   {% endif %}
                   {% if can('dons:view') %}
                     <a class="pill {% if ep in ('main.dons_registre', 'main.don_recu') %}active{% endif %}" href="{{ url_for('main.dons_registre') }}">Dons &amp; reçus fiscaux</a>
@@ -737,17 +741,17 @@
               </details>
 
               <details class="nav-more">
-                <summary class="pill {% if is_admin_area %}active{% endif %}">Admin</summary>
+                <summary class="pill {% if is_admin_area %}active{% endif %}">Administration</summary>
                 <div class="nav-more-panel">
                   {% if can('admin:users') %}
                     <a class="pill {% if ep.startswith('admin.users') %}active{% endif %}" href="{{ url_for('admin.users') }}">Équipe</a>
                   {% endif %}
                   {% if can('admin:rbac') %}
-                    <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
-                    <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">Santé système</a>
-                    <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Journal d'audit</a>
-                    <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Référentiels</a>
-                    <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Identité app</a>
+                    <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits d’accès</a>
+                    <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">État de l’application</a>
+                    <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Historique sensible</a>
+                    <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Listes de compétences</a>
+                    <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Nom et logo</a>
                     <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>
                   {% endif %}
                   {% if can('secteurs:edit') %}
@@ -755,10 +759,10 @@
                   {% endif %}
                   {% if can('controle:view') %}
                     <a class="pill {% if ep == 'main.controle' %}active{% endif %}" href="{{ url_for('main.controle') }}">Contrôle</a>
-                  <a class="pill {% if ep == 'main.controle_navigation' %}active{% endif %}" href="{{ url_for('main.controle_navigation') }}">Audit navigation</a>
+                  <a class="pill {% if ep == 'main.controle_navigation' %}active{% endif %}" href="{{ url_for('main.controle_navigation') }}">Vérifier les liens</a>
                   {% endif %}
                   {% if can('ateliers:sync') %}
-                    <a class="pill {% if request.endpoint == 'admin.import_excel' %}active{% endif %}" href="{{ url_for('admin.import_excel') }}">Import Excel</a>
+                    <a class="pill {% if request.endpoint == 'admin.import_excel' %}active{% endif %}" href="{{ url_for('admin.import_excel') }}">Importer depuis Excel</a>
                   {% endif %}
                 </div>
               </details>
@@ -773,11 +777,11 @@
                 <div class="nav-more-panel">
                   <a class="pill {% if ep.startswith('admin.users') %}active{% endif %}" href="{{ url_for('admin.users') }}">Équipe</a>
                   {% if can('admin:rbac') %}
-                    <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits</a>
-                    <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">Santé système</a>
-                    <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Journal d'audit</a>
-                    <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Référentiels</a>
-                    <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Identité app</a>
+                    <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits d’accès</a>
+                    <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">État de l’application</a>
+                    <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Historique sensible</a>
+                    <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Listes de compétences</a>
+                    <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Nom et logo</a>
                     <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>
                   {% endif %}
                   {% if can('secteurs:edit') %}
@@ -785,10 +789,10 @@
                   {% endif %}
                   {% if can('controle:view') %}
                     <a class="pill {% if ep == 'main.controle' %}active{% endif %}" href="{{ url_for('main.controle') }}">Contrôle</a>
-                  <a class="pill {% if ep == 'main.controle_navigation' %}active{% endif %}" href="{{ url_for('main.controle_navigation') }}">Audit navigation</a>
+                  <a class="pill {% if ep == 'main.controle_navigation' %}active{% endif %}" href="{{ url_for('main.controle_navigation') }}">Vérifier les liens</a>
                   {% endif %}
                   {% if can('ateliers:sync') %}
-                    <a class="pill {% if request.endpoint == 'admin.import_excel' %}active{% endif %}" href="{{ url_for('admin.import_excel') }}">Import Excel</a>
+                    <a class="pill {% if request.endpoint == 'admin.import_excel' %}active{% endif %}" href="{{ url_for('admin.import_excel') }}">Importer depuis Excel</a>
                   {% endif %}
                 </div>
               </details>
@@ -988,7 +992,7 @@
         <span class="context-badge"><strong>Portée</strong> · {% if can('scope:all_secteurs') %}Tous secteurs{% else %}{{ current_user.secteur_assigne or 'Secteur non défini' }}{% endif %}</span>
         {% set hint = perm_hints.get(endpoint_module) %}
         {% if hint and not ui_simplified %}
-          <span class="context-badge"><strong>Pourquoi je vois ça</strong> · permission {{ hint }}</span>
+          <span class="context-badge"><strong>Pourquoi je vois cette page</strong> · accès prévu par votre rôle</span>
         {% endif %}
       </section>
     {% endif %}
@@ -996,21 +1000,31 @@
     {% include "_guide_bandeau.html" %}
 
     {% if AIDE_PAGE %}
-      <details class="aide-page no-print">
-        <summary>❓ Comprendre cette page — {{ AIDE_PAGE.titre }}</summary>
-        <div class="aide-page__corps">
-          <p class="aide-page__resume">{{ AIDE_PAGE.resume }}</p>
-          {% if AIDE_PAGE.etapes %}
-            <ol>
-              {% for etape in AIDE_PAGE.etapes %}<li>{{ etape }}</li>{% endfor %}
-            </ol>
-          {% endif %}
-          {% if AIDE_PAGE.astuce %}
-            <p class="aide-page__astuce">💡 {{ AIDE_PAGE.astuce }}</p>
-          {% endif %}
-          <p><a href="{{ url_for('aide.notice') }}">Ouvrir la notice complète →</a></p>
+      <section class="aide-page no-print" aria-label="Aide pour cette page">
+        <div class="aide-page__intro">
+          <span class="aide-page__icon" aria-hidden="true">?</span>
+          <div>
+            <strong class="aide-page__label">À quoi sert cette page ?</strong>
+            <p class="aide-page__resume">{{ AIDE_PAGE.resume }}</p>
+          </div>
         </div>
-      </details>
+        {% if AIDE_PAGE.etapes or AIDE_PAGE.astuce %}
+          <details class="aide-page__details">
+            <summary>Voir comment faire — {{ AIDE_PAGE.titre }}</summary>
+            <div class="aide-page__corps">
+              {% if AIDE_PAGE.etapes %}
+                <ol>
+                  {% for etape in AIDE_PAGE.etapes %}<li>{{ etape }}</li>{% endfor %}
+                </ol>
+              {% endif %}
+              {% if AIDE_PAGE.astuce %}
+                <p class="aide-page__astuce">💡 {{ AIDE_PAGE.astuce }}</p>
+              {% endif %}
+              <p><a href="{{ url_for('aide.notice') }}">Ouvrir la notice complète →</a></p>
+            </div>
+          </details>
+        {% endif %}
+      </section>
     {% endif %}
     {% block body %}{% endblock %}
   </main>

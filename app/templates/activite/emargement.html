@@ -117,7 +117,7 @@
       <div class="hero-actions toolbar-line">
         <a class="btn" href="{{ url_for('activite.sessions', atelier_id=atelier.id) }}">Retour aux sessions</a>
         <a class="btn" href="{{ url_for('activite.session_edit_schedule', session_id=session.id) }}">Modifier la date et l'horaire</a>
-        <span class="status-badge {{ 'status-success' if session.kiosk_open else 'status-warning' }}">{{ 'Kiosque ouvert' if session.kiosk_open else 'Kiosque fermé' }}</span>
+        <span class="status-badge {{ 'status-success' if session.kiosk_open else 'status-warning' }}">{{ 'Pointage tablette ouvert' if session.kiosk_open else 'Pointage tablette fermé' }}</span>
         <form method="post" action="{{ url_for('activite.session_toggle_evenement', session_id=session.id) }}" style="margin:0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn" type="submit" title="Les séances événementielles sont comptées à part dans le volet événementiel du SENACS.">
@@ -129,14 +129,14 @@
         {% endif %}
         {# KIOSQUE PUBLIC #}
         {% if session.kiosk_open %}
-          <a class="btn" href="{{ url_for('kiosk.kiosk_home') }}" target="_blank">Ouvrir le kiosque</a>
+          <a class="btn" href="{{ url_for('kiosk.kiosk_home') }}" target="_blank">Ouvrir le pointage tablette</a>
           <a class="btn" href="{{ url_for('kiosk.kiosk_session', token=session.kiosk_token) }}" target="_blank">Ouvrir cette séance</a>
           <form method="post" action="{{ url_for('activite.kiosk_close', session_id=session.id) }}" style="margin:0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="conso_period_mode" value="{{ conso_period_mode }}">
       <input type="hidden" name="conso_period_start" value="{{ conso_period_start_value or '' }}">
       <input type="hidden" name="conso_period_end" value="{{ conso_period_end_value or '' }}">
-            <button class="btn" type="submit">Fermer le kiosque</button>
+            <button class="btn" type="submit">Fermer le pointage tablette</button>
           </form>
         {% else %}
           <form method="post" action="{{ url_for('activite.kiosk_open', session_id=session.id) }}" style="margin:0;">
@@ -144,7 +144,7 @@
       <input type="hidden" name="conso_period_mode" value="{{ conso_period_mode }}">
       <input type="hidden" name="conso_period_start" value="{{ conso_period_start_value or '' }}">
       <input type="hidden" name="conso_period_end" value="{{ conso_period_end_value or '' }}">
-            <button class="btn" type="submit">Ouvrir le kiosque</button>
+            <button class="btn" type="submit">Ouvrir le pointage tablette</button>
           </form>
         {% endif %}
       </div>
@@ -152,12 +152,12 @@
   </div>
 
   <section class="section-card">
-    {{ ux.callout("Flux conseillé", "Commencez par enregistrer les présences, puis utilisez l'évaluation individuelle ou l'évaluation groupée selon le niveau de détail attendu. Les liens de kiosque sont utiles lorsque les participants signent eux-mêmes sur un poste dédié.") }}
+    {{ ux.callout("Flux conseillé", "Commencez par enregistrer les présences, puis utilisez l'évaluation individuelle ou l'évaluation groupée selon le niveau de détail attendu. Le pointage tablette est utile lorsque les participants signent eux-mêmes sur un poste dédié.") }}
     {% set has_presences = presences and presences|length > 0 %}
     {% set has_competences = session_competences and session_competences|length > 0 %}
     <div class="inline-actions" style="margin-top:10px; gap:8px; flex-wrap:wrap;">
       <span class="status-badge {{ 'status-success' if session.kiosk_open else 'status-warning' }}">
-        1) Kiosque {{ 'terminé' if session.kiosk_open else 'à faire' }}
+        1) Pointage tablette {{ 'terminé' if session.kiosk_open else 'à faire' }}
       </span>
       <span class="status-badge {{ 'status-success' if has_presences else 'status-warning' }}">
         2) Présences {{ 'terminé' if has_presences else 'à faire' }}
@@ -363,12 +363,12 @@
 
   {% if session.kiosk_open %}
   <section class="section-card">
-    <h2 style="margin-top:0;">Kiosque de signature</h2>
+    <h2 style="margin-top:0;">Pointage tablette</h2>
     <div class="muted">
-      Code session kiosque : <strong id="kiosk-pin" style="font-size:20px;">{{ session.kiosk_pin or '—' }}</strong> <button type="button" class="btn copy-btn" data-copy-target="#kiosk-pin">Copier le code</button>
+      Code de la séance : <strong id="kiosk-pin" style="font-size:20px;">{{ session.kiosk_pin or '—' }}</strong> <button type="button" class="btn copy-btn" data-copy-target="#kiosk-pin">Copier le code</button>
     </div>
     <div class="muted" style="margin-top:8px;">
-      Lien kiosque (général) : <code>{{ kiosk_home_url }}</code>
+      Lien général du pointage : <code>{{ kiosk_home_url }}</code>
       <br>
       Lien direct de cette séance : <code id="kiosk-link">{{ kiosk_session_url }}</code> <button type="button" class="btn copy-btn" data-copy-target="#kiosk-link">Copier le lien</button>
     </div>

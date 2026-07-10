@@ -98,9 +98,9 @@ QUICK_ACTION_CATALOG = {
         "endpoint": "projets.projets_list",
     },
     "statsimpact": {
-        "label": "Données des ateliers",
+        "label": "Fréquentation et résultats",
         "icon": "📊",
-        "hint": "Accéder aux statistiques d’activité.",
+        "hint": "Consulter la fréquentation, les publics et les résultats des activités.",
         "perm_any": ["statsimpact:view"],
         "endpoint": "statsimpact.dashboard",
     },

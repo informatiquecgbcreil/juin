@@ -78,14 +78,15 @@ def test_notice_refusee_aux_anonymes(client):
 def test_bandeau_comprendre_cette_page(admin_client):
     r = admin_client.get("/dashboard")
     page = r.get_data(as_text=True)
-    assert '<details class="aide-page' in page
+    assert '<section class="aide-page' in page
+    assert "À quoi sert cette page ?" in page
     assert "Le tableau de bord" in page
 
 
 def test_bandeau_absent_sur_page_non_referencee(admin_client):
     r = admin_client.get("/rbac-test")
     assert r.status_code == 200
-    assert '<details class="aide-page' not in r.get_data(as_text=True)
+    assert '<section class="aide-page' not in r.get_data(as_text=True)
 
 
 def test_bouton_aide_dans_entete(admin_client):

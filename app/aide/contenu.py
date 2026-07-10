@@ -25,7 +25,7 @@ AIDE_PAGES: dict[str, dict] = {
     # ------------------------------------------------------------------
     "main.dashboard": {
         "titre": "Le tableau de bord",
-        "resume": "C'est votre page d'accueil : elle rassemble les chiffres clés et vos raccourcis favoris.",
+        "resume": "C'est votre page d'accueil : elle rassemble vos actions du jour, les points à traiter et les chiffres clés.",
         "etapes": [
             "Consultez les indicateurs pour voir l'activité de la structure d'un coup d'œil.",
             "Utilisez les boutons d'action rapide pour vos tâches courantes.",
@@ -387,7 +387,7 @@ AIDE_PAGES: dict[str, dict] = {
         "astuce": "Dix minutes par semaine sur cette page = des bilans annuels sans mauvaise surprise.",
     },
     "statsimpact.dashboard": {
-        "titre": "Stats-impact : le tableau de bord avancé",
+        "titre": "Résultats et impact des activités",
         "resume": "Analyses détaillées de la fréquentation : démographie, assiduité, comparaisons entre périodes.",
         "etapes": [
             "Réglez les filtres (période, secteur, ateliers).",
@@ -395,7 +395,7 @@ AIDE_PAGES: dict[str, dict] = {
         ],
     },
     "statsimpact.exports": {
-        "titre": "Stats-impact : les exports",
+        "titre": "Exports des résultats et de l'impact",
         "resume": "Les exports Excel détaillés de la fréquentation, dont le classeur « par atelier ».",
         "etapes": [
             "Choisissez la période et le périmètre.",
@@ -590,7 +590,7 @@ AIDE_PAGES: dict[str, dict] = {
 
     # ---------------------- Budgets prévisionnels -----------------------
     "previsionnel.index": {
-        "titre": "Les budgets prévisionnels",
+        "titre": "Les budgets demandés",
         "resume": "Préparez les budgets prévisionnels par secteur et par année, avant de solliciter vos financeurs.",
         "etapes": [
             "Créez un budget : secteur, année, et postes de dépenses/recettes (à partir du référentiel).",
@@ -677,8 +677,8 @@ AIDE_PAGES: dict[str, dict] = {
 
     # ---------------------- Administration (détail) ---------------------
     "admin.droits": {
-        "titre": "Rôles et permissions (RBAC)",
-        "resume": "L'écran avancé des droits : quels rôles existent, quelles permissions chacun donne, et qui possède quel rôle.",
+        "titre": "Les droits d'accès",
+        "resume": "L'écran avancé des droits : quels rôles existent, ce que chacun permet, et qui possède quel rôle.",
         "etapes": [
             "Attribuez un ou plusieurs rôles à un utilisateur.",
             "Modifiez finement les permissions d'un rôle si besoin.",
@@ -700,9 +700,9 @@ AIDE_PAGES: dict[str, dict] = {
         ],
     },
     "admin.referentiels": {
-        "titre": "Référentiels de compétences",
-        "resume": "Les bibliothèques de compétences (frameworks) utilisées par le module pédagogique.",
-        "etapes": ["Consultez les référentiels et le nombre de compétences ; importez-en de nouveaux si besoin."],
+        "titre": "Listes de compétences",
+        "resume": "Les listes de compétences utilisées par le suivi pédagogique.",
+        "etapes": ["Consultez les listes et le nombre de compétences ; importez-en de nouvelles si besoin."],
     },
     "admin.import_excel": {
         "titre": "Import Excel des présences",
@@ -723,13 +723,165 @@ AIDE_PAGES: dict[str, dict] = {
         "astuce": "La sauvegarde reste sur le serveur : aucune donnée personnelle n'est téléchargée par le navigateur.",
     },
 
+    # ---------------------- Pages de pilotage prioritaires -------------
+    "quartiers.carte": {
+        "titre": "La carte des habitants",
+        "resume": "Visualisez la répartition des participants par quartier, sans afficher les adresses individuelles.",
+        "etapes": [
+            "Choisissez un secteur, un type de public ou une période.",
+            "Cliquez sur une bulle pour consulter l'effectif du quartier.",
+            "Si des habitants restent non localisés, vérifiez leur quartier ou leur adresse.",
+        ],
+        "astuce": "La taille d'une bulle représente un effectif, jamais un domicile précis.",
+    },
+    "partenaires.carte": {
+        "titre": "La carte des partenaires",
+        "resume": "Repérez les structures partenaires et leurs domaines d'intervention sur une carte.",
+        "etapes": [
+            "Filtrez la carte par secteur d'intervention.",
+            "Cliquez sur un marqueur pour consulter le partenaire.",
+            "Ouvrez sa fiche pour retrouver ses coordonnées et les orientations possibles.",
+        ],
+        "astuce": "Un partenaire absent de la carte a généralement une adresse manquante ou non reconnue.",
+    },
+    "admin.sante_systeme": {
+        "titre": "L'état technique de l'application",
+        "resume": "Vérifiez le fonctionnement de la base de données, des sauvegardes, de la messagerie et du portail.",
+        "etapes": [
+            "Repérez les éléments signalés en rouge ou comme non configurés.",
+            "Créez une sauvegarde si la dernière est absente ou trop ancienne.",
+            "Utilisez les boutons de test pour la messagerie et le portail.",
+        ],
+        "astuce": "Un voyant rouge ne bloque pas toujours l'application, mais il doit être vérifié rapidement.",
+    },
+    "admin.journal_audit": {
+        "titre": "L'historique des actions sensibles",
+        "resume": "Retrouvez les modifications importantes : droits, comptes, restaurations et exports de données personnelles.",
+        "etapes": [
+            "Filtrez par type d'action ou par élément concerné.",
+            "Vérifiez la date, l'utilisateur et le détail de l'opération.",
+            "Retirez les filtres pour revenir aux dernières actions.",
+        ],
+        "astuce": "Cette page aide à comprendre qui a effectué une action sensible et à quel moment.",
+    },
+    "main.controle_navigation": {
+        "titre": "Vérifier les liens de l'application",
+        "resume": "Repérez les liens ou pages qui risquent de ne pas fonctionner correctement.",
+        "etapes": [
+            "Cliquez sur « Relancer la vérification ».",
+            "Traitez d'abord les éléments indiqués comme bloquants.",
+            "Transmettez le nom du fichier et le message au responsable technique.",
+        ],
+        "astuce": "Cette vérification ne modifie aucune donnée métier.",
+    },
+    "previsionnel.generateur": {
+        "titre": "Créer un budget demandé",
+        "resume": "Préparez un budget complet en charges et produits, puis exportez-le ou rattachez-le à un dossier.",
+        "etapes": [
+            "Choisissez l'organisme, l'exercice et le secteur.",
+            "Ajoutez ou adaptez les lignes jusqu'à équilibrer charges et produits.",
+            "Exportez vers Excel ou envoyez le budget vers un projet ou une subvention.",
+        ],
+        "astuce": "Vos modifications sont conservées dans ce navigateur ; « Réinitialiser » revient au modèle de départ.",
+    },
+    "main.hart_collectif": {
+        "titre": "La participation des habitants",
+        "resume": "Visualisez le niveau de participation attribué aux habitants, de l'information à la décision partagée.",
+        "etapes": [
+            "Choisissez le secteur et la période à étudier.",
+            "Activez la comparaison si vous souhaitez observer une évolution.",
+            "Cliquez sur une marche pour voir les habitants concernés.",
+        ],
+        "astuce": "Le niveau résulte d'une évaluation humaine : il n'est pas calculé automatiquement.",
+    },
+    "main.benevolat": {
+        "titre": "Le suivi du bénévolat",
+        "resume": "Enregistrez les heures données par les habitants et calculez leur valorisation.",
+        "etapes": [
+            "Choisissez l'année et, si nécessaire, le secteur.",
+            "Recherchez la personne puis saisissez la date, les heures et l'activité.",
+            "Vérifiez les totaux avant d'imprimer ou d'exporter.",
+        ],
+        "astuce": "Ces heures alimentent le bilan SENACS et la valorisation comptable du bénévolat.",
+    },
+    "main.rh": {
+        "titre": "Le suivi de l'équipe salariée",
+        "resume": "Suivez les postes, contrats, temps de travail et coûts de l'équipe pour les bilans et les finances.",
+        "etapes": [
+            "Choisissez l'exercice à consulter.",
+            "Ajoutez ou importez les salariés avec leur poste, leur secteur et leur contrat.",
+            "Vérifiez les personnes sans secteur et mettez à jour les départs.",
+        ],
+        "astuce": "Mettez cette page à jour avant le bilan SENACS afin de fiabiliser les ETP.",
+    },
+    "main.dons_registre": {
+        "titre": "Les dons et reçus fiscaux",
+        "resume": "Enregistrez les dons et générez un reçu fiscal numéroté.",
+        "etapes": [
+            "Choisissez l'exercice puis renseignez le donateur et le don.",
+            "Vérifiez les coordonnées de l'organisme avant de créer le reçu.",
+            "Ouvrez le reçu pour l'imprimer ; en cas d'erreur, annulez-le.",
+        ],
+        "astuce": "Un reçu émis ne se supprime pas : son annulation reste visible dans le registre.",
+    },
+    "main.tarifs_cotisations": {
+        "titre": "Les tarifs d'adhésion et de participation",
+        "resume": "Définissez les montants appliqués aux nouvelles cotisations d'une année scolaire.",
+        "etapes": [
+            "Choisissez l'année scolaire.",
+            "Ajoutez un montant et sa date de début pour chaque type de tarif.",
+            "Vérifiez quel tarif est actuellement en vigueur.",
+        ],
+        "astuce": "Modifier un tarif ne change jamais les cotisations déjà créées.",
+    },
+    "main.cout_unitaire": {
+        "titre": "Calculer le coût d'une action",
+        "resume": "Rapprochez un financement de l'activité réalisée pour obtenir un coût par participant, présence, heure ou séance.",
+        "etapes": [
+            "Choisissez la période et les ateliers concernés.",
+            "Saisissez un montant ou sélectionnez une subvention.",
+            "Calculez puis exportez le résultat si vous devez le transmettre.",
+        ],
+        "astuce": "Le résultat dépend directement de la qualité des séances et des présences enregistrées.",
+    },
+    "participants.synthese_participant": {
+        "titre": "La synthèse d'une personne",
+        "resume": "Retrouvez au même endroit l'identité, les présences, les orientations et le parcours d'une personne.",
+        "etapes": [
+            "Consultez d'abord les indicateurs et les points d'attention.",
+            "Parcourez les sections pour comprendre son activité.",
+            "Utilisez « Modifier », « Insertion » ou « Passeport » pour compléter la fiche.",
+        ],
+        "astuce": "Seules les informations autorisées par votre rôle et votre secteur sont affichées.",
+    },
+    "main.tresorerie": {
+        "titre": "Les subventions à recevoir",
+        "resume": "Anticipez les versements attendus et repérez les encaissements en retard ou sans date prévue.",
+        "etapes": [
+            "Choisissez l'exercice à analyser.",
+            "Consultez les versements attendus par mois et les alertes.",
+            "Ouvrez les subventions concernées pour compléter les dates ou montants reçus.",
+        ],
+        "astuce": "Un versement sans date prévue ne peut pas apparaître dans le calendrier mensuel.",
+    },
+    "main.comparaison": {
+        "titre": "Comparer deux années",
+        "resume": "Comparez l'activité et les financements de l'année choisie avec l'année précédente.",
+        "etapes": [
+            "Choisissez l'année la plus récente à comparer.",
+            "Lisez d'abord l'évolution globale, puis le détail par secteur.",
+            "Exportez ou imprimez la comparaison pour la partager.",
+        ],
+        "astuce": "Avant de conclure, vérifiez que les deux années ont un niveau de saisie comparable.",
+    },
+
     # ---------------------- Accès tablette / kiosque --------------------
     "launcher.index": {
         "titre": "Accès tablette & QR codes",
-        "resume": "Les liens et QR codes pour ouvrir l'application ou le mode kiosque depuis une tablette d'atelier.",
+        "resume": "Les liens et QR codes pour ouvrir l'application ou le pointage depuis une tablette d'atelier.",
         "etapes": [
-            "Scannez le QR code « kiosque » depuis une tablette pour ouvrir l'émargement public.",
-            "Le mode kiosque permet aux participants de pointer leur présence eux-mêmes, sans accéder au reste de l'application.",
+            "Scannez le QR code « Pointage tablette » pour ouvrir l'émargement public.",
+            "Le pointage tablette permet aux participants de confirmer leur présence eux-mêmes, sans accéder au reste de l'application.",
         ],
     },
 }

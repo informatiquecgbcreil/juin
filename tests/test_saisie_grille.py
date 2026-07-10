@@ -176,7 +176,7 @@ def test_poste_accueil_montre_le_rattrapage(app, atelier_grille):
                     role.permissions.append(perm)
             db.session.commit()
 
-    _login_role(app, "grille-accueil@example.org", "accueil")
+    _login_role(app, "grille-accueil@example.org", "accueil", secteur=atelier_grille["secteur"])
     with app.app_context():
         from app.models import User
         from app.services.poste_travail import build_poste_travail

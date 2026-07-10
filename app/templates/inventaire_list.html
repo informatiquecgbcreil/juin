@@ -1,5 +1,7 @@
 {% extends "layout.html" %}
+{% import "_ux_macros.html" as ui %}
 {% block body %}
+  {% set has_filters = filtre_q or filtre_secteur or filtre_categorie or filtre_localisation or filtre_etat %}
   <div class="page-shell dense-list-shell stack">
     <div class="page-header">
       <div class="page-title-wrap">
@@ -44,7 +46,7 @@
         </div>
         <div class="hero-actions">
           <button class="btn" type="submit">Filtrer</button>
-          <a class="btn" href="{{ url_for('inventaire_materiel.list_items') }}">Reset</a>
+          <a class="btn" href="{{ url_for('inventaire_materiel.list_items') }}">Réinitialiser</a>
         </div>
       </form>
     </div>
@@ -99,7 +101,13 @@
               </tr>
             {% endfor %}
             {% if not items %}
-              <tr><td colspan="10" class="muted">Aucune entrée inventaire pour l’instant.</td></tr>
+              <tr><td colspan="10">{{ ui.empty_state(
+                "Aucun matériel ne correspond aux filtres" if has_filters else "L’inventaire est vide",
+                "Réinitialisez les filtres pour revoir tout le matériel." if has_filters else "Ajoutez le premier équipement pour suivre son état, sa localisation et son éventuel lien avec une dépense.",
+                url_for('inventaire_materiel.list_items') if has_filters else url_for('inventaire_materiel.new_item'),
+                "Réinitialiser les filtres" if has_filters else "Ajouter du matériel",
+                "📦"
+              ) }}</td></tr>
             {% endif %}
           </tbody>
         </table>
@@ -123,7 +131,13 @@
             </div>
           </article>
         {% else %}
-          <div class="quick-empty"><strong>Aucune entrée inventaire.</strong>Ajoutez du matériel pour démarrer le suivi.</div>
+          {{ ui.empty_state(
+            "Aucun matériel ne correspond aux filtres" if has_filters else "L’inventaire est vide",
+            "Réinitialisez les filtres pour revoir tout le matériel." if has_filters else "Ajoutez le premier équipement pour suivre son état, sa localisation et son éventuel lien avec une dépense.",
+            url_for('inventaire_materiel.list_items') if has_filters else url_for('inventaire_materiel.new_item'),
+            "Réinitialiser les filtres" if has_filters else "Ajouter du matériel",
+            "📦"
+          ) }}
         {% endfor %}
       </div>
     </div>

@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import "_ux_macros.html" as ui %}
 
 {% block body %}
   <div class="stack">
@@ -15,7 +16,7 @@
             <a class="btn" href="{{ url_for('activite.sessions', atelier_id=atelier.id, corbeille=1) }}">Corbeille</a>
           {% endif %}
           {% if not corbeille %}
-            <a class="btn" href="{{ url_for('activite.session_new', atelier_id=atelier.id) }}">+ Nouvelle session / RDV</a>
+            <a class="btn" href="{{ url_for('activite.session_new', atelier_id=atelier.id) }}">+ Nouvelle séance / rendez-vous</a>
             {% if atelier.type_atelier != 'INDIVIDUEL_MENSUEL' %}
               <a class="btn" href="{{ url_for('activite.session_bulk_new', atelier_id=atelier.id) }}">📅 Créer en série</a>
             {% endif %}
@@ -95,9 +96,9 @@
               </tr>
             {% else %}
               {% if corbeille %}
-                <tr><td colspan="6" class="muted">Corbeille vide.</td></tr>
+                <tr><td colspan="6">{{ ui.empty_state("La corbeille est vide", "Aucune séance supprimée n’attend d’être restaurée.", url_for('activite.sessions', atelier_id=atelier.id), "Voir les séances actives", "🗑️") }}</td></tr>
               {% else %}
-                <tr><td colspan="6" class="muted">Aucune session/RDV.</td></tr>
+                <tr><td colspan="6">{{ ui.empty_state("Aucune séance planifiée", "Créez une première séance, ou utilisez « Créer en série » pour programmer plusieurs dates régulières.", url_for('activite.session_new', atelier_id=atelier.id), "Planifier une séance", "📅") }}</td></tr>
               {% endif %}
             {% endfor %}
           </tbody>
@@ -149,7 +150,13 @@
           </div>
         </article>
         {% else %}
-          <div class="quick-empty"><strong>{{ 'Corbeille vide.' if corbeille else 'Aucune session/RDV.' }}</strong></div>
+          {{ ui.empty_state(
+            "La corbeille est vide" if corbeille else "Aucune séance planifiée",
+            "Aucune séance supprimée n’attend d’être restaurée." if corbeille else "Créez une première séance, ou utilisez « Créer en série » pour programmer plusieurs dates régulières.",
+            url_for('activite.sessions', atelier_id=atelier.id) if corbeille else url_for('activite.session_new', atelier_id=atelier.id),
+            "Voir les séances actives" if corbeille else "Planifier une séance",
+            "🗑️" if corbeille else "📅"
+          ) }}
         {% endfor %}
       </div>
 

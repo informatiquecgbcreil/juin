@@ -1,6 +1,8 @@
 {% extends "layout.html" %}
+{% import "_ux_macros.html" as ui %}
 {% block body %}
 <div class="page-shell dense-list-shell stack">
+  {% set search_term = q %}
   <div class="page-header">
     <div class="page-title-wrap">
       <h1 class="page-title">Questionnaires d’impact</h1>
@@ -95,7 +97,13 @@
             </tr>
           {% endfor %}
           {% if questionnaires|length == 0 %}
-            <tr><td colspan="5" class="quick-empty">Aucun questionnaire trouvé.</td></tr>
+            <tr><td colspan="5">{{ ui.empty_state(
+              "Aucun questionnaire ne correspond à la recherche" if search_term else "Aucun questionnaire créé",
+              "Retirez la recherche pour revoir tous les questionnaires." if search_term else "Créez un questionnaire pour recueillir les retours des participants et mesurer l’impact d’une action.",
+              url_for('questionnaires.index') if search_term else (url_for('questionnaires.create') if can('questionnaires:edit') else None),
+              "Réinitialiser la recherche" if search_term else ("Créer un questionnaire" if can('questionnaires:edit') else None),
+              "📝"
+            ) }}</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -154,7 +162,13 @@
           </div>
         </article>
       {% else %}
-        <div class="quick-empty"><strong>Aucun questionnaire trouvé.</strong>Créez un questionnaire pour démarrer les collectes d’impact.</div>
+        {{ ui.empty_state(
+          "Aucun questionnaire ne correspond à la recherche" if search_term else "Aucun questionnaire créé",
+          "Retirez la recherche pour revoir tous les questionnaires." if search_term else "Créez un questionnaire pour recueillir les retours des participants et mesurer l’impact d’une action.",
+          url_for('questionnaires.index') if search_term else (url_for('questionnaires.create') if can('questionnaires:edit') else None),
+          "Réinitialiser la recherche" if search_term else ("Créer un questionnaire" if can('questionnaires:edit') else None),
+          "📝"
+        ) }}
       {% endfor %}
     </div>
   </div>

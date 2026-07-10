@@ -90,7 +90,7 @@
                     {% set pres = presences.get((p.id, s.id)) %}
                     <td class="case">
                       {% if pres and (pres.signature_path or (pres.presence_type or 'present') != 'present') %}
-                        <span class="case-protegee" title="Présence protégée ({{ 'signée au kiosque' if pres.signature_path else pres.presence_type }}) : modifiable uniquement depuis la feuille d'émargement.">🔒</span>
+                        <span class="case-protegee" title="Présence protégée ({{ 'signée sur la tablette' if pres.signature_path else pres.presence_type }}) : modifiable uniquement depuis la feuille d'émargement.">🔒</span>
                       {% else %}
                         {% if paires.append(p.id ~ ':' ~ s.id) %}{% endif %}
                         <input type="checkbox" name="cell_{{ p.id }}_{{ s.id }}" value="1" {% if pres %}checked{% endif %}
@@ -108,7 +108,7 @@
         <input type="hidden" name="paires" value="{{ paires|join(' ') }}">
         <div class="grille-pied">
           <button class="btn primary" type="submit">💾 Enregistrer la grille</button>
-          <span class="muted">🔒 = présence signée au kiosque ou statut particulier : intouchable depuis la grille.</span>
+          <span class="muted">🔒 = présence signée sur la tablette ou statut particulier : non modifiable depuis la grille.</span>
         </div>
       </form>
     {% else %}

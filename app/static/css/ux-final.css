@@ -1608,6 +1608,40 @@ html[data-theme="dark"] main :is(
   }
 }
 
+/* État vide commun : explique la situation et propose la prochaine action. */
+.ui-empty-state{
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  gap:14px;
+  width:100%;
+  max-width:760px;
+  margin:8px auto;
+  padding:22px;
+  border:1px dashed var(--border-hard, rgba(100,116,139,.42));
+  border-radius:14px;
+  background:color-mix(in srgb, var(--surface-soft, #f8fafc) 88%, transparent);
+  text-align:left;
+}
+.ui-empty-state__icon{
+  display:grid;
+  place-items:center;
+  flex:0 0 42px;
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  background:color-mix(in srgb, var(--accent, #4f46e5) 12%, transparent);
+  font-size:1.35rem;
+}
+.ui-empty-state__body{min-width:0;}
+.ui-empty-state__title{display:block;font-size:1rem;line-height:1.35;}
+.ui-empty-state__text{margin:5px 0 0;color:var(--muted,#64748b);line-height:1.5;}
+.ui-empty-state__action{margin-top:12px;}
+@media(max-width:560px){
+  .ui-empty-state{padding:17px;}
+  .ui-empty-state__icon{flex-basis:36px;width:36px;height:36px;}
+}
+
 @media print{
   .skip-link,
   .topbar,

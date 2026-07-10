@@ -23,11 +23,11 @@
     <div class="monster-head">
       <div>
         <h1>Qualité des données</h1>
-        <p>Contrôles rapides sur le périmètre stats-impact courant.</p>
+        <p>Contrôles rapides sur la sélection actuelle.</p>
       </div>
       <div class="quality-actions">
-        <a class="btn" href="{{ url_for('statsimpact.dashboard') }}?{{ request.query_string.decode('utf-8') }}">Retour stats-impact</a>
-        <a class="btn" href="{{ url_for('statsimpact.export_fidele_xlsx') }}?{{ request.query_string.decode('utf-8') }}">Exporter XLSX fidèle</a>
+        <a class="btn" href="{{ url_for('statsimpact.dashboard') }}?{{ request.query_string.decode('utf-8') }}">Retour aux résultats des activités</a>
+        <a class="btn" href="{{ url_for('statsimpact.export_fidele_xlsx') }}?{{ request.query_string.decode('utf-8') }}">Exporter selon les filtres</a>
       </div>
     </div>
 

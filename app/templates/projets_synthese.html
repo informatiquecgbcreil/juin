@@ -95,7 +95,7 @@
         <div class="summary-fact"><div class="summary-fact__label">Année de lecture</div><strong>{{ year }}</strong></div>
         <div class="summary-fact"><div class="summary-fact__label">Créé le</div><strong>{{ projet.created_at.strftime("%d/%m/%Y") if projet.created_at else "Non renseigné" }}</strong></div>
         <div class="summary-fact"><div class="summary-fact__label">Compte-rendu</div><strong>{% if projet.cr_filename %}Disponible{% else %}Non déposé{% endif %}</strong></div>
-        <div class="summary-fact"><div class="summary-fact__label">Source des chiffres</div><strong>Stats-impact / émargements</strong></div>
+        <div class="summary-fact"><div class="summary-fact__label">Source des chiffres</div><strong>Présences d’émargement</strong></div>
       </div>
     </section>
 
@@ -133,7 +133,7 @@
 
   <div class="summary-two">
     <section class="monster-card">
-      <h2>Activité stats-impact</h2>
+      <h2>Fréquentation et résultats</h2>
       <p class="muted">Lecture issue des ateliers liés au projet et des présences d'émargement.</p>
       <div class="tablewrap clean wide">
         <table>

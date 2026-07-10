@@ -1,5 +1,6 @@
 {% extends 'layout.html' %}
 {% import "_ux_helpers.html" as ux %}
+{% import "_ux_macros.html" as ui %}
 
 {% block body %}
   {% set ns = namespace(total=ateliers|length, actifs=0, inactifs=0, collectifs=0, individuels=0) %}
@@ -121,7 +122,13 @@
                 </td>
               </tr>
             {% else %}
-              <tr><td colspan="6"><div class="quick-empty"><strong>{{ 'La corbeille est vide.' if corbeille else 'Aucune activité n’est disponible pour le moment.' }}</strong>{{ 'Aucune activité archivée n’est disponible à la restauration.' if corbeille else 'Créez une activité pour planifier des sessions et enregistrer les présences.' }}</div></td></tr>
+              <tr><td colspan="6">{{ ui.empty_state(
+                "La corbeille est vide" if corbeille else "Aucun atelier n’est encore disponible",
+                "Aucun atelier archivé n’attend d’être restauré." if corbeille else "Créez un atelier pour planifier ses séances puis enregistrer les présences.",
+                url_for('activite.index') if corbeille else url_for('activite.atelier_new', secteur=secteur or None),
+                "Voir les ateliers actifs" if corbeille else "Créer un atelier",
+                "🗑️" if corbeille else "📅"
+              ) }}</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -166,7 +173,13 @@
           </div>
         </article>
         {% else %}
-        <div class="quick-empty"><strong>{{ 'La corbeille est vide.' if corbeille else 'Aucune activité n’est disponible pour le moment.' }}</strong>{{ 'Aucune activité archivée n’est disponible à la restauration.' if corbeille else 'Créez une activité pour planifier des sessions et enregistrer les présences.' }}</div>
+        {{ ui.empty_state(
+          "La corbeille est vide" if corbeille else "Aucun atelier n’est encore disponible",
+          "Aucun atelier archivé n’attend d’être restauré." if corbeille else "Créez un atelier pour planifier ses séances puis enregistrer les présences.",
+          url_for('activite.index') if corbeille else url_for('activite.atelier_new', secteur=secteur or None),
+          "Voir les ateliers actifs" if corbeille else "Créer un atelier",
+          "🗑️" if corbeille else "📅"
+        ) }}
         {% endfor %}
       </div>
     </div>

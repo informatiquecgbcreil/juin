@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_ux_macros.html" as ui %}
 {% block body %}
 <style>
   .docs-page { display:flex; flex-direction:column; gap:16px; }
@@ -57,7 +58,7 @@
     <div class="docs-head">
       <div>
         <h1>Documents prêts</h1>
-        <p class="muted">Exports, fiches imprimables et rapports à transmettre. Les exports stats-impact restent alimentés par les présences d'émargement.</p>
+        <p class="muted">Exports, fiches imprimables et rapports à transmettre. Les résultats d’activité restent alimentés par les présences d’émargement.</p>
       </div>
       <div class="docs-actions">
         <a class="btn" href="{{ url_for('main.hub_bilans') }}">Bilans</a>
@@ -145,7 +146,7 @@
           </div>
         </div>
       {% else %}
-        <div class="docs-empty">Aucun projet visible dans ce périmètre.</div>
+        {{ ui.empty_state("Aucune fiche projet disponible", "Créez un projet dans votre périmètre pour générer ensuite sa fiche, sa synthèse et ses indicateurs.", url_for('projets.projets_new') if can('projets:edit') else None, "Créer un projet" if can('projets:edit') else None, "🗂️") }}
       {% endfor %}
     </div>
 
@@ -164,7 +165,7 @@
           </div>
         </div>
       {% else %}
-        <div class="docs-empty">Aucune subvention visible pour cet exercice.</div>
+        {{ ui.empty_state("Aucun bilan financeur disponible", "Enregistrez une subvention pour cet exercice afin de préparer son bilan et ses exports.", url_for('main.subventions_list', annee=year) if can('subventions:view') else None, "Ouvrir les financements" if can('subventions:view') else None, "💶") }}
       {% endfor %}
     </div>
 
@@ -190,7 +191,7 @@
           </div>
         </div>
       {% else %}
-        <div class="docs-empty">Aucune fiche action visible dans ce périmètre.</div>
+        {{ ui.empty_state("Aucune fiche action disponible", "Ajoutez une action détaillée à un projet pour produire une fiche prête à transmettre.", url_for('projets.projets_list') if can('projets:view') else None, "Ouvrir les projets" if can('projets:view') else None, "📋") }}
       {% endfor %}
     </div>
 
@@ -209,7 +210,7 @@
           </div>
         </div>
       {% else %}
-        <div class="docs-empty">Aucun questionnaire visible.</div>
+        {{ ui.empty_state("Aucun questionnaire disponible", "Créez un questionnaire pour recueillir des réponses, puis exporter les résultats.", url_for('questionnaires.create') if can('questionnaires:edit') else None, "Créer un questionnaire" if can('questionnaires:edit') else None, "📝") }}
       {% endfor %}
     </div>
   </section>

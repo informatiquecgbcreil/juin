@@ -29,6 +29,7 @@ from app.models import (
     PresenceActivite,
     SessionActivite,
 )
+from app.utils.dates import utcnow
 
 # ---------------------------------------------------------------------------
 # Options du flux (JSON par utilisateur, valeurs sûres par défaut)
@@ -347,7 +348,7 @@ def generer_ics(user, *, base_url: str, lien_base: str = "",
     au = au or today + timedelta(days=options["jours_futur"])
 
     host = (base_url or "").split("//", 1)[-1].split("/", 1)[0] or "erp.local"
-    stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    stamp = utcnow().strftime("%Y%m%dT%H%M%SZ")
     lien_base = (lien_base or "").rstrip("/")
 
     lignes = [

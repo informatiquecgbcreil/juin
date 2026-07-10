@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% import "_ux_helpers.html" as ux %}
+{% import "_ux_macros.html" as ui %}
 {% block body %}
 
 <style>
@@ -198,7 +199,13 @@
               </tr>
             {% endfor %}
           {% else %}
-            <tr><td colspan="7" class="muted">Aucune dépense ne correspond aux filtres.</td></tr>
+            <tr><td colspan="7">{{ ui.empty_state(
+              "Aucune dépense à afficher",
+              "Aucune dépense ne correspond à l’exercice ou aux filtres choisis. Réinitialisez la recherche, ou créez une dépense avec le bouton en haut de page.",
+              url_for('budget.depenses_list'),
+              "Réinitialiser les filtres",
+              "🧾"
+            ) }}</td></tr>
           {% endif %}
         </tbody>
       </table>

@@ -1,17 +1,18 @@
 {% extends "layout.html" %}
+{% import "_ux_macros.html" as ui %}
 {% block body %}
 <div class="card">
   <div class="page-head">
     <div>
-      <h1>Budget prévisionnel</h1>
-      <p class="muted">Socle annuel : charges, produits, ventilation par projet, puis extraction vers les budgets d'appels à projet.</p>
-      <p><a class="btn" href="{{ url_for('previsionnel.referentiel') }}">Gérer le référentiel budgétaire</a></p>
+      <h1>Budgets demandés</h1>
+      <p class="muted">Préparez les charges et les produits à présenter aux financeurs, puis répartissez-les par projet ou appel à projets.</p>
+      <p><a class="btn" href="{{ url_for('previsionnel.referentiel') }}">Gérer les lignes de budget proposées</a></p>
     </div>
   </div>
 </div>
 
 {% if can_edit_budget %}
-<div class="card">
+<div class="card" id="creer-budget">
   <h2>Créer un budget prévisionnel</h2>
   <form method="post" class="form-grid-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -81,7 +82,7 @@
             <td><a class="btn" href="{{ url_for('previsionnel.detail', budget_id=b.id) }}">Ouvrir</a></td>
           </tr>
         {% else %}
-          <tr><td colspan="8" class="muted">Aucun budget prévisionnel pour le moment.</td></tr>
+          <tr><td colspan="8">{{ ui.empty_state("Aucun budget demandé", "Utilisez le formulaire ci-dessus pour préparer le premier budget annuel à présenter à un financeur.", "#creer-budget" if can_edit_budget else None, "Créer le premier budget" if can_edit_budget else None, "🧮") }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

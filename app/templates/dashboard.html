@@ -509,8 +509,8 @@
   <section class="ui-panel section-card">
     <div class="ui-section-head section-head">
       <div>
-        <h2 style="margin:0;">Je veux faire quoi ?</h2>
-        <div class="muted">Les grandes portes d’entrée de l’application, selon tes droits.</div>
+        <h2 style="margin:0;">Que voulez-vous faire ?</h2>
+        <div class="muted">Les grandes portes d’entrée de l’application, adaptées à vos droits.</div>
       </div>
       <div class="ui-actions inline-actions">
         <a class="btn" href="{{ url_for('main.dashboard_customize') }}">Personnaliser</a>
@@ -628,7 +628,7 @@
         </div>
         <div class="intent-card__links">
           {% if can('controle:view') %}<a class="mini-link" href="{{ url_for('main.controle') }}">Contrôle</a>{% endif %}
-          {% if can('controle:view') %}<a class="mini-link" href="{{ url_for('main.controle_navigation') }}">Audit navigation</a>{% endif %}
+          {% if can('controle:view') %}<a class="mini-link" href="{{ url_for('main.controle_navigation') }}">Vérifier les liens</a>{% endif %}
           {% if can('admin:users') %}<a class="mini-link" href="{{ url_for('admin.users') }}">Équipe</a>{% endif %}
         </div>
       </div>
@@ -688,16 +688,18 @@
               </div>
             {% else %}<div class="quick-empty">Aucune séance récente.</div>{% endif %}
           </div>
-          <div class="recent-card">
-            <h3>👥 Dernières fiches</h3>
-            {% if recents and recents.participants and recents.participants|length %}
-              <div class="recent-list">
-                {% for p in recents.participants[:4] %}
-                  <div class="recent-item"><strong>{{ p.nom }} {{ p.prenom }}</strong><span class="muted">Ajout récent</span></div>
-                {% endfor %}
-              </div>
-            {% else %}<div class="quick-empty">Aucune fiche récente.</div>{% endif %}
-          </div>
+          {% if can('participants:view') or can('participants:view_all') %}
+            <div class="recent-card">
+              <h3>👥 Dernières fiches</h3>
+              {% if recents and recents.participants and recents.participants|length %}
+                <div class="recent-list">
+                  {% for p in recents.participants[:4] %}
+                    <div class="recent-item"><strong>{{ p.nom }} {{ p.prenom }}</strong><span class="muted">Ajout récent</span></div>
+                  {% endfor %}
+                </div>
+              {% else %}<div class="quick-empty">Aucune fiche récente.</div>{% endif %}
+            </div>
+          {% endif %}
         </div>
       </section>
       <section class="ui-panel section-card">

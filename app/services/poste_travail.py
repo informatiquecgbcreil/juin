@@ -15,13 +15,14 @@ Principes :
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from flask import url_for
 from werkzeug.routing import BuildError
 
 from app.rbac import _expand_perm
+from app.utils.dates import utcnow
 
 JOURS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 MOIS_FR = [
@@ -44,11 +45,24 @@ def _user_can_any(user, codes) -> bool:
     return any(_user_can(user, c) for c in codes or [])
 
 
-def _scope_secteur(user) -> str | None:
-    """Secteur de restriction pour les compteurs (None = vue globale)."""
-    if _user_can(user, "scope:all_secteurs"):
-        return None
-    return (getattr(user, "secteur_assigne", None) or "").strip() or None
+def _scope_context(user) -> tuple[bool, str | None]:
+    """Retourne ``(portée_globale, secteur)`` sans ambiguïté.
+
+    Un secteur vide ne doit jamais être interprété comme une portée globale :
+    c'est un compte à configurer, pas un passe-droit implicite.
+    """
+    has_all_scope = _user_can(user, "scope:all_secteurs")
+    secteur = (getattr(user, "secteur_assigne", None) or "").strip() or None
+    return has_all_scope, secteur
+
+
+def _missing_scope_context() -> dict[str, Any]:
+    return {
+        "badge": "Secteur à configurer",
+        "detail": "Aucune donnée globale n'est affichée tant que votre secteur n'est pas renseigné.",
+        "tone": "warn",
+        "count": None,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -60,19 +74,22 @@ def _ctx_seances_du_jour(user) -> dict[str, Any] | None:
     from app.models import SessionActivite
 
     today = date.today()
+    has_all_scope, secteur = _scope_context(user)
+    if not has_all_scope and not secteur:
+        return _missing_scope_context()
     q = SessionActivite.query.filter(
-        db.or_(SessionActivite.date_session == today, SessionActivite.rdv_date == today),
+        db.func.coalesce(SessionActivite.rdv_date, SessionActivite.date_session) == today,
         SessionActivite.is_deleted.is_(False),
         SessionActivite.statut != "annulee",
     )
-    secteur = _scope_secteur(user)
-    if secteur:
+    if not has_all_scope:
         q = q.filter(SessionActivite.secteur == secteur)
     n = q.count()
     if n == 0:
-        return {"badge": "Aucune séance aujourd'hui", "tone": "muted"}
+        return {"badge": "Aucune séance aujourd'hui", "detail": "Le planning du jour est vide.", "tone": "ok", "count": 0}
     return {
         "badge": f"{n} séance{'s' if n > 1 else ''} aujourd'hui",
+        "detail": "Ouvrez l'atelier pour faire l'appel.",
         "tone": "info",
         "count": n,
     }
@@ -81,12 +98,15 @@ def _ctx_seances_du_jour(user) -> dict[str, Any] | None:
 def _ctx_emargements_en_attente(user) -> dict[str, Any] | None:
     from app.activite.saisie_grille import seances_sans_presence_query
 
-    secteur = _scope_secteur(user)
-    n = seances_sans_presence_query(secteur).count()
+    has_all_scope, secteur = _scope_context(user)
+    if not has_all_scope and not secteur:
+        return _missing_scope_context()
+    n = seances_sans_presence_query(None if has_all_scope else secteur).count()
     if n == 0:
-        return {"badge": "Tout est à jour", "tone": "ok"}
+        return {"badge": "Tout est à jour", "detail": "Aucune feuille passée n'attend d'être saisie.", "tone": "ok", "count": 0}
     return {
         "badge": f"{n} séance{'s' if n > 1 else ''} à saisir",
+        "detail": "Des feuilles de présence doivent être complétées.",
         "tone": "warn",
         "count": n,
     }
@@ -97,21 +117,78 @@ def _ctx_rappels_ouverts(user) -> dict[str, Any] | None:
     from app.models import SuiviRappel
 
     q = SuiviRappel.query.filter(SuiviRappel.statut == "ouvert")
-    q = q.filter(
-        db.or_(
-            SuiviRappel.is_private.is_(False),
-            SuiviRappel.created_by_user_id == getattr(user, "id", None),
-        )
-    )
-    secteur = _scope_secteur(user)
-    if secteur:
-        q = q.filter(db.or_(SuiviRappel.secteur == secteur, SuiviRappel.secteur.is_(None)))
+    user_id = getattr(user, "id", None)
+    has_all_scope, secteur = _scope_context(user)
+    if has_all_scope:
+        q = q.filter(db.or_(SuiviRappel.is_private.is_(False), SuiviRappel.created_by_user_id == user_id))
+    elif secteur:
+        q = q.filter(db.or_(
+            SuiviRappel.created_by_user_id == user_id,
+            SuiviRappel.is_private.is_(False) & (SuiviRappel.secteur == secteur),
+        ))
+    else:
+        # Un compte sans secteur ne voit que ses propres rappels.
+        q = q.filter(SuiviRappel.created_by_user_id == user_id)
     n = q.count()
     if n == 0:
-        return {"badge": "Rien en attente", "tone": "ok"}
+        return {"badge": "Rien en attente", "detail": "Aucun rappel ouvert dans votre périmètre.", "tone": "ok", "count": 0}
     return {
         "badge": f"{n} rappel{'s' if n > 1 else ''} en attente",
+        "detail": "Consultez les échéances et les points à reprendre.",
         "tone": "warn",
+        "count": n,
+    }
+
+
+def _participant_scope_query(user):
+    """Participants visibles pour les compteurs de l'accueil."""
+    from app.models import Participant
+
+    q = Participant.query
+    has_all_scope, secteur = _scope_context(user)
+    if has_all_scope or _user_can(user, "participants:view_all"):
+        return q, None
+    if not secteur:
+        return None, _missing_scope_context()
+    return q.filter(Participant.created_secteur == secteur), None
+
+
+def _ctx_participants_recents(user) -> dict[str, Any] | None:
+    from app.models import Participant
+
+    q, blocked = _participant_scope_query(user)
+    if blocked:
+        return blocked
+    cutoff = utcnow() - timedelta(days=7)
+    n = q.filter(Participant.created_at.isnot(None), Participant.created_at >= cutoff).count()
+    return {
+        "badge": f"{n} nouvelle{'s' if n > 1 else ''} fiche{'s' if n > 1 else ''}",
+        "detail": "Personnes ajoutées pendant les 7 derniers jours.",
+        "tone": "info" if n else "ok",
+        "count": n,
+    }
+
+
+def _ctx_fiches_incompletes(user) -> dict[str, Any] | None:
+    from app.extensions import db
+    from app.models import Participant
+
+    q, blocked = _participant_scope_query(user)
+    if blocked:
+        return blocked
+    n = q.filter(db.or_(
+        Participant.date_naissance.is_(None),
+        Participant.genre.is_(None),
+        Participant.genre == "",
+        Participant.ville.is_(None),
+        Participant.ville == "",
+        Participant.created_secteur.is_(None),
+        Participant.created_secteur == "",
+    )).count()
+    return {
+        "badge": f"{n} fiche{'s' if n > 1 else ''} à compléter" if n else "Toutes les fiches sont complètes",
+        "detail": "Les données manquantes peuvent fragiliser les bilans." if n else "Aucun manque prioritaire détecté.",
+        "tone": "warn" if n else "ok",
         "count": n,
     }
 
@@ -248,6 +325,51 @@ POSTE_ACTIONS: dict[str, dict[str, Any]] = {
 }
 
 
+DAILY_SIGNAL_SPECS: list[dict[str, Any]] = [
+    {
+        "key": "today_sessions",
+        "label": "Séances aujourd'hui",
+        "icon": "📅",
+        "perm_any": ["emargement:view"],
+        "endpoint": "activite.index",
+        "context": _ctx_seances_du_jour,
+    },
+    {
+        "key": "attendance_backlog",
+        "label": "Présences à compléter",
+        "icon": "🖊️",
+        "perm_any": ["emargement:edit"],
+        "endpoint": "activite.emargements_attente",
+        "context": _ctx_emargements_en_attente,
+    },
+    {
+        "key": "recent_participants",
+        "label": "Nouvelles fiches · 7 jours",
+        "icon": "👤",
+        "perm_any": ["participants:view", "participants:view_all"],
+        "endpoint": "participants.list_participants",
+        "context": _ctx_participants_recents,
+    },
+    {
+        "key": "participant_quality",
+        "label": "Fiches à compléter",
+        "icon": "🧩",
+        "perm_any": ["participants:view", "participants:view_all"],
+        "endpoint": "main.qualite_donnees_transverse",
+        "endpoint_values": {"famille": "participants"},
+        "context": _ctx_fiches_incompletes,
+    },
+    {
+        "key": "open_reminders",
+        "label": "Rappels ouverts",
+        "icon": "📌",
+        "perm_any": ["dashboard:view"],
+        "endpoint": "main.suivi_rappels",
+        "context": _ctx_rappels_ouverts,
+    },
+]
+
+
 # Gabarits par rôle : un ordre de priorité lisible, PAS un droit d'accès.
 # Le filtre par permission s'applique toujours derrière. Les codes non
 # présents dans ROLE_TEMPLATES (animateur, accueil…) couvrent les rôles
@@ -287,6 +409,46 @@ def _safe_url(endpoint: str | None, fallback_endpoint: str | None = None, **valu
         except BuildError:
             continue
     return None
+
+
+def _build_daily_signals(user) -> list[dict[str, Any]]:
+    """Compteurs compacts de l'accueil, toujours filtrés par droits et secteur."""
+    signals: list[dict[str, Any]] = []
+    scope_warning_added = False
+    for spec in DAILY_SIGNAL_SPECS:
+        if not _user_can_any(user, spec.get("perm_any")):
+            continue
+        try:
+            ctx = spec["context"](user) or {}
+        except Exception:
+            # Comme pour les cartes : un compteur indisponible ne bloque pas l'accueil.
+            continue
+
+        if ctx.get("count") is None:
+            if scope_warning_added:
+                continue
+            scope_warning_added = True
+            signals.append({
+                "key": "missing_scope",
+                "label": "Périmètre à configurer",
+                "icon": "⚠️",
+                "value": "—",
+                "detail": ctx.get("detail") or "Demandez à un administrateur de renseigner votre secteur.",
+                "tone": "warn",
+                "url": None,
+            })
+            continue
+
+        signals.append({
+            "key": spec["key"],
+            "label": spec["label"],
+            "icon": spec["icon"],
+            "value": int(ctx.get("count") or 0),
+            "detail": ctx.get("detail") or ctx.get("badge") or "",
+            "tone": ctx.get("tone") or "muted",
+            "url": _safe_url(spec.get("endpoint"), **(spec.get("endpoint_values") or {})),
+        })
+    return signals
 
 
 def _matched_role(user) -> str | None:
@@ -357,6 +519,7 @@ def build_poste_travail(user) -> dict[str, Any]:
 
     return {
         "actions": actions,
+        "signals": _build_daily_signals(user),
         "role_code": role_code,
         "role_label": _role_label(user),
         "secteur": (getattr(user, "secteur_assigne", None) or "").strip() or None,

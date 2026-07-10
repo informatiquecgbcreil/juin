@@ -18,3 +18,16 @@
   <p>{{ text }}</p>
 </div>
 {%- endmacro %}
+
+{% macro empty_state(title, text, action_url=None, action_label=None, icon='🧭') -%}
+<div class="ui-empty-state" role="status">
+  <span class="ui-empty-state__icon" aria-hidden="true">{{ icon }}</span>
+  <div class="ui-empty-state__body">
+    <strong class="ui-empty-state__title">{{ title }}</strong>
+    <p class="ui-empty-state__text">{{ text }}</p>
+    {% if action_url and action_label %}
+      <a class="btn ui-empty-state__action" href="{{ action_url }}">{{ action_label }}</a>
+    {% endif %}
+  </div>
+</div>
+{%- endmacro %}

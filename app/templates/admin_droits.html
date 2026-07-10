@@ -6,13 +6,13 @@
   <section class="page-hero">
     <div class="hero-top">
       <div>
-        <h1 style="margin:0;">Droits 🔐</h1>
-        <p class="muted" style="margin:6px 0 0;">Gérez ici les rôles et les permissions de l'application. Les permissions sont regroupées par famille pour faciliter la lecture.</p>
+        <h1 style="margin:0;">Droits d’accès 🔐</h1>
+        <p class="muted" style="margin:6px 0 0;">Choisissez ce que chaque rôle peut voir ou modifier. Les codes techniques restent affichés en second pour la maintenance.</p>
       </div>
       <div class="hero-actions">
         <span class="pill">{{ users|length }} utilisateur{{ 's' if users|length > 1 else '' }}</span>
         <span class="pill">{{ roles|length }} rôle{{ 's' if roles|length > 1 else '' }}</span>
-        <span class="pill">{{ perms|length }} permission{{ 's' if perms|length > 1 else '' }}</span>
+        <span class="pill">{{ perms|length }} droit{{ 's' if perms|length > 1 else '' }}</span>
       </div>
     </div>
   </section>
@@ -42,7 +42,7 @@
                   <input type="hidden" name="user_id" value="{{ u.id }}">
                   <select class="rbac-select role-select compact-select" name="role_codes" multiple>
                     {% for r in roles %}
-                      <option value="{{ r.code }}" {% if r.code in assigned %}selected{% endif %}>{{ r.code }}{% if r.label %} - {{ r.label }}{% endif %}</option>
+                      <option value="{{ r.code }}" {% if r.code in assigned %}selected{% endif %}>{{ r.label or r.code }}{% if r.label %} ({{ r.code }}){% endif %}</option>
                     {% endfor %}
                   </select>
                   <div class="inline-actions compact-actions">
@@ -50,7 +50,7 @@
                   </div>
                 </form>
                 <div class="admin-meta">
-                  {% for code in u.role_codes %}<span class="pill">{{ code }}</span>{% endfor %}
+                  {% for role in u.roles %}<span class="pill">{{ role.label or role.code }}{% if role.label %} <small>({{ role.code }})</small>{% endif %}</span>{% endfor %}
                   {% if u.secteur_assigne %}<span class="pill">{{ u.secteur_assigne }}</span>{% endif %}
                 </div>
               </td>
@@ -65,14 +65,14 @@
     <section class="admin-card stack-lg admin-rbac-card">
       <div>
         <h2 style="margin:0 0 8px;">Rôles</h2>
-        <div class="muted">Créez un rôle puis attribuez-lui les permissions nécessaires par famille fonctionnelle.</div>
+        <div class="muted">Créez un rôle puis attribuez-lui les droits nécessaires par famille fonctionnelle.</div>
       </div>
 
       <div class="rbac-panel-top">
         <form method="post" action="{{ url_for('admin.create_role') }}" class="rbac-inline-grid create-role-grid">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input class="rbac-input compact" name="code" placeholder="role_code" required>
-          <input class="rbac-input compact" name="label" placeholder="Libellé">
+          <input class="rbac-input compact" name="code" placeholder="Code court, ex. accueil" required>
+          <input class="rbac-input compact" name="label" placeholder="Nom affiché, ex. Équipe d’accueil">
           <button class="btn" type="submit">+ Créer</button>
         </form>
 
@@ -81,7 +81,7 @@
           <label for="delete_role_code" class="muted compact-label">Supprimer</label>
           <select id="delete_role_code" class="rbac-select compact" name="role_code" required>
             <option value="">-- sélectionner --</option>
-            {% for r in roles %}<option value="{{ r.code }}">{{ r.code }}</option>{% endfor %}
+            {% for r in roles %}<option value="{{ r.code }}">{{ r.label or r.code }}{% if r.label %} ({{ r.code }}){% endif %}</option>{% endfor %}
           </select>
           <button class="btn danger" type="submit">Supprimer</button>
         </form>
@@ -96,10 +96,10 @@
             <select id="role_code" class="rbac-select compact rbac-role-picker" name="role_code" required>
               <option value="">-- sélectionner --</option>
               {% for r in roles %}
-                <option value="{{ r.code }}">{{ r.code }}{% if r.label %} - {{ r.label }}{% endif %}</option>
+                <option value="{{ r.code }}">{{ r.label or r.code }}{% if r.label %} ({{ r.code }}){% endif %}</option>
               {% endfor %}
             </select>
-            <input id="permSearch" class="rbac-input compact perm-search" type="search" placeholder="Rechercher une permission…">
+            <input id="permSearch" class="rbac-input compact perm-search" type="search" placeholder="Rechercher un droit…">
             <label class="pill compact-pill"><input id="showCheckedOnly" type="checkbox" style="width:auto;margin:0 6px 0 0;">actives seulement</label>
             <span id="permSummary" class="pill compact-pill">0 visible</span>
           </div>
@@ -115,15 +115,15 @@
               <section class="perm-group compact-group flat-group" data-group="{{ title|lower }}">
                 <div class="perm-group-head">
                   <span class="group-title">{{ title }}</span>
-                  <span class="perm-count">{{ items|length }} permission{{ 's' if items|length > 1 else '' }}</span>
+                  <span class="perm-count">{{ items|length }} droit{{ 's' if items|length > 1 else '' }}</span>
                 </div>
                 <div class="permission-grid dense-grid compact-permission-grid">
                   {% for p in items %}
                     <label class="permission-card compact-card" data-perm-card data-label="{{ (p.code ~ ' ' ~ (p.label or ''))|lower }}">
                       <input type="checkbox" name="perm_codes" value="{{ p.code }}">
                       <div>
-                        <code>{{ p.code }}</code>
-                        <small>{{ p.label }}</small>
+                        <strong>{{ p.label or p.code }}</strong>
+                        <small><code>{{ p.code }}</code></small>
                       </div>
                     </label>
                   {% endfor %}

@@ -511,10 +511,14 @@ def build_dashboard_context(
         .limit(6)
         .all()
     )
-    recent_participants_q = Participant.query
-    if not has_scope_all:
-        recent_participants_q = recent_participants_q.filter(Participant.created_secteur == user.secteur_assigne)
-    recent_participants = recent_participants_q.order_by(Participant.created_at.desc()).limit(6).all()
+    recent_participants = []
+    if _has_any("participants:view", "participants:view_all"):
+        recent_participants_q = Participant.query
+        if not _has("participants:view_all"):
+            recent_participants_q = recent_participants_q.filter(
+                Participant.created_secteur == getattr(user, "secteur_assigne", None)
+            )
+        recent_participants = recent_participants_q.order_by(Participant.created_at.desc()).limit(6).all()
 
     def _project_scope_query():
         q = Projet.query
@@ -694,14 +698,14 @@ def build_dashboard_context(
     if _has_any("statsimpact:view", "stats:view", "emargement:view"):
         pilotage_modules.append({
             "key": "activity",
-            "title": "Activité & stats-impact",
+            "title": "Fréquentation & résultats",
             "value": sessions_recent,
             "unit": "sessions",
             "detail": f"{uniques_recent} participant(s) unique(s) sur {period_label}",
             "tone": "warn" if sessions_recent == 0 else "ok",
             "url": _safe("statsimpact.dashboard", date_from=activity_from_iso, date_to=activity_to_iso, source="dashboard"),
             "action": "Voir les présences",
-            "note": "Base stats-impact : présences d'émargement.",
+            "note": "Ces chiffres viennent des présences d'émargement.",
         })
     if _has("partenaires:view"):
         pilotage_modules.append({
@@ -834,7 +838,7 @@ def build_dashboard_context(
             {
                 "label": "Présences",
                 "value": sessions_without_presence,
-                "text": "Séances réalisées sans présence" if sessions_without_presence else "Stats-impact alimenté",
+                "text": "Séances réalisées sans présence" if sessions_without_presence else "Résultats à jour",
                 "tone": "danger" if sessions_without_presence else "ok",
                 "url": _safe("statsimpact.dashboard", date_from=activity_from_iso, date_to=activity_to_iso),
             },
