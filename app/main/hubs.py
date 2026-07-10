@@ -14,6 +14,8 @@ from app.models import (
     ProjetAction,
     OrientationAccesDroit,
     Questionnaire,
+    DepenseAffectation,
+    SessionActivite,
 )
 
 
@@ -132,6 +134,19 @@ def hub_activites():
 @login_required
 def hub_bilans():
     cards = []
+
+    if can("dashboard:view"):
+        cards.append({
+            "title": "Pilotage direction",
+            "subtitle": "Vue annuelle centre social : publics, présences, budget, bénévolat, alertes et support comité/CA.",
+            "primary_label": "Ouvrir le pilotage",
+            "primary_url": url_for("main.direction_pilotage"),
+            "secondary": [
+                {"label": "Support comité / CA", "url": url_for("main.comite_pilotage")},
+                {"label": "Journal métier", "url": url_for("main.journal_metier")} if (can("admin:rbac") or can("controle:view") or can("scope:all_secteurs")) else None,
+            ],
+            "tag": "Direction",
+        })
 
     if can("dashboard:view"):
         cards.append({
@@ -523,6 +538,177 @@ def documents_exports():
             "orientations": _documents_orientation_count(year, selected_secteur),
         },
     )
+# ---------------------------------------------------------------------
+# C1-C4 — Pilotage direction / comité / journal métier
+# ---------------------------------------------------------------------
+
+def _direction_year() -> int:
+    try:
+        year = int((request.args.get("year") or request.args.get("annee") or "").strip())
+    except Exception:
+        year = date.today().year
+    return max(2000, min(2100, year))
+
+
+def _direction_scope() -> tuple[int, str | None, list[str]]:
+    year = _direction_year()
+    secteurs = current_app.config.get("SECTEURS", []) or []
+    extra = {
+        row[0]
+        for row in Subvention.query.with_entities(Subvention.secteur).filter(Subvention.secteur.isnot(None)).distinct().all()
+    }
+    extra.update({
+        row[0]
+        for row in Projet.query.with_entities(Projet.secteur).filter(Projet.secteur.isnot(None)).distinct().all()
+    })
+    extra.update({
+        row[0]
+        for row in SessionActivite.query.with_entities(SessionActivite.secteur).filter(SessionActivite.secteur.isnot(None)).distinct().all()
+    })
+    secteurs = secteurs + [s for s in sorted(extra) if s and s not in secteurs]
+    selected = (request.args.get("secteur") or "").strip() or None
+    if not can("scope:all_secteurs"):
+        selected = getattr(current_user, "secteur_assigne", None)
+        secteurs = [selected] if selected else []
+    return year, selected, secteurs
+
+
+def _direction_compact_args(**kwargs) -> dict:
+    return {k: v for k, v in kwargs.items() if v not in (None, "")}
+
+
+def _direction_context() -> dict:
+    from app.models import AuditLog, BenevoleHeures, Depense, Participant, PresenceActivite, Salarie, SessionActivite, SuiviRappel
+
+    year, selected_secteur, secteurs = _direction_scope()
+    start, end = date(year, 1, 1), date(year, 12, 31)
+
+    session_date = db.func.coalesce(SessionActivite.rdv_date, SessionActivite.date_session)
+    sessions_q = SessionActivite.query.filter(SessionActivite.is_deleted.is_(False), session_date >= start, session_date <= end)
+    presences_q = PresenceActivite.query.join(SessionActivite).filter(SessionActivite.is_deleted.is_(False), session_date >= start, session_date <= end)
+    participants_q = Participant.query
+    subventions_q = Subvention.query.filter(Subvention.est_archive.is_(False), Subvention.annee_exercice == year)
+    depenses_q = Depense.query.filter(Depense.est_supprimee.is_(False))
+    rappels_q = SuiviRappel.query.filter(SuiviRappel.statut == "ouvert")
+    benevolat_q = BenevoleHeures.query.filter(BenevoleHeures.date_action >= start, BenevoleHeures.date_action <= end)
+    salaries_q = Salarie.query
+
+    if selected_secteur:
+        sessions_q = sessions_q.filter(SessionActivite.secteur == selected_secteur)
+        presences_q = presences_q.filter(SessionActivite.secteur == selected_secteur)
+        participants_q = participants_q.filter(Participant.created_secteur == selected_secteur)
+        subventions_q = subventions_q.filter(Subvention.secteur == selected_secteur)
+        depenses_q = depenses_q.join(Depense.affectations, isouter=True).join(Subvention, Subvention.id == DepenseAffectation.subvention_id, isouter=True).filter(db.or_(Subvention.secteur == selected_secteur, Subvention.id.is_(None)))
+        rappels_q = rappels_q.filter(db.or_(SuiviRappel.secteur == selected_secteur, SuiviRappel.secteur.is_(None)))
+        benevolat_q = benevolat_q.filter(BenevoleHeures.secteur == selected_secteur)
+        salaries_q = salaries_q.filter(Salarie.secteur == selected_secteur)
+    elif not can("scope:all_secteurs"):
+        secteur_user = getattr(current_user, "secteur_assigne", None)
+        sessions_q = sessions_q.filter(SessionActivite.secteur == secteur_user)
+        presences_q = presences_q.filter(SessionActivite.secteur == secteur_user)
+        participants_q = participants_q.filter(Participant.created_secteur == secteur_user)
+        subventions_q = subventions_q.filter(Subvention.secteur == secteur_user)
+        rappels_q = rappels_q.filter(db.or_(SuiviRappel.secteur == secteur_user, SuiviRappel.secteur.is_(None)))
+        benevolat_q = benevolat_q.filter(BenevoleHeures.secteur == secteur_user)
+        salaries_q = salaries_q.filter(Salarie.secteur == secteur_user)
+
+    subventions = subventions_q.all() if (can("subventions:view") or can("bilans:view") or can("stats:view")) else []
+    total_attribue = sum(float(s.montant_attribue or 0) for s in subventions)
+    total_recu = sum(float(s.montant_recu or 0) for s in subventions)
+    total_engage = sum(float(s.total_engage or 0) for s in subventions)
+    consommation_pct = round((total_engage / total_attribue) * 100, 1) if total_attribue else 0.0
+
+    sessions_count = sessions_q.count() if (can("emargement:view") or can("stats:view")) else 0
+    presences_count = presences_q.count() if (can("emargement:view") or can("stats:view")) else 0
+    unique_participants = presences_q.with_entities(PresenceActivite.participant_id).distinct().count() if (can("participants:view") or can("stats:view")) else 0
+    total_participants = participants_q.count() if can("participants:view") or can("participants:view_all") else 0
+    depenses_total = float(depenses_q.with_entities(db.func.coalesce(db.func.sum(Depense.montant), 0)).scalar() or 0) if can("depenses:view") else 0.0
+    heures_benevoles = float(benevolat_q.with_entities(db.func.coalesce(db.func.sum(BenevoleHeures.heures), 0)).scalar() or 0) if can("stats:view") else 0.0
+    etp = float(sum(float(s.etp or 0) for s in salaries_q.all() if s.actif_sur(year))) if can("rh:view") else 0.0
+
+    alert_cards = []
+    if can("dashboard:view"):
+        alert_cards.append({"label": "Rappels ouverts", "value": rappels_q.count(), "tone": "warn", "url": url_for("main.suivi_rappels")})
+    bilans_attendus = [s for s in subventions if s.date_bilan_prevu and s.date_bilan_prevu <= end]
+    bilans_en_retard = [s for s in bilans_attendus if s.date_bilan_prevu and s.date_bilan_prevu < date.today()]
+    if can("subventions:view"):
+        alert_cards.append({"label": "Bilans financeurs attendus", "value": len(bilans_attendus), "tone": "info", "url": url_for("main.documents_exports", year=year, secteur=selected_secteur or "")})
+        alert_cards.append({"label": "Bilans financeurs en retard", "value": len(bilans_en_retard), "tone": "danger" if bilans_en_retard else "ok", "url": url_for("main.documents_exports", year=year, secteur=selected_secteur or "")})
+    if can("admin:rbac"):
+        alert_cards.append({"label": "Actions tracées", "value": AuditLog.query.count(), "tone": "info", "url": url_for("main.journal_metier")})
+
+    ratios = [
+        {"label": "Présences par séance", "value": round(presences_count / sessions_count, 1) if sessions_count else 0, "help": "Moyenne annuelle"},
+        {"label": "Présences par participant", "value": round(presences_count / unique_participants, 1) if unique_participants else 0, "help": "Intensité de fréquentation"},
+        {"label": "Consommation budget", "value": f"{consommation_pct:.1f}%", "help": "Engagé / attribué"},
+    ]
+
+    quick_links = [
+        {"label": "Documents prêts", "url": url_for("main.documents_exports", year=year, secteur=selected_secteur or "")},
+        {"label": "Qualité des données", "url": url_for("main.qualite_donnees_transverse", secteur=selected_secteur or "")},
+        {"label": "Vue comité / CA", "url": url_for("main.comite_pilotage", year=year, secteur=selected_secteur or "")},
+        {"label": "Journal métier", "url": url_for("main.journal_metier")},
+    ]
+
+    return {
+        "year": year,
+        "selected_secteur": selected_secteur,
+        "secteurs": secteurs,
+        "kpis": [
+            {"label": "Participants uniques", "value": unique_participants, "help": f"Présents au moins une fois en {year}"},
+            {"label": "Présences", "value": presences_count, "help": "Lignes d’émargement"},
+            {"label": "Séances", "value": sessions_count, "help": "Ateliers et rendez-vous réalisés"},
+            {"label": "Budget engagé", "value": f"{total_engage:,.0f} €".replace(",", " "), "help": f"sur {total_attribue:,.0f} € attribués".replace(",", " ")},
+            {"label": "Dépenses", "value": f"{depenses_total:,.0f} €".replace(",", " "), "help": "Dépenses non supprimées"},
+            {"label": "Bénévolat", "value": f"{heures_benevoles:,.1f} h".replace(",", " "), "help": "Heures valorisables"},
+            {"label": "ETP", "value": f"{etp:.2f}", "help": "Salariés actifs sur l’exercice"},
+            {"label": "Fiches créées", "value": total_participants, "help": "Participants du périmètre"},
+        ],
+        "alert_cards": alert_cards,
+        "ratios": ratios,
+        "subventions": sorted(subventions, key=lambda s: (s.date_bilan_prevu or date(2100, 1, 1), s.nom))[:8],
+        "quick_links": quick_links,
+        "print_args": _direction_compact_args(year=year, secteur=selected_secteur),
+    }
+
+
+@bp.route("/direction/pilotage")
+@login_required
+@require_perm("dashboard:view")
+def direction_pilotage():
+    if not (can("stats:view") or can("bilans:view") or can("subventions:view") or can("scope:all_secteurs")):
+        abort(403)
+    return render_template("direction_pilotage.html", **_direction_context())
+
+
+@bp.route("/direction/comite-pilotage")
+@login_required
+@require_perm("dashboard:view")
+def comite_pilotage():
+    if not (can("stats:view") or can("bilans:view") or can("subventions:view") or can("scope:all_secteurs")):
+        abort(403)
+    return render_template("comite_pilotage.html", **_direction_context())
+
+
+@bp.route("/journal-metier")
+@login_required
+@require_perm("dashboard:view")
+def journal_metier():
+    from app.models import AuditLog
+
+    if not (can("admin:rbac") or can("controle:view") or can("scope:all_secteurs")):
+        abort(403)
+    action = (request.args.get("action") or "").strip()
+    cible = (request.args.get("cible") or "").strip()
+    q = AuditLog.query
+    if action:
+        q = q.filter(AuditLog.action == action)
+    if cible:
+        q = q.filter(AuditLog.cible.ilike(f"%{cible}%"))
+    entries = q.order_by(AuditLog.created_at.desc()).limit(200).all()
+    actions = [a for (a,) in db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()]
+    return render_template("journal_metier.html", entries=entries, actions=actions, action=action, cible=cible)
+
 
 
 @bp.route("/ressources")
