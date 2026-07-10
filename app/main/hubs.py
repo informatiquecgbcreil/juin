@@ -143,7 +143,6 @@ def hub_bilans():
             "primary_url": url_for("main.direction_pilotage"),
             "secondary": [
                 {"label": "Support comité / CA", "url": url_for("main.comite_pilotage")},
-                {"label": "Parcours métiers", "url": url_for("main.parcours_metier")},
                 {"label": "Journal métier", "url": url_for("main.journal_metier")} if (can("admin:rbac") or can("controle:view") or can("scope:all_secteurs")) else None,
             ],
             "tag": "Direction",
