@@ -102,6 +102,36 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Le guide « Je compte la caisse et je fais le dépôt » (page Guides) accompagne toute l'opération, pensé pour une première fois.",
     },
+    "main.direction_pilotage": {
+        "titre": "Le pilotage direction",
+        "resume": "Cette page rassemble les chiffres que la direction suit régulièrement : publics, présences, budget, bénévolat, alertes et échéances.",
+        "etapes": [
+            "Choisissez l’année et, si besoin, un secteur.",
+            "Lisez d’abord les points de vigilance : ce sont les sujets à traiter ou à arbitrer.",
+            "Utilisez les raccourcis pour ouvrir les documents, la qualité des données ou le support comité/CA.",
+        ],
+        "astuce": "Cette page ne remplace pas les bilans détaillés : elle sert de tableau de bord de décision rapide.",
+    },
+    "main.comite_pilotage": {
+        "titre": "Le support comité / CA",
+        "resume": "Une synthèse imprimable, sans données nominatives, pour préparer un comité de pilotage ou un conseil d’administration.",
+        "etapes": [
+            "Vérifiez les chiffres clés et les points de vigilance.",
+            "Ajoutez vos commentaires oralement ou dans le compte rendu de réunion.",
+            "Utilisez le bouton Imprimer / PDF pour partager le support.",
+        ],
+        "astuce": "Gardez cette vue courte : elle doit aider à décider, pas remplacer tous les tableaux détaillés.",
+    },
+    "main.journal_metier": {
+        "titre": "Le journal métier",
+        "resume": "Cette page retrace les actions importantes de l’application dans un langage plus lisible que le journal technique.",
+        "etapes": [
+            "Filtrez par type d’action ou par cible si vous cherchez un dossier précis.",
+            "Regardez qui a fait l’action et à quelle date.",
+            "Passez à la vue technique seulement si vous devez diagnostiquer finement un événement.",
+        ],
+        "astuce": "C’est un outil de confiance : il sert à comprendre ce qui s’est passé, pas à surveiller le travail quotidien.",
+    },
     "main.dashboard_customize": {
         "titre": "Personnaliser votre tableau de bord",
         "resume": "Choisissez ici ce que VOUS voulez voir en arrivant dans l'application.",
