@@ -147,7 +147,7 @@ def _collect_sector_depenses(secteur: str, year: int, subventions: list[Subventi
 
     return sorted(
         depenses.values(),
-        key=lambda d: (d.date_paiement or d.created_at.date() if getattr(d, "created_at", None) else date.min, d.id),
+        key=lambda d: (d.date_paiement or (d.created_at.date() if getattr(d, "created_at", None) else date.min), d.id),
         reverse=True,
     )
 

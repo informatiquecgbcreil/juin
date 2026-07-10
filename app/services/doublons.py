@@ -9,7 +9,44 @@ from __future__ import annotations
 
 import unicodedata
 
+from app.extensions import db
 from app.models import Participant
+
+
+# Variantes accentuées par lettre de base, pour élargir le préfiltre SQL :
+# « Éric » doit retrouver « Eric », « Ålard » retrouver « Allard », etc.
+_ACCENTS = {
+    "a": "aàáâãäå",
+    "c": "cç",
+    "e": "eéèêë",
+    "i": "iîïìí",
+    "n": "nñ",
+    "o": "oôöòóõ",
+    "u": "uùûüú",
+    "y": "yÿý",
+}
+
+
+def _like_prefixes(nom: str) -> list[str]:
+    """Motifs LIKE couvrant les variantes accentuées et de casse des 2
+    premières lettres, pour ne pas rater un homonyme à cause d'un accent.
+
+    La précision reste assurée en aval par ``_proches`` (comparaison sur les
+    formes normalisées) : ici on cherche juste à ne pas perdre de candidat."""
+    norm = normaliser_nom(nom)
+    if not norm:
+        brut = (nom or "").strip()
+        return [f"{brut[:2]}%"] if brut else ["%"]
+    premiers = _ACCENTS.get(norm[0], norm[0])
+    seconde = norm[1] if len(norm) > 1 else ""
+    motifs: set[str] = set()
+    for lettre in premiers:
+        for variante in {lettre, lettre.upper()}:
+            motifs.add(f"{variante}{seconde}%")
+            if seconde:
+                motifs.add(f"{variante}{seconde.upper()}%")
+    motifs.add(f"{(nom or '').strip()[:2]}%")
+    return sorted(m for m in motifs if m)
 
 
 def normaliser_nom(texte: str) -> str:
@@ -49,8 +86,10 @@ def candidats_doublons(nom: str, prenom: str, *, exclure_id: int | None = None) 
     if not n or not p:
         return []
 
+    prefixes = _like_prefixes(nom)
+    prefiltre = db.or_(*[Participant.nom.like(motif) for motif in prefixes])
     candidats: list[Participant] = []
-    for cand in Participant.query.filter(Participant.nom.ilike(f"{nom[:2]}%")).limit(400).all():
+    for cand in Participant.query.filter(prefiltre).limit(400).all():
         if exclure_id is not None and cand.id == exclure_id:
             continue
         cn, cp = normaliser_nom(cand.nom), normaliser_nom(cand.prenom)

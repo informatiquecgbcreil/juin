@@ -433,9 +433,17 @@ def compute_volume_activity_stats(flt: StatsFilters) -> Dict[str, Any]:
     else:
         presences = []
 
-    sessions_count = len(sessions_rows)
-    presences_total = len(presences)
-    uniques = len({p.participant_id for p in presences})
+    # Les séances annulées restent dans sessions_rows pour distinguer prévu/réel
+    # par atelier, mais les KPI de tête reflètent l'activité RÉALISÉE : on écarte
+    # les séances annulées et leurs présences.
+    real_session_ids = {
+        s.id for s, _ in sessions_rows if (s.statut or "").strip().lower() != "annulee"
+    }
+    presences_real = [p for p in presences if p.session_id in real_session_ids]
+
+    sessions_count = len(real_session_ids)
+    presences_total = len(presences_real)
+    uniques = len({p.participant_id for p in presences_real})
 
     # New participants in period (first time in whole system within range)
     new_participants = 0
@@ -458,7 +466,7 @@ def compute_volume_activity_stats(flt: StatsFilters) -> Dict[str, Any]:
         new_participants = int(q_new.scalar() or 0)
 
     pres_by_session: Dict[int, int] = {}
-    for p in presences:
+    for p in presences_real:
         pres_by_session[p.session_id] = pres_by_session.get(p.session_id, 0) + 1
 
     hours_animator = 0.0
@@ -503,20 +511,22 @@ def compute_volume_activity_stats(flt: StatsFilters) -> Dict[str, Any]:
         if mins <= 0:
             continue
         h = mins / 60.0
-        hours_animator += h
-        per_atelier[gid]["hours_animator"] += h
+        # planned_hours = tout le planifié ; les heures effectives (animateur /
+        # face public) ne comptent que les séances réalisées (non annulées).
         per_atelier[gid]["planned_hours"] += h
         if is_real:
             per_atelier[gid]["real_hours"] += h
+            hours_animator += h
+            per_atelier[gid]["hours_animator"] += h
 
-        count_p = pres_by_session.get(session.id, 0)
-        if (session.session_type or "").upper() == "COLLECTIF":
-            hours_people += h * float(count_p)
-            per_atelier[gid]["hours_people"] += h * float(count_p)
-        else:
-            if count_p > 0:
-                hours_people += h
-                per_atelier[gid]["hours_people"] += h
+            count_p = pres_by_session.get(session.id, 0)
+            if (session.session_type or "").upper() == "COLLECTIF":
+                hours_people += h * float(count_p)
+                per_atelier[gid]["hours_people"] += h * float(count_p)
+            else:
+                if count_p > 0:
+                    hours_people += h
+                    per_atelier[gid]["hours_people"] += h
         cap = session.capacite if session.capacite is not None else getattr(atelier, "capacite_defaut", 0) or 0
         per_atelier[gid]["planned_capacity"] += int(cap or 0)
         if is_real:
@@ -536,6 +546,8 @@ def compute_volume_activity_stats(flt: StatsFilters) -> Dict[str, Any]:
     series_sort: Dict[str, Tuple[int, int, int]] = {}
 
     for session, _atelier in sessions_rows:
+        if session.id not in real_session_ids:
+            continue
         d = session.rdv_date or session.date_session
         if not d:
             continue
@@ -550,7 +562,7 @@ def compute_volume_activity_stats(flt: StatsFilters) -> Dict[str, Any]:
         if d:
             session_date_map[session.id] = d
 
-    for p in presences:
+    for p in presences_real:
         d = session_date_map.get(p.session_id)
         if not d:
             continue
@@ -578,6 +590,8 @@ def compute_volume_activity_stats(flt: StatsFilters) -> Dict[str, Any]:
 
     heat = {d: {b: 0 for b in bucket_labels} for d in days}
     for session, _atelier in sessions_rows:
+        if session.id not in real_session_ids:
+            continue
         sd = session.rdv_date or session.date_session
         if not sd:
             continue
@@ -600,7 +614,7 @@ def compute_volume_activity_stats(flt: StatsFilters) -> Dict[str, Any]:
 
     # Per-atelier presences + uniques
     session_to_atelier = {s.id: _continuity_group_id(a) for s, a in sessions_rows}
-    for p in presences:
+    for p in presences_real:
         aid = session_to_atelier.get(p.session_id)
         if not aid or aid not in per_atelier:
             continue
@@ -845,12 +859,16 @@ def compute_demography_stats(flt: StatsFilters) -> Dict[str, Any]:
 
     participants = db.session.query(Participant).filter(Participant.id.in_(pids)).all()
 
-    ages = [p.age for p in participants if p.age is not None]
+    # Âge figé à la fin de la période analysée (ou aujourd'hui à défaut) : un
+    # bilan d'année passée ne doit pas vieillir les publics au fil du temps.
+    ref_age = flt.date_to or date.today()
+
+    ages = [p.age_au(ref_age) for p in participants if p.age_au(ref_age) is not None]
     age_avg = round(sum(ages) / len(ages), 1) if ages else None
 
     age_buckets = {"0-10": 0, "11-17": 0, "18-25": 0, "26-59": 0, "60+": 0, "Inconnu": 0}
     for p in participants:
-        a = p.age
+        a = p.age_au(ref_age)
         if a is None:
             age_buckets["Inconnu"] += 1
         elif a <= 10:
@@ -885,7 +903,7 @@ def compute_demography_stats(flt: StatsFilters) -> Dict[str, Any]:
                 qpv += 1
             else:
                 hors_qpv += 1
-        _add_participant_to_qpv_detail(qpv_detail_map[bucket_key], p)
+        _add_participant_to_qpv_detail(qpv_detail_map[bucket_key], p, ref_age)
 
     type_public_counts = Counter([(p.type_public or "H") for p in participants])
 
@@ -939,8 +957,8 @@ def _qpv_bucket_key(participant: Participant) -> str:
     return "hors_qpv"
 
 
-def _participant_age_bucket(participant: Participant) -> str:
-    age = getattr(participant, "age", None)
+def _participant_age_bucket(participant: Participant, reference: date | None = None) -> str:
+    age = participant.age_au(reference)
     if age is None:
         return "Inconnu"
     if age <= 10:
@@ -963,10 +981,10 @@ def _participant_genre_bucket(participant: Participant) -> str:
     return "Autre / non renseigné"
 
 
-def _add_participant_to_qpv_detail(bucket: Dict[str, Any], participant: Participant) -> None:
+def _add_participant_to_qpv_detail(bucket: Dict[str, Any], participant: Participant, reference: date | None = None) -> None:
     bucket["total"] += 1
     bucket["genre"][_participant_genre_bucket(participant)] += 1
-    bucket["age_buckets"][_participant_age_bucket(participant)] += 1
+    bucket["age_buckets"][_participant_age_bucket(participant, reference)] += 1
 
 
 def compute_participants_stats(flt: StatsFilters) -> Dict[str, Any]:
