@@ -1414,15 +1414,24 @@ class Participant(db.Model):
             return True
         return False
 
-    @property
-    def age(self):
+    def age_au(self, reference: date | None = None):
+        """Âge révolu à une date de référence (par défaut aujourd'hui).
+
+        Utilisé par les bilans et indicateurs pour figer l'âge à la fin de la
+        période analysée : un bilan d'une année passée ne doit pas dériver avec
+        le temps. Pour une période = année civile, l'âge au 31/12 coïncide avec
+        la convention SENACS (année - année de naissance)."""
         if not self.date_naissance:
             return None
-        today = date.today()
-        years = today.year - self.date_naissance.year
-        if (today.month, today.day) < (self.date_naissance.month, self.date_naissance.day):
+        reference = reference or date.today()
+        years = reference.year - self.date_naissance.year
+        if (reference.month, reference.day) < (self.date_naissance.month, self.date_naissance.day):
             years -= 1
         return years
+
+    @property
+    def age(self):
+        return self.age_au(date.today())
 
     @property
     def current_insertion_parcours(self):

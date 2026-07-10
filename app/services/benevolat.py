@@ -66,7 +66,10 @@ def stats_annee(annee: int, secteur: str | None = None) -> dict:
         key=lambda r: -r["heures"],
     )
 
-    nb_declares = Participant.query.filter(Participant.est_benevole.is_(True)).count()
+    declares_q = Participant.query.filter(Participant.est_benevole.is_(True))
+    if secteur:
+        declares_q = declares_q.filter(Participant.created_secteur == secteur)
+    nb_declares = declares_q.count()
     taux = taux_horaire()
 
     return {

@@ -23,9 +23,13 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.models import (
+    BenevoleHeures,
+    Cotisation,
     Evaluation,
     OrientationAccesDroit,
+    Paiement,
     Participant,
+    ParticipantInsertionParcours,
     PasseportNote,
     PasseportPieceJointe,
     PresenceActivite,
@@ -82,8 +86,10 @@ def _vers_datetime(valeur) -> datetime | None:
     return None
 
 
-def _max_par_participant(colonne_pid, colonne_date, jointure=None) -> dict[int, datetime]:
+def _max_par_participant(colonne_pid, colonne_date, jointure=None, base=None) -> dict[int, datetime]:
     q = db.session.query(colonne_pid, func.max(colonne_date))
+    if base is not None:
+        q = q.select_from(base)
     if jointure is not None:
         q = q.join(*jointure)
     resultat = {}
@@ -95,11 +101,12 @@ def _max_par_participant(colonne_pid, colonne_date, jointure=None) -> dict[int, 
 
 
 def derniere_activite_par_participant() -> dict[int, datetime]:
+    eff_session = db.func.coalesce(SessionActivite.rdv_date, SessionActivite.date_session)
     sources = [
         _max_par_participant(PresenceActivite.participant_id, PresenceActivite.created_at),
         _max_par_participant(
             PresenceActivite.participant_id,
-            SessionActivite.date_session,
+            eff_session,
             jointure=(SessionActivite, PresenceActivite.session_id == SessionActivite.id),
         ),
         _max_par_participant(OrientationAccesDroit.participant_id, OrientationAccesDroit.updated_at),
@@ -108,6 +115,27 @@ def derniere_activite_par_participant() -> dict[int, datetime]:
         _max_par_participant(PasseportNote.participant_id, PasseportNote.created_at),
         _max_par_participant(PasseportPieceJointe.participant_id, PasseportPieceJointe.created_at),
         _max_par_participant(Evaluation.participant_id, Evaluation.date_evaluation),
+        # Un adhérent, un bénévole ou une personne en parcours reste « actif »
+        # même sans présence en atelier : sans ça, la purge anonymiserait des
+        # contacts encore en lien avec la structure.
+        _max_par_participant(BenevoleHeures.participant_id, BenevoleHeures.date_action),
+        _max_par_participant(Cotisation.participant_id, Cotisation.updated_at),
+        _max_par_participant(Cotisation.participant_id, Cotisation.date_reference),
+        # Règlements d'une cotisation individuelle : Paiement -> Cotisation -> participant.
+        _max_par_participant(
+            Cotisation.participant_id,
+            Paiement.date_paiement,
+            jointure=(Cotisation, Paiement.cotisation_id == Cotisation.id),
+            base=Paiement,
+        ),
+        # Adhésion familiale : la cotisation est portée par le foyer, elle vaut
+        # activité pour tous ses membres.
+        _max_par_participant(
+            Participant.id,
+            Cotisation.updated_at,
+            jointure=(Cotisation, Cotisation.foyer_id == Participant.foyer_id),
+        ),
+        _max_par_participant(ParticipantInsertionParcours.participant_id, ParticipantInsertionParcours.updated_at),
     ]
     fusion: dict[int, datetime] = {}
     for source in sources:

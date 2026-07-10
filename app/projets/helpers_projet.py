@@ -393,7 +393,7 @@ def _collect_project_depenses(projet: Projet, subventions: list[Subvention]) -> 
 
     return sorted(
         depenses_by_key.values(),
-        key=lambda d: (d.date_paiement or d.created_at.date() if getattr(d, "created_at", None) else date.min, d.id),
+        key=lambda d: (d.date_paiement or (d.created_at.date() if getattr(d, "created_at", None) else date.min), d.id),
         reverse=True,
     )
 

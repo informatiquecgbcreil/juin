@@ -44,11 +44,19 @@ TRANCHES_AGE = [
 NON_RENSEIGNE = "Non renseigné"
 
 
+def _date_effective_session():
+    """Date métier de la séance : rdv_date (individuel) sinon date_session
+    (collectif) — même convention que le reste de l'application."""
+    return db.func.coalesce(SessionActivite.rdv_date, SessionActivite.date_session)
+
+
 def annees_disponibles() -> list[int]:
-    """Années pour lesquelles il existe des sessions datées."""
+    """Années pour lesquelles il existe des sessions datées (collectives OU
+    individuelles : on regarde la date effective, pas seulement date_session)."""
+    eff = _date_effective_session()
     lignes = (
-        db.session.query(extract("year", SessionActivite.date_session))
-        .filter(SessionActivite.date_session.isnot(None))
+        db.session.query(extract("year", eff))
+        .filter(eff.isnot(None))
         .distinct()
         .all()
     )
@@ -57,16 +65,18 @@ def annees_disponibles() -> list[int]:
 
 
 def _presences_annee(annee: int):
-    """Présences de l'année: date de session, sinon date d'enregistrement."""
+    """Présences de l'année : date effective de la séance (rdv_date pour
+    l'individuel, date_session pour le collectif), et seulement à défaut de
+    toute date la date d'enregistrement de la présence."""
+    eff = _date_effective_session()
     return (
         db.session.query(PresenceActivite, SessionActivite)
         .join(SessionActivite, PresenceActivite.session_id == SessionActivite.id)
         .filter(SessionActivite.is_deleted.is_(False))
         .filter(
             or_(
-                extract("year", SessionActivite.date_session) == annee,
-                SessionActivite.date_session.is_(None)
-                & (extract("year", PresenceActivite.created_at) == annee),
+                extract("year", eff) == annee,
+                eff.is_(None) & (extract("year", PresenceActivite.created_at) == annee),
             )
         )
         .all()
@@ -137,7 +147,9 @@ def publics_annee(annee: int) -> dict:
 def _duree_heures(session: SessionActivite) -> float | None:
     if session.duree_minutes:
         return round(session.duree_minutes / 60.0, 2)
-    debut, fin = (session.heure_debut or "").strip(), (session.heure_fin or "").strip()
+    # Collectif : heure_debut/heure_fin ; individuel : rdv_debut/rdv_fin.
+    debut = (session.heure_debut or session.rdv_debut or "").strip()
+    fin = (session.heure_fin or session.rdv_fin or "").strip()
     try:
         h1, m1 = (int(x) for x in debut.split(":"))
         h2, m2 = (int(x) for x in fin.split(":"))
@@ -420,7 +432,7 @@ def finances_annee(annee: int) -> dict:
 
 def evenementiel_annee(annee: int) -> dict:
     """Volet événementiel : séances marquées « événement » sur l'année."""
-    eff = db.func.coalesce(SessionActivite.date_session, SessionActivite.rdv_date)
+    eff = _date_effective_session()
     sessions = (SessionActivite.query
                 .filter(SessionActivite.is_deleted.is_(False))
                 .filter(SessionActivite.est_evenement.is_(True))

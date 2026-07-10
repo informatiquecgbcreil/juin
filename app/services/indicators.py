@@ -560,11 +560,11 @@ def _participants_metrics(atelier_ids_scope: list[int], dmin, dmax) -> dict:
     out["fidelite_3plus_rate"] = _pct_value(out["fidelite_3plus"], out["participants_uniques"])
     out["frequence_moyenne"] = round(sum(visit_counts) / len(visit_counts), 2) if visit_counts else 0.0
 
-    _add_demography_metrics(out, list(visits_by_participant.keys()))
+    _add_demography_metrics(out, list(visits_by_participant.keys()), dmax)
     return out
 
 
-def _add_demography_metrics(out: dict, participant_ids: list[int]) -> None:
+def _add_demography_metrics(out: dict, participant_ids: list[int], reference: date | None = None) -> None:
     defaults = {
         "age_moyen": None,
         "participants_mineurs": 0,
@@ -587,11 +587,13 @@ def _add_demography_metrics(out: dict, participant_ids: list[int]) -> None:
         return
 
     participants = Participant.query.filter(Participant.id.in_(participant_ids)).all()
-    ages = [p.age for p in participants if p.age is not None]
+    # Âge figé à la fin de la période de l'indicateur (cohérent avec SENACS et
+    # stable dans le temps pour les bilans d'années passées).
+    ages = [p.age_au(reference) for p in participants if p.age_au(reference) is not None]
     out["age_moyen"] = round(sum(ages) / len(ages), 1) if ages else None
 
     for participant in participants:
-        age = participant.age
+        age = participant.age_au(reference)
         if age is not None:
             if age < 18:
                 out["participants_mineurs"] += 1
