@@ -559,6 +559,7 @@
               {% if can('dashboard:view') %}
                 <a class="pill {% if ep.startswith('main.dashboard') %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Accueil</a>
                 <a class="pill {% if is_suivi %}active{% endif %}" href="{{ url_for('main.suivi_rappels') }}">À traiter</a>
+                <a class="pill {% if ep == 'main.parcours_metier' %}active{% endif %}" href="{{ url_for('main.parcours_metier') }}">Parcours métiers</a>
               {% endif %}
               {% if can('participants:view') or can('participants:view_all') %}
                 <a class="pill {% if ep.startswith('participants.') %}active{% endif %}" href="{{ url_for('main.hub_publics') }}">Participants</a>
@@ -626,6 +627,7 @@
               {% if can('dashboard:view') %}
                 <a class="pill {% if ep.startswith('main.dashboard') %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Accueil</a>
                 <a class="pill {% if is_suivi %}active{% endif %}" href="{{ url_for('main.suivi_rappels') }}">À traiter</a>
+                <a class="pill {% if ep == 'main.parcours_metier' %}active{% endif %}" href="{{ url_for('main.parcours_metier') }}">Parcours métiers</a>
               {% endif %}
 
               <details class="nav-more">
@@ -772,6 +774,7 @@
             <div class="nav-category-row desktop-nav-links">
               <a class="pill {% if ep.startswith('main.dashboard') %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Accueil</a>
               <a class="pill {% if is_suivi %}active{% endif %}" href="{{ url_for('main.suivi_rappels') }}">À traiter</a>
+              <a class="pill {% if ep == 'main.parcours_metier' %}active{% endif %}" href="{{ url_for('main.parcours_metier') }}">Parcours métiers</a>
               <details class="nav-more">
                 <summary class="pill {% if is_admin_area %}active{% endif %}">Administration</summary>
                 <div class="nav-more-panel">
