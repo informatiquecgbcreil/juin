@@ -102,6 +102,36 @@ AIDE_PAGES: dict[str, dict] = {
         ],
         "astuce": "Le guide « Je compte la caisse et je fais le dépôt » (page Guides) accompagne toute l'opération, pensé pour une première fois.",
     },
+    "main.parcours_metier": {
+        "titre": "Les parcours par métier",
+        "resume": "Cette page part de votre situation réelle — accueil, animation, coordination, direction, finance ou administration — et propose les bons raccourcis.",
+        "etapes": [
+            "Repérez la carte qui correspond à votre rôle du moment.",
+            "Cliquez sur l’action principale en vert pour démarrer rapidement.",
+            "Utilisez les autres boutons pour accéder aux tâches liées.",
+        ],
+        "astuce": "Une même personne peut utiliser plusieurs cartes selon sa journée : accueil le matin, bilan l’après-midi.",
+    },
+    "main.assistant_bilan_financeur": {
+        "titre": "L’assistant bilan financeur",
+        "resume": "Une checklist pour préparer un dossier financeur sans oublier les pièces et données principales.",
+        "etapes": [
+            "Choisissez l’année puis la subvention à préparer.",
+            "Vérifiez chaque point de la checklist : financeur, budget réel, dépenses et échéance.",
+            "Ouvrez les documents prêts ou la qualité bilan pour finaliser.",
+        ],
+        "astuce": "Utilisez cette page quelques semaines avant l’échéance : elle sert à anticiper, pas seulement à exporter au dernier moment.",
+    },
+    "main.qualite_bilans": {
+        "titre": "La qualité des données pour les bilans",
+        "resume": "Cette page trie les anomalies selon leur impact sur les bilans : bloquant, important ou confort.",
+        "etapes": [
+            "Commencez toujours par les points bloquants.",
+            "Traitez ensuite les points importants pour fiabiliser les chiffres.",
+            "Gardez les points de confort pour les périodes plus calmes.",
+        ],
+        "astuce": "Cette vue est faite pour une réunion de préparation bilan : elle aide à répartir les corrections entre collègues.",
+    },
     "main.direction_pilotage": {
         "titre": "Le pilotage direction",
         "resume": "Cette page rassemble les chiffres que la direction suit régulièrement : publics, présences, budget, bénévolat, alertes et échéances.",
@@ -131,6 +161,16 @@ AIDE_PAGES: dict[str, dict] = {
             "Passez à la vue technique seulement si vous devez diagnostiquer finement un événement.",
         ],
         "astuce": "C’est un outil de confiance : il sert à comprendre ce qui s’est passé, pas à surveiller le travail quotidien.",
+    },
+    "admin.matrice_droits": {
+        "titre": "La matrice des droits",
+        "resume": "Une vue simple des permissions par rôle pour décider qui peut voir, modifier ou administrer les données sensibles.",
+        "etapes": [
+            "Lisez les permissions par grande famille : publics, activités, finances, bilans, ressources sensibles.",
+            "Une coche indique que le rôle possède ce droit.",
+            "Cliquez sur Modifier les droits pour ajuster les rôles si nécessaire.",
+        ],
+        "astuce": "Validez cette matrice en équipe de direction avant d’ouvrir de nouveaux accès.",
     },
     "main.dashboard_customize": {
         "titre": "Personnaliser votre tableau de bord",

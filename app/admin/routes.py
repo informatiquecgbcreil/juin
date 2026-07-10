@@ -708,6 +708,36 @@ def journal_audit():
     return render_template("admin_journal.html", entrees=entrees, actions=actions, action=action, cible=cible)
 
 
+@bp.route("/droits/matrice")
+@login_required
+@require_perm("admin:rbac")
+def matrice_droits():
+    """B4 — Matrice lisible des droits par rôle, orientée non-développeur."""
+    categories = [
+        ("Publics", ["participants:view", "participants:view_all", "participants:edit", "participants:delete", "insertion:sensitive_view"]),
+        ("Activités", ["emargement:view", "emargement:edit", "ateliers:edit", "pedagogie:view"]),
+        ("Finances", ["subventions:view", "subventions:edit", "depenses:view", "depenses:create", "aap:view"]),
+        ("Bilans", ["stats:view", "stats:view_all", "bilans:view", "questionnaires:export"]),
+        ("Ressources sensibles", ["rh:view", "dons:view", "caisse:view", "admin:users", "admin:rbac"]),
+    ]
+    roles = Role.query.order_by(Role.label.asc()).all()
+    permission_labels = {p.code: p.label for p in Permission.query.all()}
+    rows = []
+    for title, codes in categories:
+        rows.append({
+            "title": title,
+            "permissions": [
+                {
+                    "code": code,
+                    "label": permission_labels.get(code, code),
+                    "roles": {role.code: any(p.code == code for p in role.permissions) for role in roles},
+                }
+                for code in codes
+            ],
+        })
+    return render_template("admin_matrice_droits.html", roles=roles, rows=rows)
+
+
 @bp.route("/sante")
 @login_required
 @require_perm("admin:rbac")

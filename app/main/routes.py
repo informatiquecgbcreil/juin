@@ -20,6 +20,7 @@ from app.main import (  # noqa: F401
     impayes,
     hubs,
     qualite_donnees,
+    parcours,
     recherche,
     rh,
     stats,
