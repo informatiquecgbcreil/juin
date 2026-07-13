@@ -661,6 +661,37 @@ def sauvegarde_creer():
     return redirect(url_for("admin.sauvegardes"))
 
 
+@bp.route("/sauvegardes/verifier", methods=["POST"])
+@login_required
+@require_perm("admin:rbac")
+def sauvegarde_verifier():
+    """Vérification à blanc : le lot est-il réellement restaurable ?
+    Ne touche ni la base courante ni les fichiers du lot."""
+    from app.services.sauvegarde import verifier_lot
+
+    base = (request.form.get("base") or "").strip()
+    if not base:
+        flash("Sélectionnez une sauvegarde à vérifier.", "danger")
+        return redirect(url_for("admin.sauvegardes"))
+    try:
+        rapport = verifier_lot(base)
+        details = " · ".join(
+            f"{c['nom']} : {'OK' if c['ok'] else ('inconnu' if c['ok'] is None else 'ÉCHEC')}"
+            for c in rapport["controles"]
+        )
+        if rapport["ok"]:
+            flash(f"Sauvegarde « {base} » vérifiée : RESTAURABLE ✅ ({details})", "success")
+        else:
+            echecs = "; ".join(
+                f"{c['nom']} — {c['detail']}" for c in rapport["controles"] if c["ok"] is False
+            )
+            flash(f"Sauvegarde « {base} » NON FIABLE ❌ : {echecs}", "danger")
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.exception("Échec de la vérification de sauvegarde")
+        flash(f"La vérification a échoué : {exc}", "danger")
+    return redirect(url_for("admin.sauvegardes"))
+
+
 @bp.route("/sauvegardes/restaurer", methods=["POST"])
 @login_required
 @require_perm("admin:rbac")

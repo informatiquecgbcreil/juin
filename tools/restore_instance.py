@@ -5,7 +5,6 @@ import argparse
 import shutil
 import subprocess
 import sys
-import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app import create_app
+from app.services.sauvegarde import extraire_zip_securisee
 
 
 def _restore_sqlite(src_db: Path, db_uri: str) -> None:
@@ -29,9 +29,8 @@ def _restore_postgres(src_sql: Path, db_uri: str) -> None:
 
 
 def _restore_uploads(zip_file: Path, upload_dir: Path) -> None:
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_file, "r") as zf:
-        zf.extractall(upload_dir)
+    # Extraction durcie : refuse toute entrée qui écrirait hors du dossier cible.
+    extraire_zip_securisee(zip_file, upload_dir)
 
 
 def main() -> int:
