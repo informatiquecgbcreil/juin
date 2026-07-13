@@ -704,6 +704,9 @@
                   {% if can('questionnaires:view') %}
                     <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires d’impact</a>
                   {% endif %}
+                  {% if can('transitions:view') %}
+                    <a class="pill {% if ep.startswith('transitions.') %}active{% endif %}" href="{{ url_for('transitions.dashboard') }}">🌱 Transitions</a>
+                  {% endif %}
                 </div>
               </details>
 

@@ -204,6 +204,19 @@ def hub_bilans():
             "tag": "Contrôle",
         })
 
+    if can("transitions:view"):
+        cards.append({
+            "title": "Transitions",
+            "subtitle": "Suivi des actions de transition : thématiques, défis des habitants, mesures, éco-consommation — et bilan annuel prêt pour CSAT.",
+            "primary_label": "Ouvrir le tableau de bord",
+            "primary_url": url_for("transitions.dashboard"),
+            "secondary": [
+                {"label": "Étiqueter les ateliers", "url": url_for("transitions.ateliers")} if can("transitions:edit") else None,
+                {"label": "Bilan annuel XLSX", "url": url_for("transitions.export_xlsx")},
+            ],
+            "tag": "Transitions",
+        })
+
     if can("questionnaires:view"):
         cards.append({
             "title": "Questionnaires d’impact",

@@ -63,6 +63,8 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
     ("emargement:edit", "Saisir / modifier l’émargement"),
     ("inscriptions:view", "Voir les inscriptions et listes d’attente"),
     ("inscriptions:edit", "Inscrire / annuler / pointer les inscrits"),
+    ("transitions:view", "Voir le tableau de bord transitions"),
+    ("transitions:edit", "Étiqueter les ateliers, gérer défis et mesures transitions"),
 
     # Participants
     ("participants:view", "Voir les participants (secteur)"),
@@ -236,6 +238,7 @@ ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
             "ateliers:view", "ateliers:edit", "ateliers:delete", "ateliers:sync",
             "emargement:view", "emargement:edit",
             "inscriptions:view", "inscriptions:edit",
+            "transitions:view", "transitions:edit",
 
             # Participants: vue globale, mais edit/delete bornés au secteur via _can_edit_participant
             "participants:view_all", "participants:edit", "participants:delete", "participants:anonymize",
@@ -285,6 +288,8 @@ PERMS_AUTO_GRANT = {
     "caisse:edit": ("direction", "directrice", "finance"),
     "inscriptions:view": ("direction", "directrice", "finance", "responsable_secteur", "admin_tech"),
     "inscriptions:edit": ("direction", "directrice", "finance", "responsable_secteur"),
+    "transitions:view": ("direction", "directrice", "finance", "responsable_secteur", "admin_tech"),
+    "transitions:edit": ("direction", "directrice", "finance", "responsable_secteur"),
 }
 
 
@@ -301,6 +306,7 @@ def _category_from_code(code: str) -> str:
         "ateliers": "Ateliers",
         "emargement": "Émargement",
         "inscriptions": "Inscriptions",
+        "transitions": "Transitions",
         "participants": "Participants",
         "benevolat": "Bénévolat",
         "dons": "Dons & reçus fiscaux",
