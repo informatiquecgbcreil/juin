@@ -661,6 +661,73 @@ def sauvegarde_creer():
     return redirect(url_for("admin.sauvegardes"))
 
 
+@bp.route("/notifications", methods=["GET", "POST"])
+@login_required
+@require_perm("admin:rbac")
+def notifications():
+    """Réglage des notifications automatiques (digest e-mail).
+
+    Rien n'est actif par défaut : chaque type se coche avec ses
+    destinataires, sa fréquence et son seuil. « Envoyer un aperçu »
+    permet de vérifier le rendu sans attendre le lendemain."""
+    from app.services.notifications import (
+        FREQUENCES,
+        enregistrer_reglage,
+        reglages_effectifs,
+    )
+
+    if request.method == "POST":
+        for reglage in reglages_effectifs():
+            code = reglage["code"]
+            seuil_brut = (request.form.get(f"seuil_{code}") or "").strip()
+            try:
+                seuil = int(seuil_brut) if seuil_brut else None
+            except ValueError:
+                seuil = None
+            enregistrer_reglage(
+                code,
+                actif=bool(request.form.get(f"actif_{code}")),
+                destinataires=request.form.get(f"destinataires_{code}") or "",
+                frequence=(request.form.get(f"frequence_{code}") or "quotidien").strip(),
+                seuil_jours=seuil,
+            )
+        flash("Réglages des notifications enregistrés ✅", "success")
+        return redirect(url_for("admin.notifications"))
+
+    return render_template(
+        "admin_notifications.html",
+        reglages=reglages_effectifs(),
+        frequences=FREQUENCES,
+    )
+
+
+@bp.route("/notifications/apercu", methods=["POST"])
+@login_required
+@require_perm("admin:rbac")
+def notifications_apercu():
+    """Envoie le digest immédiatement (types actifs, fréquence ignorée)."""
+    from app.services.notifications import envoyer_digest
+
+    try:
+        resultat = envoyer_digest(forcer=True)
+        if resultat["envoyes"]:
+            flash(
+                f"Aperçu envoyé à {resultat['envoyes']} destinataire(s) : "
+                f"{', '.join(resultat['destinataires'])} ✅",
+                "success",
+            )
+        else:
+            flash(
+                "Rien à envoyer : aucun type actif n'a de contenu aujourd'hui "
+                "(ou aucun destinataire n'est renseigné).",
+                "info",
+            )
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.exception("Échec de l'aperçu du digest")
+        flash(f"L'envoi de l'aperçu a échoué : {exc}", "danger")
+    return redirect(url_for("admin.notifications"))
+
+
 @bp.route("/sauvegardes/verifier", methods=["POST"])
 @login_required
 @require_perm("admin:rbac")

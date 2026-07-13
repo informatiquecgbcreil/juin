@@ -2350,6 +2350,26 @@ class TachePlanifiee(db.Model):
     derniere_execution = db.Column(db.DateTime, nullable=True)
 
 
+class NotificationReglage(db.Model):
+    """Réglage d'un type de notification automatique (digest e-mail).
+
+    Chaque type (échéances financeurs, impayés, sauvegarde en retard…) est
+    activable individuellement, avec ses destinataires et sa fréquence —
+    RIEN n'est actif par défaut : une petite structure choisit exactement
+    ce qui doit la prévenir, pour ne pas être noyée d'e-mails."""
+
+    __tablename__ = "notification_reglage"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(60), unique=True, nullable=False, index=True)
+    actif = db.Column(db.Boolean, nullable=False, default=False)
+    # Adresses e-mail, séparées par virgules ou retours à la ligne.
+    destinataires = db.Column(db.Text, nullable=True)
+    frequence = db.Column(db.String(20), nullable=False, default="quotidien")  # quotidien | hebdomadaire
+    seuil_jours = db.Column(db.Integer, nullable=True)  # sens propre à chaque type
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+
 # ---------- OBJECTIFS SECTORIELS (cadre stratégique du projet social) ----------
 
 class ObjectifSectoriel(db.Model):
