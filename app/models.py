@@ -3033,3 +3033,149 @@ class AgendaCreneau(db.Model):
             return d if d > 0 else 0
         except Exception:
             return 0
+
+
+# ---------- TRANSITIONS (thématiques, défis, mesures) ----------
+
+#: Thématiques par défaut, créées au premier usage (modifiables ensuite).
+TRANSITION_THEMATIQUES_DEFAUT = [
+    ("alimentation", "Alimentation durable"),
+    ("mobilite", "Mobilité douce"),
+    ("energie", "Énergie & sobriété"),
+    ("reemploi", "Déchets & réemploi"),
+    ("nature", "Nature & biodiversité"),
+    ("numerique", "Numérique responsable"),
+]
+
+STATUTS_DEFI = ["en_cours", "realise", "abandonne"]
+STATUTS_DEFI_LABELS = {
+    "en_cours": "En cours",
+    "realise": "Réalisé",
+    "abandonne": "Abandonné",
+}
+
+#: Ateliers ↔ thématiques transitions (un atelier peut toucher plusieurs).
+atelier_transition_thematique = db.Table(
+    "atelier_transition_thematique",
+    db.Column("atelier_id", db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("thematique_id", db.Integer, db.ForeignKey("transition_thematique.id", ondelete="CASCADE"), primary_key=True),
+)
+
+#: Ateliers ↔ objectifs sectoriels (croisement thématique × OS demandé au cadrage).
+atelier_transition_objectif = db.Table(
+    "atelier_transition_objectif",
+    db.Column("atelier_id", db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("objectif_id", db.Integer, db.ForeignKey("objectif_sectoriel.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class TransitionThematique(db.Model):
+    """Référentiel des thématiques de transition (alimentation, mobilité…).
+
+    Sert d'axe de classement des ateliers étiquetés « transitions », des
+    défis habitants et des mesures chiffrées. Seedé avec une liste standard,
+    modifiable depuis le module (renommage, ajout, désactivation)."""
+
+    __tablename__ = "transition_thematique"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(40), unique=True, nullable=False, index=True)
+    libelle = db.Column(db.String(160), nullable=False)
+    ordre = db.Column(db.Integer, nullable=False, default=0)
+    actif = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    ateliers = db.relationship(
+        "AtelierActivite",
+        secondary=atelier_transition_thematique,
+        backref=db.backref("transition_thematiques", lazy="selectin"),
+    )
+
+
+class DefiTransition(db.Model):
+    """Défi d'un habitant ou d'une famille (« un mois à vélo », « composter »).
+
+    Le défi se rattache à une thématique (et, en option, à un objectif
+    sectoriel). Porté par un participant OU un foyer. Cycle : en cours →
+    réalisé / abandonné."""
+
+    __tablename__ = "defi_transition"
+
+    id = db.Column(db.Integer, primary_key=True)
+    titre = db.Column(db.String(200), nullable=False)
+    thematique_id = db.Column(db.Integer, db.ForeignKey("transition_thematique.id", ondelete="CASCADE"), nullable=False, index=True)
+    objectif_id = db.Column(db.Integer, db.ForeignKey("objectif_sectoriel.id", ondelete="SET NULL"), nullable=True, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), nullable=True, index=True)
+    foyer_id = db.Column(db.Integer, db.ForeignKey("foyer.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    statut = db.Column(db.String(20), nullable=False, default="en_cours", index=True)
+    date_engagement = db.Column(db.Date, nullable=False, index=True)
+    date_realisation = db.Column(db.Date, nullable=True)
+    commentaire = db.Column(db.String(500), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    thematique = db.relationship("TransitionThematique", backref=db.backref("defis", passive_deletes=True))
+    objectif = db.relationship("ObjectifSectoriel")
+    participant = db.relationship(
+        "Participant",
+        backref=db.backref("defis_transition", cascade="all, delete-orphan", passive_deletes=True),
+    )
+    foyer = db.relationship(
+        "Foyer",
+        backref=db.backref("defis_transition", cascade="all, delete-orphan", passive_deletes=True),
+    )
+
+    @property
+    def statut_label(self):
+        return STATUTS_DEFI_LABELS.get(self.statut, self.statut)
+
+    @property
+    def porteur_label(self):
+        if self.participant is not None:
+            return f"{self.participant.prenom} {self.participant.nom}"
+        if self.foyer is not None:
+            return self.foyer.nom or f"Foyer #{self.foyer_id}"
+        return "—"
+
+
+class TransitionMesure(db.Model):
+    """Mesure chiffrée saisie à la main sur un atelier transitions.
+
+    Ex. « km évités : 120 », « kg détournés de la benne : 45 »,
+    « repas végétariens servis : 60 ». Libellé et unité libres : le tableau
+    de bord et l'export additionnent par (libellé, unité) et par thématique.
+    Valeurs indicatives, destinées au suivi et aux bilans — pas des mesures
+    certifiées."""
+
+    __tablename__ = "transition_mesure"
+
+    id = db.Column(db.Integer, primary_key=True)
+    atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), nullable=False, index=True)
+    thematique_id = db.Column(db.Integer, db.ForeignKey("transition_thematique.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    libelle = db.Column(db.String(160), nullable=False)
+    valeur = db.Column(db.Float, nullable=False, default=0.0)
+    unite = db.Column(db.String(40), nullable=True)
+    date_mesure = db.Column(db.Date, nullable=False, index=True)
+    commentaire = db.Column(db.String(255), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    atelier = db.relationship(
+        "AtelierActivite",
+        backref=db.backref("transition_mesures", cascade="all, delete-orphan", passive_deletes=True),
+    )
+    thematique = db.relationship("TransitionThematique")
+
+
+# Rattachement tardif : ObjectifSectoriel est défini plus haut dans le fichier,
+# la table d'association juste au-dessus. Expose atelier.transition_objectifs.
+ObjectifSectoriel.ateliers_transitions = db.relationship(
+    "AtelierActivite",
+    secondary=atelier_transition_objectif,
+    backref=db.backref("transition_objectifs", lazy="selectin"),
+)
