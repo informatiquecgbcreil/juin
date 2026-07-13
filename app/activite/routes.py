@@ -10,6 +10,7 @@ from app.activite import (  # noqa: F401
     emargement,
     emargement_modeles,
     helpers,
+    inscriptions,
     participants_secteur,
     saisie_grille,
     sessions_gestion,
