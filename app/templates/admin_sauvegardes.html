@@ -64,6 +64,12 @@
                 {% else %}<span class="status-badge status-danger">corrompue ✗</span>{% endif %}
               </td>
               <td>
+                <form method="post" action="{{ url_for('admin.sauvegarde_verifier') }}" style="display:inline;" data-no-scroll-restore>
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="base" value="{{ lot.base }}">
+                  <button class="btn" type="submit" data-pending-text="Vérification…"
+                          title="Contrôle en profondeur (restauration à blanc) : ne modifie rien.">🔎 Vérifier</button>
+                </form>
                 {% if lot.complet and lot.integre != false %}
                   <form method="post" action="{{ url_for('admin.sauvegarde_restaurer') }}" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

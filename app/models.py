@@ -1883,6 +1883,64 @@ class PresenceActivite(db.Model):
     )
 
 
+STATUTS_INSCRIPTION = ["inscrit", "attente", "annule"]
+STATUTS_INSCRIPTION_LABELS = {
+    "inscrit": "Inscrit·e",
+    "attente": "Liste d'attente",
+    "annule": "Annulée",
+}
+
+
+class InscriptionActivite(db.Model):
+    """Inscription PRÉALABLE à une activité — l'étage « avant la séance ».
+
+    Deux portées :
+    - ``session_id`` renseigné : inscription à une séance précise (sortie,
+      événement à places limitées) ;
+    - ``session_id`` vide : inscription à l'atelier pour la période (les
+      habitué·es attendu·es à chaque séance).
+
+    La jauge s'appuie sur la capacité existante (séance, sinon atelier) :
+    au-delà, l'inscription bascule en liste d'attente ; une annulation
+    promeut automatiquement le plus ancien de la liste d'attente.
+    L'émargement se pré-remplit depuis les inscrits (« pointer présent »).
+    """
+    __tablename__ = "inscription_activite"
+
+    id = db.Column(db.Integer, primary_key=True)
+    atelier_id = db.Column(db.Integer, db.ForeignKey("atelier_activite.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("session_activite.id", ondelete="CASCADE"), nullable=True, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    statut = db.Column(db.String(20), nullable=False, default="inscrit", index=True)
+    commentaire = db.Column(db.String(255), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    atelier = db.relationship(
+        "AtelierActivite",
+        backref=db.backref("inscriptions", cascade="all, delete-orphan", passive_deletes=True),
+    )
+    session = db.relationship(
+        "SessionActivite",
+        backref=db.backref("inscriptions", cascade="all, delete-orphan", passive_deletes=True),
+    )
+    participant = db.relationship(
+        "Participant",
+        backref=db.backref("inscriptions_activite", cascade="all, delete-orphan", passive_deletes=True),
+    )
+
+    __table_args__ = (
+        db.Index("ix_inscription_activite_cible", "atelier_id", "session_id", "statut"),
+    )
+
+    @property
+    def statut_label(self):
+        return STATUTS_INSCRIPTION_LABELS.get(self.statut, self.statut)
+
+
 class PresenceMaterielConsommation(db.Model):
     """Consommation individuelle figée pour une présence.
 
@@ -2348,6 +2406,26 @@ class TachePlanifiee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(80), unique=True, nullable=False)
     derniere_execution = db.Column(db.DateTime, nullable=True)
+
+
+class NotificationReglage(db.Model):
+    """Réglage d'un type de notification automatique (digest e-mail).
+
+    Chaque type (échéances financeurs, impayés, sauvegarde en retard…) est
+    activable individuellement, avec ses destinataires et sa fréquence —
+    RIEN n'est actif par défaut : une petite structure choisit exactement
+    ce qui doit la prévenir, pour ne pas être noyée d'e-mails."""
+
+    __tablename__ = "notification_reglage"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(60), unique=True, nullable=False, index=True)
+    actif = db.Column(db.Boolean, nullable=False, default=False)
+    # Adresses e-mail, séparées par virgules ou retours à la ligne.
+    destinataires = db.Column(db.Text, nullable=True)
+    frequence = db.Column(db.String(20), nullable=False, default="quotidien")  # quotidien | hebdomadaire
+    seuil_jours = db.Column(db.Integer, nullable=True)  # sens propre à chaque type
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 
 # ---------- OBJECTIFS SECTORIELS (cadre stratégique du projet social) ----------

@@ -221,6 +221,32 @@ def create_app():
         return None
 
     # ------------------------------------------------------------------
+    # Digest de notifications : au plus une fois par jour, même mécanique
+    # que la purge (aucun planificateur externe). Inactif tant qu'aucun
+    # type n'est coché dans Administration → Notifications.
+    # ------------------------------------------------------------------
+    _digest_marqueur = {"jour": None}
+
+    @app.before_request
+    def _digest_notifications_quotidien():
+        from datetime import date as _date
+
+        endpoint = (request.endpoint or "")
+        if endpoint.startswith("static") or endpoint.startswith("setup.") or endpoint in {"media_file", "healthz"}:
+            return None
+
+        aujourd_hui = _date.today()
+        if _digest_marqueur["jour"] == aujourd_hui:
+            return None
+        _digest_marqueur["jour"] = aujourd_hui
+
+        from app.services.notifications import digest_quotidien_si_necessaire, notifications_actives
+
+        if notifications_actives():
+            digest_quotidien_si_necessaire()
+        return None
+
+    # ------------------------------------------------------------------
     # RBAC helpers
     # ------------------------------------------------------------------
     from app.rbac import bootstrap_rbac, can

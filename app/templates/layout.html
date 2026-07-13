@@ -612,6 +612,7 @@
                       <a class="pill {% if ep.startswith('admin.droits') %}active{% endif %}" href="{{ url_for('admin.droits') }}">Droits d’accès</a>
                       <a class="pill {% if ep == 'admin.sante_systeme' %}active{% endif %}" href="{{ url_for('admin.sante_systeme') }}">État de l’application</a>
                       <a class="pill {% if ep == 'admin.journal_audit' %}active{% endif %}" href="{{ url_for('admin.journal_audit') }}">Historique sensible</a>
+                      <a class="pill {% if ep == 'admin.notifications' %}active{% endif %}" href="{{ url_for('admin.notifications') }}">Notifications</a>
                     {% endif %}
                     {% if can('controle:view') %}
                       <a class="pill {% if ep == 'main.controle' %}active{% endif %}" href="{{ url_for('main.controle') }}">Contrôle</a>
@@ -755,6 +756,7 @@
                     <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Listes de compétences</a>
                     <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Nom et logo</a>
                     <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>
+                    <a class="pill {% if ep == 'admin.notifications' %}active{% endif %}" href="{{ url_for('admin.notifications') }}">Notifications</a>
                   {% endif %}
                   {% if can('secteurs:edit') %}
                     <a class="pill {% if ep.startswith('admin.secteurs') %}active{% endif %}" href="{{ safe_url_for('admin.secteurs') }}">Secteurs</a>
@@ -786,6 +788,7 @@
                     <a class="pill {% if ep.startswith('admin.referentiels') %}active{% endif %}" href="{{ url_for('admin.referentiels') }}">Listes de compétences</a>
                     <a class="pill {% if ep.startswith('admin.instance_settings') %}active{% endif %}" href="{{ url_for('admin.instance_settings') }}">Nom et logo</a>
                     <a class="pill {% if ep == 'admin.sauvegardes' %}active{% endif %}" href="{{ url_for('admin.sauvegardes') }}">Sauvegardes</a>
+                    <a class="pill {% if ep == 'admin.notifications' %}active{% endif %}" href="{{ url_for('admin.notifications') }}">Notifications</a>
                   {% endif %}
                   {% if can('secteurs:edit') %}
                     <a class="pill {% if ep.startswith('admin.secteurs') %}active{% endif %}" href="{{ safe_url_for('admin.secteurs') }}">Secteurs</a>

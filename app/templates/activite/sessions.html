@@ -16,6 +16,7 @@
             <a class="btn" href="{{ url_for('activite.sessions', atelier_id=atelier.id, corbeille=1) }}">Corbeille</a>
           {% endif %}
           {% if not corbeille %}
+            <a class="btn" href="{{ url_for('activite.inscriptions_atelier', atelier_id=atelier.id) }}">📋 Inscriptions / liste d'attente</a>
             <a class="btn" href="{{ url_for('activite.session_new', atelier_id=atelier.id) }}">+ Nouvelle séance / rendez-vous</a>
             {% if atelier.type_atelier != 'INDIVIDUEL_MENSUEL' %}
               <a class="btn" href="{{ url_for('activite.session_bulk_new', atelier_id=atelier.id) }}">📅 Créer en série</a>
@@ -70,6 +71,7 @@
                 <td>
                   {% if not corbeille %}
                     <a class="btn" href="{{ url_for('activite.emargement', session_id=s.id) }}">Ouvrir</a>
+                    <a class="btn" href="{{ url_for('activite.inscriptions_session', session_id=s.id) }}">Inscriptions</a>
                     <a class="btn" href="{{ url_for('activite.session_skills', session_id=s.id) }}">Compétences</a>
                     <a class="btn" href="{{ url_for('activite.session_edit_schedule', session_id=s.id) }}">Corriger date/heure</a>
                     {% if can('questionnaires:respond') %}

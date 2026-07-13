@@ -357,10 +357,58 @@ def _restaurer_postgres(src_sql: Path, db_uri: str) -> None:
         raise RuntimeError(f"La restauration PostgreSQL (psql) a échoué. Détail : {detail}")
 
 
-def _restaurer_uploads(zip_file: Path, upload_dir: Path) -> None:
-    upload_dir.mkdir(parents=True, exist_ok=True)
+def _zip_entrees_suspectes(zf: zipfile.ZipFile, dest: Path) -> list[str]:
+    """Entrées de l'archive qui tenteraient d'écrire HORS du dossier cible
+    (chemin absolu ou traversée « ../ ») — protection contre le zip-slip."""
+    dest = dest.resolve()
+    suspectes = []
+    for info in zf.infolist():
+        nom = info.filename
+        chemin = Path(nom)
+        if chemin.is_absolute() or (len(nom) > 1 and nom[1] == ":"):
+            suspectes.append(nom)
+            continue
+        cible = (dest / chemin).resolve()
+        try:
+            cible.relative_to(dest)
+        except ValueError:
+            suspectes.append(nom)
+    return suspectes
+
+
+def extraire_zip_securisee(zip_file: Path, dest: Path) -> int:
+    """Extrait une archive en refusant toute entrée qui sortirait du dossier
+    cible. Retourne le nombre de fichiers extraits.
+
+    Remplace ``ZipFile.extractall`` pour la restauration : une archive
+    fabriquée avec des chemins « ../ » ne doit jamais pouvoir écraser un
+    fichier du serveur (config, code, base…).
+    """
+    dest = dest.resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+    extraits = 0
     with zipfile.ZipFile(zip_file, "r") as zf:
-        zf.extractall(upload_dir)
+        suspectes = _zip_entrees_suspectes(zf, dest)
+        if suspectes:
+            exemples = ", ".join(suspectes[:3])
+            raise RuntimeError(
+                "Archive refusée : elle contient des chemins qui sortiraient du "
+                f"dossier de destination ({exemples}). Restauration annulée."
+            )
+        for info in zf.infolist():
+            cible = (dest / Path(info.filename)).resolve()
+            if info.is_dir():
+                cible.mkdir(parents=True, exist_ok=True)
+                continue
+            cible.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info) as src, cible.open("wb") as out:
+                shutil.copyfileobj(src, out)
+            extraits += 1
+    return extraits
+
+
+def _restaurer_uploads(zip_file: Path, upload_dir: Path) -> None:
+    extraire_zip_securisee(zip_file, upload_dir)
 
 
 def restaurer_lot(base: str) -> dict:
@@ -407,3 +455,142 @@ def restaurer_lot(base: str) -> dict:
         _restaurer_uploads(uploads_file, Path(upload_cfg))
 
     return {"base": base, "securite": securite.get("base")}
+
+
+# --------------------------------------------------------------------------
+# Vérification à blanc : « cette sauvegarde est-elle vraiment restaurable ? »
+# --------------------------------------------------------------------------
+
+#: Tables dont la présence (et le comptage) atteste qu'une sauvegarde
+#: contient bien les données métier, pas seulement un schéma vide.
+TABLES_TEMOINS = ("user", "participant", "atelier_activite", "session_activite", "subvention")
+
+
+def _verifier_zip_uploads(zip_path: Path) -> tuple[bool, str]:
+    """L'archive des pièces jointes est-elle lisible et sans chemin piégé ?"""
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            corrompu = zf.testzip()
+            if corrompu is not None:
+                return False, f"archive corrompue (fichier illisible : {corrompu})"
+            suspectes = _zip_entrees_suspectes(zf, zip_path.parent / "_extraction")
+            if suspectes:
+                return False, f"chemins suspects dans l'archive ({suspectes[0]}…)"
+            return True, f"{len(zf.infolist())} entrée(s) lisibles"
+    except zipfile.BadZipFile:
+        return False, "fichier illisible (pas une archive zip valide)"
+    except OSError as exc:
+        return False, f"lecture impossible ({exc})"
+
+
+def _verifier_db_sqlite(db_path: Path) -> tuple[bool, str]:
+    """Restauration à blanc d'un fichier SQLite : copie temporaire, contrôle
+    d'intégrité interne, présence et comptage des tables témoins."""
+    import sqlite3
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="verif_sauvegarde_") as tmp:
+        copie = Path(tmp) / db_path.name
+        shutil.copy2(db_path, copie)
+        try:
+            conn = sqlite3.connect(f"file:{copie}?mode=ro", uri=True)
+        except sqlite3.Error as exc:
+            return False, f"ouverture impossible ({exc})"
+        try:
+            resultat = conn.execute("PRAGMA integrity_check").fetchone()
+            if not resultat or resultat[0] != "ok":
+                return False, f"contrôle d'intégrité SQLite échoué ({resultat and resultat[0]})"
+            tables = {
+                row[0] for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            if "alembic_version" not in tables:
+                return False, "table alembic_version absente : ce n'est pas une base de l'application"
+            manquantes = [t for t in TABLES_TEMOINS if t not in tables]
+            if manquantes:
+                return False, f"tables métier absentes : {', '.join(manquantes)}"
+            comptes = []
+            for t in TABLES_TEMOINS:
+                n = conn.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
+                comptes.append(f"{t}={n}")
+            return True, "base ouvrable, intègre — " + ", ".join(comptes)
+        except sqlite3.Error as exc:
+            return False, f"lecture impossible ({exc})"
+        finally:
+            conn.close()
+
+
+def _verifier_db_dump_postgres(sql_path: Path) -> tuple[bool, str]:
+    """Contrôle structurel d'un dump pg_dump (sans base de test, on vérifie
+    que le fichier est un vrai dump complet contenant les tables témoins)."""
+    try:
+        contenu = sql_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return False, f"lecture impossible ({exc})"
+    if len(contenu.strip()) < 200:
+        return False, "dump quasiment vide"
+    if "PostgreSQL database dump" not in contenu:
+        return False, "en-tête pg_dump absent : ce n'est pas un dump PostgreSQL"
+    manquantes = [
+        t for t in TABLES_TEMOINS
+        if f"CREATE TABLE public.{t} " not in contenu
+        and f'CREATE TABLE public."{t}" ' not in contenu
+    ]
+    if manquantes:
+        return False, f"tables métier absentes du dump : {', '.join(manquantes)}"
+    if "PostgreSQL database dump complete" not in contenu:
+        return False, "dump tronqué (marqueur de fin absent) : sauvegarde interrompue ?"
+    nb_copy = contenu.count("\nCOPY ")
+    return True, f"dump complet, {nb_copy} table(s) avec données"
+
+
+def verifier_lot(base: str) -> dict:
+    """Vérifie en profondeur qu'un lot de sauvegarde est restaurable.
+
+    Contrôles : lot complet, empreintes sha256, archive des pièces jointes
+    lisible et saine, base restaurable (restauration à blanc pour SQLite,
+    contrôle structurel du dump pour PostgreSQL).
+
+    Retourne {"ok": bool, "controles": [{"nom", "ok", "detail"}]}.
+    Ne modifie JAMAIS la base courante ni les fichiers du lot.
+    """
+    base = _safe_name(base)
+    out_dir = dossier_sauvegardes()
+    controles: list[dict] = []
+
+    def ajouter(nom: str, ok, detail: str) -> None:
+        controles.append({"nom": nom, "ok": ok, "detail": detail})
+
+    db_file = None
+    for ext in (".sql", ".db"):
+        cand = out_dir / f"{base}{ext}"
+        if cand.exists():
+            db_file = cand
+            break
+    uploads_file = out_dir / f"{base}_uploads.zip"
+
+    ajouter("Lot complet", bool(db_file) and uploads_file.exists(),
+            "base + pièces jointes présentes" if db_file and uploads_file.exists()
+            else "fichier de base ou archive des pièces jointes manquant")
+
+    integrite = verifier_integrite(base)
+    if integrite is None:
+        ajouter("Empreintes sha256", None, "aucune empreinte enregistrée (sauvegarde ancienne)")
+    else:
+        ajouter("Empreintes sha256", integrite,
+                "fichiers identiques aux empreintes" if integrite else "les fichiers ne correspondent plus aux empreintes")
+
+    if uploads_file.exists():
+        ok, detail = _verifier_zip_uploads(uploads_file)
+        ajouter("Pièces jointes", ok, detail)
+
+    if db_file is not None:
+        if db_file.suffix.lower() == ".db":
+            ok, detail = _verifier_db_sqlite(db_file)
+        else:
+            ok, detail = _verifier_db_dump_postgres(db_file)
+        ajouter("Base de données", ok, detail)
+
+    tout_ok = all(c["ok"] is not False for c in controles) and bool(db_file) and uploads_file.exists()
+    return {"base": base, "ok": tout_ok, "controles": controles}

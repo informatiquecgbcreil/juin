@@ -477,6 +477,28 @@
     </form>
   </div>
 
+  {% if inscrits_a_pointer %}
+  <section class="section-card">
+    <h2 style="margin-top:0;">📋 {{ inscrits_a_pointer|length }} inscrit·e·s pas encore pointé·e·s</h2>
+    <p class="muted" style="margin:4px 0 10px;">
+      Personnes inscrites à l'avance (séance ou atelier entier) sans ligne d'émargement.
+      <a href="{{ url_for('activite.inscriptions_session', session_id=session.id) }}">Gérer les inscriptions de la séance</a>
+    </p>
+    <div class="inline" style="gap:8px; flex-wrap:wrap;">
+      {% for i in inscrits_a_pointer %}
+        <form method="post" action="{{ url_for('activite.inscription_pointer', session_id=session.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="participant_id" value="{{ i.participant_id }}">
+          <input type="hidden" name="retour" value="emargement">
+          <button class="btn" type="submit" title="Créer la ligne d'émargement pour cette personne">
+            ✔ {{ i.participant.nom }} {{ i.participant.prenom }}
+          </button>
+        </form>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <div class="grid" style="grid-template-columns:1fr; gap:12px;">
     <div class="card">
       <h2 style="margin-top:0;">Enregistrer une présence</h2>

@@ -532,6 +532,11 @@ def emargement(session_id: int):
     from app.services import hart as hart_service
     hart_dues = hart_service.evaluations_dues_pour_session(s)
 
+    # Inscriptions préalables : les attendus pas encore pointés pré-remplissent
+    # l'émargement (bloc « à pointer » en un clic).
+    from app.services.inscriptions import a_pointer_session
+    inscrits_a_pointer = a_pointer_session(s)
+
     return render_template(
         "activite/emargement.html",
         secteur=secteur,
@@ -568,6 +573,7 @@ def emargement(session_id: int):
         conso_period_end_value=conso_period_args["period_end"],
         hart_dues=hart_dues,
         hart_niveaux=hart_service.HART_NIVEAUX,
+        inscrits_a_pointer=inscrits_a_pointer,
     )
 
 
