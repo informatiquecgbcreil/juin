@@ -727,3 +727,85 @@ def bilan_senacs_export():
         download_name=f"bilan-senacs-{annee}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+# ---------------------------------------------------------------------------
+# Aide à la rédaction du bilan financeur (trame pré-remplie + DOCX)
+# ---------------------------------------------------------------------------
+
+def _redaction_subventions(year: int, scope):
+    from app.models import Subvention
+
+    q = Subvention.query.filter(
+        Subvention.est_archive.is_(False),
+        Subvention.annee_exercice == year,
+    )
+    if scope.secteurs is not None:
+        q = q.filter(Subvention.secteur.in_(scope.secteurs))
+    return q.order_by(Subvention.date_bilan_prevu.asc().nullslast(), Subvention.nom.asc()).all()
+
+
+def _redaction_contexte():
+    """Sélection année + subvention, bornée au périmètre de l'utilisateur."""
+    from app.models import Subvention
+
+    scope = scope_for_user(current_user)
+    try:
+        year = int(request.args.get("year") or datetime.date.today().year)
+    except (TypeError, ValueError):
+        year = datetime.date.today().year
+
+    subventions = _redaction_subventions(year, scope)
+    selected = None
+    selected_id = request.args.get("subvention_id", type=int)
+    if selected_id:
+        cand = db.session.get(Subvention, selected_id)
+        if cand is not None and (scope.secteurs is None or cand.secteur in scope.secteurs):
+            selected = cand
+            year = int(cand.annee_exercice or year)
+    if selected is None and subventions:
+        selected = subventions[0]
+    return year, subventions, selected
+
+
+@bp.route("/bilans/redaction")
+@login_required
+@require_perm("bilans:view")
+def redaction_bilan():
+    """Trame de bilan financeur pré-rédigée : paragraphes chiffrés à copier,
+    matière narrative existante, tableau financier, indicateurs, checklist."""
+    from app.services.redaction_bilan import construire_trame
+
+    year, subventions, selected = _redaction_contexte()
+    trame = construire_trame(selected, year) if selected else None
+    return render_template(
+        "bilans_redaction.html",
+        year=year,
+        subventions=subventions,
+        selected=selected,
+        trame=trame,
+    )
+
+
+@bp.route("/bilans/redaction/export.docx")
+@login_required
+@require_perm("bilans:view")
+def redaction_bilan_export_docx():
+    from app.services.redaction_bilan import construire_docx, construire_trame
+
+    year, _subventions, selected = _redaction_contexte()
+    if selected is None:
+        flash("Aucune subvention dans le périmètre pour cet exercice.", "warning")
+        return redirect(url_for("bilans.redaction_bilan", year=year))
+
+    doc = construire_docx(construire_trame(selected, year))
+    sortie = BytesIO()
+    doc.save(sortie)
+    sortie.seek(0)
+    nom = "".join(c if c.isalnum() or c in "-_" else "_" for c in (selected.nom or "bilan"))[:60]
+    return send_file(
+        sortie,
+        as_attachment=True,
+        download_name=f"bilan_{year}_{nom}.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )

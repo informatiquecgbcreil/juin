@@ -157,6 +157,7 @@ def hub_bilans():
             "secondary": [
                 {"label": "Qualité bilan", "url": url_for("main.qualite_bilans")},
                 {"label": "Assistant bilan financeur", "url": url_for("main.assistant_bilan_financeur")},
+                {"label": "Rédiger un bilan financeur", "url": url_for("bilans.redaction_bilan")} if can("bilans:view") else None,
                 {"label": "Qualité transverse", "url": url_for("main.qualite_donnees_transverse")},
             ],
             "tag": "Sorties",
