@@ -699,7 +699,8 @@
                     <a class="pill {% if ep.startswith('main.stats_bilans') or ep.startswith('main.bilan_global') or ep.startswith('main.stats') %}active{% endif %}" href="{{ url_for('main.stats_bilans') }}">Résultats &amp; bilans</a>
                   {% endif %}
                   {% if can('bilans:view') %}
-                    <a class="pill {% if ep.startswith('bilans.') %}active{% endif %}" href="{{ url_for('bilans.bilans_lourds', year=2026) }}">Bilans complets</a>
+                    <a class="pill {% if ep.startswith('bilans.') and ep != 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.bilans_lourds', year=2026) }}">Bilans complets</a>
+                    <a class="pill {% if ep == 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.redaction_bilan') }}">📝 Rédiger un bilan</a>
                   {% endif %}
                   {% if can('questionnaires:view') %}
                     <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires d’impact</a>
