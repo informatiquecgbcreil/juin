@@ -3,12 +3,13 @@
 {% macro table_prets(prets, editable) %}
   <div class="tablewrap">
   <table class="table">
-    <thead><tr><th>Matériel</th><th>Emprunteur</th><th>Prêté le</th><th>Retour prévu</th><th>État</th>{% if editable %}<th></th>{% endif %}</tr></thead>
+    <thead><tr><th>Matériel</th><th>Emprunteur</th><th>Motif</th><th>Prêté le</th><th>Retour prévu</th><th>État</th>{% if editable %}<th></th>{% endif %}</tr></thead>
     <tbody>
       {% for p in prets %}
         <tr>
           <td>{{ p.item.designation if p.item else '—' }}{% if p.quantite > 1 %} ×{{ p.quantite }}{% endif %}</td>
           <td>{{ p.emprunteur }}</td>
+          <td>{{ p.motif or '—' }}</td>
           <td>{{ p.date_pret.strftime('%d/%m/%Y') }}</td>
           <td>{% if p.date_retour_prevue %}{{ p.date_retour_prevue.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
           <td>
@@ -35,13 +36,13 @@
 <div class="stack">
   <div class="card">
     <h1>Prêts de matériel</h1>
-    <p class="muted">Qui a emprunté quoi, et ce qui doit revenir. Le matériel vient de l'inventaire.</p>
+    <p class="muted">Qui a emprunté quoi, et ce qui doit revenir. Le matériel vient de l'inventaire ; un prêt est soumis à validation.</p>
     <a class="btn" href="{{ url_for('planning.semaine') }}">← Retour au planning</a>
   </div>
 
   {% if can('planning:edit') %}
   <div class="card">
-    <h2>Enregistrer un prêt</h2>
+    <h2>Demander un prêt</h2>
     {% if items %}
       <form method="post" action="{{ url_for('planning.pret_creer') }}" class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -52,13 +53,56 @@
         </label>
         <label class="field-stack slim"><span>Qté</span><input type="number" name="quantite" value="1" min="1" style="width:70px;"></label>
         <label class="field-stack slim"><span>Emprunteur</span><input type="text" name="emprunteur" placeholder="Nom / structure" required></label>
+        <label class="field-stack slim"><span>Motif de la demande</span><input type="text" name="motif" placeholder="Pour quel usage ?" required></label>
         <label class="field-stack slim"><span>Prêté le</span><input type="date" name="date_pret" value="{{ today.isoformat() }}" required></label>
         <label class="field-stack slim"><span>Retour prévu</span><input type="date" name="date_retour_prevue"></label>
-        <button class="btn" type="submit">Enregistrer le prêt</button>
+        <label class="field-stack slim"><span>Rappel (jours avant)</span><input type="number" name="rappel_jours_avant" min="1" max="30" placeholder="ex. 1" style="width:110px;"></label>
+        <button class="btn" type="submit">{% if can('planning:approve') %}Enregistrer le prêt{% else %}Envoyer la demande{% endif %}</button>
       </form>
+      <p class="ux-helper">
+        Le motif est obligatoire.
+        {% if can('planning:approve') %}Vous validez vous-même : le prêt est enregistré immédiatement.
+        {% else %}Votre demande part en validation auprès d'un responsable.{% endif %}
+        Le rappel prévient l'emprunteur avant la date de retour.
+      </p>
     {% else %}
       <p class="muted">Aucun matériel dans votre périmètre d'inventaire.</p>
     {% endif %}
+  </div>
+  {% endif %}
+
+  {% if en_attente %}
+  <div class="card" style="border-color:var(--accent,#2563eb);">
+    <h2>À valider — {{ en_attente|length }} demande(s) de prêt</h2>
+    <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Matériel</th><th>Emprunteur</th><th>Motif</th><th>Prêté le</th><th>Retour prévu</th><th></th></tr></thead>
+      <tbody>
+        {% for p in en_attente %}
+          <tr>
+            <td>{{ p.item.designation if p.item else '—' }}{% if p.quantite > 1 %} ×{{ p.quantite }}{% endif %}</td>
+            <td>{{ p.emprunteur }}</td>
+            <td>{{ p.motif or '—' }}</td>
+            <td>{{ p.date_pret.strftime('%d/%m/%Y') }}</td>
+            <td>{% if p.date_retour_prevue %}{{ p.date_retour_prevue.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
+            <td>
+              <div class="inline" style="gap:6px; flex-wrap:wrap; align-items:flex-end;">
+                <form method="post" action="{{ url_for('planning.pret_approuver', pret_id=p.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn" type="submit">✅ Approuver</button>
+                </form>
+                <form method="post" action="{{ url_for('planning.pret_refuser', pret_id=p.id) }}" class="inline" style="gap:4px; align-items:flex-end;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="text" name="motif_refus" placeholder="motif du refus" style="width:150px;">
+                  <button class="btn" type="submit">Refuser</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
   </div>
   {% endif %}
 

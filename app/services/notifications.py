@@ -252,6 +252,15 @@ def _corps_digest(sections: list[dict], today: date) -> str:
     return "\n".join(blocs)
 
 
+def envoyer_email(to: str, subject: str, body: str) -> None:
+    """Envoi e-mail texte transactionnel (demande, approbation, rappel…).
+
+    Réutilise la configuration SMTP effective de l'instance. Lève une
+    exception si le SMTP n'est pas configuré ou si l'envoi échoue — les
+    appelants décident de journaliser sans bloquer."""
+    _envoyer_texte(to, subject, body)
+
+
 def _envoyer_texte(to: str, subject: str, body: str) -> None:
     """Envoi SMTP texte simple via la configuration effective de l'instance."""
     from app.services.instance_settings import resolve_mail_settings

@@ -66,7 +66,8 @@ DEFAULT_PERMS: list[tuple[str, str]] = [
     ("transitions:view", "Voir le tableau de bord transitions"),
     ("transitions:edit", "Étiqueter les ateliers, gérer défis et mesures transitions"),
     ("planning:view", "Voir le planning (salles, réservations, prêts, semaine)"),
-    ("planning:edit", "Gérer salles, réservations et prêts de matériel"),
+    ("planning:edit", "Demander une réservation ou un prêt, gérer les salles"),
+    ("planning:approve", "Approuver / refuser les demandes de réservation et de prêt"),
 
     # Participants
     ("participants:view", "Voir les participants (secteur)"),
@@ -241,7 +242,7 @@ ROLE_TEMPLATES: dict[str, dict[str, Iterable[str]]] = {
             "emargement:view", "emargement:edit",
             "inscriptions:view", "inscriptions:edit",
             "transitions:view", "transitions:edit",
-            "planning:view", "planning:edit",
+            "planning:view", "planning:edit", "planning:approve",
 
             # Participants: vue globale, mais edit/delete bornés au secteur via _can_edit_participant
             "participants:view_all", "participants:edit", "participants:delete", "participants:anonymize",
@@ -295,6 +296,7 @@ PERMS_AUTO_GRANT = {
     "transitions:edit": ("direction", "directrice", "finance", "responsable_secteur"),
     "planning:view": ("direction", "directrice", "finance", "responsable_secteur", "admin_tech"),
     "planning:edit": ("direction", "directrice", "finance", "responsable_secteur", "admin_tech"),
+    "planning:approve": ("direction", "directrice", "responsable_secteur"),
 }
 
 

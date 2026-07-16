@@ -251,6 +251,30 @@ def create_app():
         return None
 
     # ------------------------------------------------------------------
+    # Rappels de planning (réservations / retours de matériel) : passe
+    # quotidienne, au plus une fois par jour, sans planificateur externe.
+    # ------------------------------------------------------------------
+    _rappels_marqueur = {"jour": None}
+
+    @app.before_request
+    def _rappels_planning_quotidien():
+        from datetime import date as _date
+
+        endpoint = (request.endpoint or "")
+        if endpoint.startswith("static") or endpoint.startswith("setup.") or endpoint in {"media_file", "healthz"}:
+            return None
+
+        aujourd_hui = _date.today()
+        if _rappels_marqueur["jour"] == aujourd_hui:
+            return None
+        _rappels_marqueur["jour"] = aujourd_hui
+
+        from app.services.planning_notifs import rappels_planning_quotidiens_si_necessaire
+
+        rappels_planning_quotidiens_si_necessaire()
+        return None
+
+    # ------------------------------------------------------------------
     # RBAC helpers
     # ------------------------------------------------------------------
     from app.rbac import bootstrap_rbac, can
