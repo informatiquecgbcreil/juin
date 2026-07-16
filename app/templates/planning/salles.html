@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>Salles</h1>
+    <p class="muted">Les espaces réservables. Un secteur vide = salle partagée par tous.</p>
+    <a class="btn" href="{{ url_for('planning.semaine') }}">← Retour au planning</a>
+  </div>
+
+  {% if can('planning:edit') %}
+  <div class="card">
+    <h2>Ajouter une salle</h2>
+    <form method="post" class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field-stack slim"><span>Nom</span><input type="text" name="nom" required placeholder="Grande salle"></label>
+      <label class="field-stack slim"><span>Capacité</span><input type="number" name="capacite" min="0" style="width:90px;"></label>
+      <label class="field-stack slim"><span>Localisation</span><input type="text" name="localisation" placeholder="1er étage"></label>
+      <label class="field-stack slim"><span>Secteur</span><input type="text" name="secteur" placeholder="(partagée)"></label>
+      <label class="field-stack slim"><span>Couleur</span><input type="color" name="couleur" value="#2563eb"></label>
+      <button class="btn" type="submit">Ajouter</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>{{ salles|length }} salle(s)</h2>
+    {% if salles %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Salle</th><th>Capacité</th><th>Localisation</th><th>Secteur</th><th>État</th><th></th></tr></thead>
+        <tbody>
+          {% for s in salles %}
+            <tr {% if not s.actif %}style="opacity:.55;"{% endif %}>
+              <td>
+                <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:{{ s.couleur or '#94a3b8' }};"></span>
+                <strong>{{ s.nom }}</strong>
+              </td>
+              <td>{{ s.capacite if s.capacite is not none else '—' }}</td>
+              <td>{{ s.localisation or '—' }}</td>
+              <td>{{ s.secteur or 'partagée' }}</td>
+              <td>{% if s.actif %}<span class="status-badge status-info">active</span>{% else %}<span class="muted">désactivée</span>{% endif %}</td>
+              <td>
+                {% if can('planning:edit') %}
+                <form method="post" action="{{ url_for('planning.salle_basculer', salle_id=s.id) }}" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn" type="submit">{{ 'Désactiver' if s.actif else 'Réactiver' }}</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="muted">Aucune salle pour le moment.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
