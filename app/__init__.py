@@ -117,6 +117,7 @@ def create_app():
     from app.partenaires import bp as partenaires_bp
     from app.questionnaires import bp as questionnaires_bp
     from app.transitions import bp as transitions_bp
+    from app.planning import bp as planning_bp
     from app.insertion.routes import bp as insertion_bp
     from app.setup import bp as setup_bp
     from app.aide import bp as aide_bp
@@ -143,6 +144,7 @@ def create_app():
     app.register_blueprint(questionnaires_bp)
     app.register_blueprint(insertion_bp)
     app.register_blueprint(transitions_bp)
+    app.register_blueprint(planning_bp)
 
     @app.before_request
     def _facade_kiosque_publique():

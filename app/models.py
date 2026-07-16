@@ -3225,3 +3225,127 @@ ObjectifSectoriel.ateliers_transitions = db.relationship(
     secondary=atelier_transition_objectif,
     backref=db.backref("transition_objectifs", lazy="selectin"),
 )
+
+
+# ---------- PLANNING INTERNE : salles, réservations, prêts de matériel ----------
+
+def _hhmm_en_minutes(valeur: str | None) -> int:
+    """Convertit « HH:MM » en minutes depuis minuit (0 si illisible)."""
+    try:
+        h, m = (valeur or "").strip().split(":")[:2]
+        return int(h) * 60 + int(m)
+    except (ValueError, AttributeError):
+        return 0
+
+
+class Salle(db.Model):
+    """Salle / espace réservable de la structure.
+
+    ``secteur`` vide = salle partagée (visible et réservable par tous). La
+    couleur sert à distinguer les salles dans la vue semaine.
+    """
+    __tablename__ = "salle"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(160), nullable=False)
+    secteur = db.Column(db.String(80), nullable=True, index=True)
+    capacite = db.Column(db.Integer, nullable=True)
+    localisation = db.Column(db.String(200), nullable=True)
+    couleur = db.Column(db.String(20), nullable=True)  # ex. #2563eb
+    actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    reservations = db.relationship(
+        "ReservationSalle",
+        back_populates="salle",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class ReservationSalle(db.Model):
+    """Réservation d'une salle sur un créneau (jour + heures).
+
+    Deux réservations d'une même salle qui se chevauchent le même jour sont
+    en conflit (contrôlé à la création). Peut être rattachée à une séance
+    d'atelier existante, pour la matérialiser dans la vue semaine.
+    """
+    __tablename__ = "reservation_salle"
+
+    id = db.Column(db.Integer, primary_key=True)
+    salle_id = db.Column(db.Integer, db.ForeignKey("salle.id", ondelete="CASCADE"), nullable=False, index=True)
+    titre = db.Column(db.String(200), nullable=False)
+    date_reservation = db.Column(db.Date, nullable=False, index=True)
+    heure_debut = db.Column(db.String(5), nullable=False)  # "HH:MM"
+    heure_fin = db.Column(db.String(5), nullable=False)
+    secteur = db.Column(db.String(80), nullable=True, index=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("session_activite.id", ondelete="SET NULL"), nullable=True, index=True)
+    description = db.Column(db.String(500), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    salle = db.relationship("Salle", back_populates="reservations")
+    session = db.relationship("SessionActivite")
+    created_by = db.relationship("User")
+
+    __table_args__ = (
+        db.Index("ix_reservation_salle_jour", "salle_id", "date_reservation"),
+    )
+
+    @property
+    def debut_minutes(self) -> int:
+        return _hhmm_en_minutes(self.heure_debut)
+
+    @property
+    def fin_minutes(self) -> int:
+        return _hhmm_en_minutes(self.heure_fin)
+
+
+STATUTS_PRET = ["en_cours", "rendu"]
+
+
+class PretMateriel(db.Model):
+    """Prêt (sortie/retour) d'un matériel de l'inventaire.
+
+    L'emprunteur est libre (salarié, bénévole, partenaire, habitant). Un prêt
+    est « en retard » si la date de retour prévue est passée et qu'aucun retour
+    réel n'a été saisi.
+    """
+    __tablename__ = "pret_materiel"
+
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("inventaire_item.id", ondelete="CASCADE"), nullable=False, index=True)
+    emprunteur = db.Column(db.String(200), nullable=False)
+    quantite = db.Column(db.Integer, nullable=False, default=1)
+    date_pret = db.Column(db.Date, nullable=False, index=True)
+    date_retour_prevue = db.Column(db.Date, nullable=True, index=True)
+    date_retour_reel = db.Column(db.Date, nullable=True, index=True)
+    notes = db.Column(db.String(500), nullable=True)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    item = db.relationship("InventaireItem", backref=db.backref("prets", cascade="all, delete-orphan", passive_deletes=True))
+    created_by = db.relationship("User")
+
+    @property
+    def est_rendu(self) -> bool:
+        return self.date_retour_reel is not None
+
+    @property
+    def en_retard(self) -> bool:
+        return (
+            self.date_retour_reel is None
+            and self.date_retour_prevue is not None
+            and self.date_retour_prevue < date.today()
+        )
+
+    @property
+    def statut_label(self) -> str:
+        if self.est_rendu:
+            return "Rendu"
+        if self.en_retard:
+            return "En retard"
+        return "En cours"

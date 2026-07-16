@@ -744,6 +744,19 @@ def hub_ressources():
             "tag": "Matériel",
         })
 
+    if can("planning:view"):
+        cards.append({
+            "title": "Planning & salles",
+            "subtitle": "La semaine de l'équipe (séances + salles), les réservations de salles sans conflit et les prêts de matériel.",
+            "primary_label": "Ouvrir le planning",
+            "primary_url": url_for("planning.semaine"),
+            "secondary": [
+                {"label": "Salles", "url": url_for("planning.salles")},
+                {"label": "Prêts de matériel", "url": url_for("planning.prets")},
+            ],
+            "tag": "Organisation",
+        })
+
     if can("partenaires:view"):
         cards.append({
             "title": "Annuaire partenaires",

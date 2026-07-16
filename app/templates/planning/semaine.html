@@ -1,0 +1,107 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>🗓️ Planning de l'équipe</h1>
+    <p class="muted">
+      La semaine en un coup d'œil : séances d'ateliers et réservations de salles.
+      Réservez une salle sans conflit, repérez qui a emprunté quoi.
+    </p>
+
+    <div class="inline" style="gap:8px; flex-wrap:wrap; align-items:center;">
+      <a class="btn" href="{{ url_for('planning.semaine', jour=data.semaine_precedente.isoformat(), secteur=secteur or none) }}">← Semaine précédente</a>
+      <strong>{{ data.lundi.strftime('%d/%m') }} – {{ data.dimanche.strftime('%d/%m/%Y') }}</strong>
+      <a class="btn" href="{{ url_for('planning.semaine', jour=data.semaine_suivante.isoformat(), secteur=secteur or none) }}">Semaine suivante →</a>
+      <a class="btn" href="{{ url_for('planning.semaine', secteur=secteur or none) }}">Aujourd'hui</a>
+      {% if portee_globale %}
+        <form method="get" style="display:inline;">
+          <select name="secteur" onchange="this.form.submit()">
+            <option value="">Tous secteurs</option>
+            {% for s in secteurs %}<option value="{{ s }}" {% if s == secteur %}selected{% endif %}>{{ s }}</option>{% endfor %}
+          </select>
+        </form>
+      {% endif %}
+      <a class="btn" href="{{ url_for('planning.salles') }}">Salles</a>
+      <a class="btn" href="{{ url_for('planning.prets') }}">Prêts de matériel{% if retards %} · {{ retards|length }} en retard{% endif %}</a>
+    </div>
+  </div>
+
+  {% if retards %}
+    <div class="callout danger">
+      ⚠️ {{ retards|length }} prêt(s) de matériel en retard.
+      <a href="{{ url_for('planning.prets') }}">Voir les retours attendus</a>
+    </div>
+  {% endif %}
+
+  <div class="card" style="overflow-x:auto;">
+    <div style="display:grid; grid-template-columns:repeat(7, minmax(150px, 1fr)); gap:8px; min-width:900px;">
+      {% for jour in data.jours %}
+        <div style="border:1px solid var(--border,#ddd); border-radius:8px; padding:8px; {% if jour.is_today %}outline:2px solid var(--accent,#2563eb);{% endif %}">
+          <div class="muted" style="font-size:12px; text-transform:capitalize;">
+            {{ ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][loop.index0] }}
+          </div>
+          <div style="font-weight:700; margin-bottom:6px;">{{ jour.date.strftime('%d/%m') }}</div>
+          {% for e in jour.elements %}
+            <div style="border-left:4px solid {{ e.couleur or ('#94a3b8' if e.type == 'seance' else '#2563eb') }};
+                        background:var(--surface-soft,#f8fafc); border-radius:6px; padding:5px 7px; margin-bottom:5px;
+                        {% if e.annulee %}opacity:.5; text-decoration:line-through;{% endif %}">
+              <div style="font-size:12px; font-weight:600;">
+                {% if e.heure_debut %}{{ e.heure_debut }}{% if e.heure_fin %}–{{ e.heure_fin }}{% endif %} · {% endif %}{{ e.titre }}
+              </div>
+              <div class="muted" style="font-size:11px;">
+                {% if e.type == 'seance' %}🎓 {{ e.secteur or '' }}{% if e.annulee %} (annulée){% endif %}
+                {% else %}📍 {{ e.salle or 'salle' }}{% if e.secteur %} · {{ e.secteur }}{% endif %}{% endif %}
+              </div>
+              {% if e.type == 'reservation' and can('planning:edit') %}
+                <form method="post" action="{{ url_for('planning.reservation_supprimer', reservation_id=e.reservation_id) }}"
+                      style="display:inline;" onsubmit="return confirm('Annuler cette réservation ?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn" style="font-size:10px; padding:1px 6px;">annuler</button>
+                </form>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="muted" style="font-size:11px;">—</div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if can('planning:edit') %}
+  <div class="card">
+    <h2>Réserver une salle</h2>
+    {% if salles %}
+      <form method="post" action="{{ url_for('planning.reservation_creer') }}" class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="field-stack slim"><span>Salle</span>
+          <select name="salle_id" required>
+            {% for s in salles %}<option value="{{ s.id }}">{{ s.nom }}{% if s.capacite %} ({{ s.capacite }} pl.){% endif %}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field-stack slim"><span>Intitulé</span>
+          <input type="text" name="titre" placeholder="Réunion d'équipe, atelier…" required></label>
+        <label class="field-stack slim"><span>Jour</span>
+          <input type="date" name="date_reservation" value="{{ today.isoformat() }}" required></label>
+        <label class="field-stack slim"><span>De</span>
+          <input type="time" name="heure_debut" required></label>
+        <label class="field-stack slim"><span>À</span>
+          <input type="time" name="heure_fin" required></label>
+        <label class="field-stack slim"><span>Secteur</span>
+          <select name="secteur">
+            <option value="">—</option>
+            {% for s in secteurs %}<option value="{{ s }}" {% if s == secteur %}selected{% endif %}>{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+        <button class="btn" type="submit">Réserver</button>
+      </form>
+      <p class="ux-helper">Un chevauchement sur la même salle est refusé et le créneau en conflit vous est indiqué.</p>
+    {% else %}
+      <p class="muted">Aucune salle enregistrée. <a href="{{ url_for('planning.salles') }}">Créez-en une d'abord</a>.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

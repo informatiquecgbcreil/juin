@@ -1,0 +1,103 @@
+{% extends "layout.html" %}
+
+{% macro table_prets(prets, editable) %}
+  <div class="tablewrap">
+  <table class="table">
+    <thead><tr><th>Matériel</th><th>Emprunteur</th><th>Prêté le</th><th>Retour prévu</th><th>État</th>{% if editable %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+      {% for p in prets %}
+        <tr>
+          <td>{{ p.item.designation if p.item else '—' }}{% if p.quantite > 1 %} ×{{ p.quantite }}{% endif %}</td>
+          <td>{{ p.emprunteur }}</td>
+          <td>{{ p.date_pret.strftime('%d/%m/%Y') }}</td>
+          <td>{% if p.date_retour_prevue %}{{ p.date_retour_prevue.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
+          <td>
+            {% if p.en_retard %}<span class="status-badge status-danger">en retard</span>
+            {% else %}<span class="status-badge">en cours</span>{% endif %}
+          </td>
+          {% if editable %}
+          <td>
+            <form method="post" action="{{ url_for('planning.pret_retour', pret_id=p.id) }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn" type="submit">✔ Retour</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% endmacro %}
+
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>Prêts de matériel</h1>
+    <p class="muted">Qui a emprunté quoi, et ce qui doit revenir. Le matériel vient de l'inventaire.</p>
+    <a class="btn" href="{{ url_for('planning.semaine') }}">← Retour au planning</a>
+  </div>
+
+  {% if can('planning:edit') %}
+  <div class="card">
+    <h2>Enregistrer un prêt</h2>
+    {% if items %}
+      <form method="post" action="{{ url_for('planning.pret_creer') }}" class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="field-stack slim"><span>Matériel</span>
+          <select name="item_id" required>
+            {% for it in items %}<option value="{{ it.id }}">{{ it.designation }}{% if it.id_interne %} ({{ it.id_interne }}){% endif %}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field-stack slim"><span>Qté</span><input type="number" name="quantite" value="1" min="1" style="width:70px;"></label>
+        <label class="field-stack slim"><span>Emprunteur</span><input type="text" name="emprunteur" placeholder="Nom / structure" required></label>
+        <label class="field-stack slim"><span>Prêté le</span><input type="date" name="date_pret" value="{{ today.isoformat() }}" required></label>
+        <label class="field-stack slim"><span>Retour prévu</span><input type="date" name="date_retour_prevue"></label>
+        <button class="btn" type="submit">Enregistrer le prêt</button>
+      </form>
+    {% else %}
+      <p class="muted">Aucun matériel dans votre périmètre d'inventaire.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if retards %}
+  <div class="card" style="border-color:var(--danger,#dc2626);">
+    <h2>⚠️ {{ retards|length }} en retard</h2>
+    {{ table_prets(retards, can('planning:edit')) }}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>{{ en_cours|length }} prêt(s) en cours</h2>
+    {% if en_cours %}
+      {{ table_prets(en_cours, can('planning:edit')) }}
+    {% else %}
+      <p class="muted">Aucun prêt en cours.</p>
+    {% endif %}
+  </div>
+
+  {% if historique %}
+  <div class="card">
+    <h2>Derniers retours</h2>
+    <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Matériel</th><th>Emprunteur</th><th>Prêté le</th><th>Rendu le</th></tr></thead>
+      <tbody>
+        {% for p in historique %}
+          <tr>
+            <td>{{ p.item.designation if p.item else '—' }}{% if p.quantite > 1 %} ×{{ p.quantite }}{% endif %}</td>
+            <td>{{ p.emprunteur }}</td>
+            <td>{{ p.date_pret.strftime('%d/%m/%Y') }}</td>
+            <td>{{ p.date_retour_reel.strftime('%d/%m/%Y') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
