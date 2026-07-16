@@ -3254,6 +3254,11 @@ class Salle(db.Model):
     couleur = db.Column(db.String(20), nullable=True)  # ex. #2563eb
     actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
     notes = db.Column(db.Text, nullable=True)
+    # Salle interne (locaux du centre) ou externe (mairie, gymnase, autre
+    # structure…). L'externe porte une adresse et un contact/référent du lieu.
+    est_externe = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    adresse = db.Column(db.String(255), nullable=True)
+    contact = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     reservations = db.relationship(
@@ -3262,6 +3267,10 @@ class Salle(db.Model):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+    @property
+    def type_label(self) -> str:
+        return "Externe" if self.est_externe else "Interne"
 
 
 class ReservationSalle(db.Model):
@@ -3282,13 +3291,27 @@ class ReservationSalle(db.Model):
     secteur = db.Column(db.String(80), nullable=True, index=True)
     session_id = db.Column(db.Integer, db.ForeignKey("session_activite.id", ondelete="SET NULL"), nullable=True, index=True)
     description = db.Column(db.String(500), nullable=True)
+    # Motif de la demande (obligatoire à la saisie ; nullable en base pour les
+    # réservations créées avant l'ajout du workflow).
+    motif = db.Column(db.String(300), nullable=True)
+
+    # Workflow demande -> approbation.
+    statut = db.Column(db.String(20), nullable=False, default="demandee", index=True)
+    approuve_par_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    date_decision = db.Column(db.DateTime, nullable=True)
+    motif_refus = db.Column(db.String(300), nullable=True)
+
+    # Rappel programmable : N jours avant la réservation (None = pas de rappel).
+    rappel_jours_avant = db.Column(db.Integer, nullable=True)
+    rappel_envoye_at = db.Column(db.DateTime, nullable=True)
 
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     salle = db.relationship("Salle", back_populates="reservations")
     session = db.relationship("SessionActivite")
-    created_by = db.relationship("User")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id])
+    approuve_par = db.relationship("User", foreign_keys=[approuve_par_user_id])
 
     __table_args__ = (
         db.Index("ix_reservation_salle_jour", "salle_id", "date_reservation"),
@@ -3302,8 +3325,25 @@ class ReservationSalle(db.Model):
     def fin_minutes(self) -> int:
         return _hhmm_en_minutes(self.heure_fin)
 
+    @property
+    def date_reference_rappel(self):
+        return self.date_reservation
+
+    @property
+    def statut_label(self) -> str:
+        return STATUTS_PLANNING_LABELS.get(self.statut, self.statut)
+
 
 STATUTS_PRET = ["en_cours", "rendu"]
+
+#: Statuts communs au workflow demande -> approbation (réservations & prêts).
+STATUTS_PLANNING = ["demandee", "approuvee", "refusee", "annulee"]
+STATUTS_PLANNING_LABELS = {
+    "demandee": "En attente de validation",
+    "approuvee": "Approuvée",
+    "refusee": "Refusée",
+    "annulee": "Annulée",
+}
 
 
 class PretMateriel(db.Model):
@@ -3323,12 +3363,24 @@ class PretMateriel(db.Model):
     date_retour_prevue = db.Column(db.Date, nullable=True, index=True)
     date_retour_reel = db.Column(db.Date, nullable=True, index=True)
     notes = db.Column(db.String(500), nullable=True)
+    motif = db.Column(db.String(300), nullable=True)
+
+    # Workflow demande -> approbation (le retour reste géré par date_retour_reel).
+    statut = db.Column(db.String(20), nullable=False, default="demandee", index=True)
+    approuve_par_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    date_decision = db.Column(db.DateTime, nullable=True)
+    motif_refus = db.Column(db.String(300), nullable=True)
+
+    # Rappel programmable : N jours avant la date de retour prévue.
+    rappel_jours_avant = db.Column(db.Integer, nullable=True)
+    rappel_envoye_at = db.Column(db.DateTime, nullable=True)
 
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     item = db.relationship("InventaireItem", backref=db.backref("prets", cascade="all, delete-orphan", passive_deletes=True))
-    created_by = db.relationship("User")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id])
+    approuve_par = db.relationship("User", foreign_keys=[approuve_par_user_id])
 
     @property
     def est_rendu(self) -> bool:
@@ -3337,13 +3389,20 @@ class PretMateriel(db.Model):
     @property
     def en_retard(self) -> bool:
         return (
-            self.date_retour_reel is None
+            self.statut == "approuvee"
+            and self.date_retour_reel is None
             and self.date_retour_prevue is not None
             and self.date_retour_prevue < date.today()
         )
 
     @property
+    def date_reference_rappel(self):
+        return self.date_retour_prevue
+
+    @property
     def statut_label(self) -> str:
+        if self.statut != "approuvee":
+            return STATUTS_PLANNING_LABELS.get(self.statut, self.statut)
         if self.est_rendu:
             return "Rendu"
         if self.en_retard:

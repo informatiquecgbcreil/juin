@@ -1,9 +1,13 @@
-"""Étape 3 — Planning interne : salles, réservations, prêts de matériel.
+"""Planning interne v2 — salles (internes/externes), workflow demande →
+approbation des réservations et prêts, agenda visuel, notifications.
 
-- réservation refusée si chevauchement sur la même salle le même jour ;
-- créneaux qui ne se chevauchent pas : OK ;
-- vue semaine agrège séances + réservations sur lundi→dimanche ;
-- prêt : création, retard détecté, retour enregistré ;
+- une demande de réservation/prêt part en statut ``demandee`` ; un valideur
+  (droit ``planning:approve``) l'approuve ou la refuse ;
+- seul un créneau *approuvé* bloque un autre créneau (conflit) ;
+- le motif de la demande est obligatoire ;
+- l'agenda place les éléments qui se chevauchent en colonnes distinctes ;
+- notifications : une demande crée un rappel interne « À traiter » ;
+- prêt : retard détecté (sur prêt approuvé), retour enregistré ;
 - pages protégées ; permissions RBAC attribuées.
 """
 import uuid
@@ -43,54 +47,142 @@ def contexte(app):
 
 
 # ---------------------------------------------------------------------------
-# Réservations & conflits
+# Réservations & conflits (seul un créneau APPROUVÉ bloque)
 # ---------------------------------------------------------------------------
 
-def test_conflit_reservation_refuse(app, contexte):
+def test_conflit_sur_reservation_approuvee(app, contexte):
     with app.app_context():
         from app.extensions import db
         from app.models import Salle
-        from app.services.planning import ReservationInvalide, creer_reservation
+        from app.services.planning import ReservationInvalide, demander_reservation
 
         salle = db.session.get(Salle, contexte["salle_id"])
         jour = contexte["mercredi"]
-        creer_reservation(salle=salle, titre="Réunion", jour=jour,
-                          heure_debut="14:00", heure_fin="16:00")
+        demander_reservation(salle=salle, titre="Réunion", jour=jour,
+                             heure_debut="14:00", heure_fin="16:00",
+                             motif="CA mensuel", auto_approuver=True)
 
-        # Chevauchement (15:00-17:00 croise 14:00-16:00) -> refusé.
+        # Chevauchement (15:00-17:00 croise 14:00-16:00) sur une approuvée -> refusé.
         with pytest.raises(ReservationInvalide, match="déjà réservée"):
-            creer_reservation(salle=salle, titre="Autre", jour=jour,
-                              heure_debut="15:00", heure_fin="17:00")
+            demander_reservation(salle=salle, titre="Autre", jour=jour,
+                                 heure_debut="15:00", heure_fin="17:00",
+                                 motif="Autre réunion", auto_approuver=True)
 
         # Créneau accolé (16:00-18:00) -> autorisé (bornes [début, fin[).
-        r = creer_reservation(salle=salle, titre="Accolée", jour=jour,
-                              heure_debut="16:00", heure_fin="18:00")
+        r = demander_reservation(salle=salle, titre="Accolée", jour=jour,
+                                 heure_debut="16:00", heure_fin="18:00",
+                                 motif="Atelier", auto_approuver=True)
         assert r.id is not None
+        assert r.statut == "approuvee"
+
+
+def test_demande_en_attente_ne_bloque_pas(app, contexte):
+    """Une demande non validée ne réserve pas le créneau : une autre demande
+    reste possible (c'est le valideur qui arbitre)."""
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Salle
+        from app.services.planning import demander_reservation
+
+        salle = db.session.get(Salle, contexte["salle_id"])
+        jour = contexte["mercredi"]
+        r1 = demander_reservation(salle=salle, titre="Demande A", jour=jour,
+                                  heure_debut="14:00", heure_fin="16:00",
+                                  motif="Réunion A", auto_approuver=False)
+        # Même créneau, autre demande -> acceptée aussi (rien n'est encore approuvé).
+        r2 = demander_reservation(salle=salle, titre="Demande B", jour=jour,
+                                  heure_debut="14:30", heure_fin="15:30",
+                                  motif="Réunion B", auto_approuver=False)
+        assert r1.statut == "demandee"
+        assert r2.statut == "demandee"
+
+
+def test_motif_obligatoire(app, contexte):
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Salle
+        from app.services.planning import ReservationInvalide, demander_reservation
+
+        salle = db.session.get(Salle, contexte["salle_id"])
+        with pytest.raises(ReservationInvalide, match="motif"):
+            demander_reservation(salle=salle, titre="Sans motif", jour=contexte["mercredi"],
+                                 heure_debut="09:00", heure_fin="10:00", motif="")
 
 
 def test_reservation_heures_incoherentes(app, contexte):
     with app.app_context():
         from app.extensions import db
         from app.models import Salle
-        from app.services.planning import ReservationInvalide, creer_reservation
+        from app.services.planning import ReservationInvalide, demander_reservation
 
         salle = db.session.get(Salle, contexte["salle_id"])
         with pytest.raises(ReservationInvalide, match="après l'heure de début"):
-            creer_reservation(salle=salle, titre="X", jour=contexte["mercredi"],
-                              heure_debut="16:00", heure_fin="14:00")
+            demander_reservation(salle=salle, titre="X", jour=contexte["mercredi"],
+                                 heure_debut="16:00", heure_fin="14:00", motif="test")
 
 
-def test_autre_jour_pas_de_conflit(app, contexte):
+def test_workflow_approbation(app, contexte):
     with app.app_context():
         from app.extensions import db
         from app.models import Salle
-        from app.services.planning import conflits_reservation, creer_reservation
+        from app.services.planning import (
+            approuver_reservation,
+            demander_reservation,
+            reservations_en_attente,
+        )
+
+        secteur = f"Sec{contexte['suf']}"
+        salle = db.session.get(Salle, contexte["salle_id"])
+        r = demander_reservation(salle=salle, titre=f"Demande {contexte['suf']}",
+                                 jour=contexte["mercredi"], heure_debut="09:00",
+                                 heure_fin="10:00", motif="Réunion d'équipe",
+                                 secteur=secteur, auto_approuver=False)
+        assert r.statut == "demandee"
+        assert any(x.id == r.id for x in reservations_en_attente(secteur))
+
+        approuver_reservation(r, approbateur=None)
+        assert r.statut == "approuvee"
+        assert not any(x.id == r.id for x in reservations_en_attente(secteur))
+
+
+def test_refus_avec_motif(app, contexte):
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Salle
+        from app.services.planning import demander_reservation, refuser_reservation
 
         salle = db.session.get(Salle, contexte["salle_id"])
-        creer_reservation(salle=salle, titre="Lundi", jour=contexte["lundi"],
-                          heure_debut="14:00", heure_fin="16:00")
-        # Même créneau, autre jour -> aucun conflit.
-        assert conflits_reservation(salle.id, contexte["mercredi"], "14:00", "16:00") == []
+        r = demander_reservation(salle=salle, titre="À refuser", jour=contexte["mercredi"],
+                                 heure_debut="09:00", heure_fin="10:00",
+                                 motif="test", auto_approuver=False)
+        refuser_reservation(r, approbateur=None, motif_refus="Salle indisponible")
+        assert r.statut == "refusee"
+        assert r.motif_refus == "Salle indisponible"
+
+
+# ---------------------------------------------------------------------------
+# Agenda visuel : placement en colonnes des chevauchements
+# ---------------------------------------------------------------------------
+
+def test_agencement_colonnes_chevauchement():
+    from app.services.planning import _agencer_en_colonnes
+
+    elements = [
+        {"titre": "A", "debut_min": 540, "fin_min": 660},   # 09:00-11:00
+        {"titre": "B", "debut_min": 600, "fin_min": 720},   # 10:00-12:00 (chevauche A)
+        {"titre": "C", "debut_min": 780, "fin_min": 840},   # 13:00-14:00 (isolé)
+        {"titre": "Z", "debut_min": 0, "fin_min": 0},       # sans horaire (ignoré)
+    ]
+    _agencer_en_colonnes(elements)
+    par_titre = {e["titre"]: e for e in elements}
+    # A et B se chevauchent -> deux colonnes, lanes distinctes.
+    assert par_titre["A"]["lanes"] == 2
+    assert par_titre["B"]["lanes"] == 2
+    assert par_titre["A"]["lane"] != par_titre["B"]["lane"]
+    # C est seul sur son créneau -> une seule colonne.
+    assert par_titre["C"]["lanes"] == 1
+    # Z n'a pas d'horaire -> non agencé.
+    assert "lane" not in par_titre["Z"]
 
 
 # ---------------------------------------------------------------------------
@@ -101,12 +193,13 @@ def test_semaine_agrege_seances_et_reservations(app, contexte):
     with app.app_context():
         from app.extensions import db
         from app.models import Salle
-        from app.services.planning import creer_reservation, semaine_equipe
+        from app.services.planning import demander_reservation, semaine_equipe
 
         secteur = f"Sec{contexte['suf']}"
         salle = db.session.get(Salle, contexte["salle_id"])
-        creer_reservation(salle=salle, titre=f"Réu {contexte['suf']}", jour=contexte["mercredi"],
-                          heure_debut="14:00", heure_fin="16:00", secteur=secteur)
+        demander_reservation(salle=salle, titre=f"Réu {contexte['suf']}", jour=contexte["mercredi"],
+                             heure_debut="14:00", heure_fin="16:00", motif="CA",
+                             secteur=secteur, auto_approuver=True)
 
         # Filtrage sur le secteur unique du contexte : la vue ne contient que
         # les données de ce test (la base de test est partagée).
@@ -122,13 +215,14 @@ def test_semaine_agrege_seances_et_reservations(app, contexte):
         # Les salles partagées (secteur nul) restent visibles quel que soit le
         # filtre : au moins la réservation de ce test est présente.
         assert mercredi["nb_reservations"] >= 1
-        # Tri par heure : la séance (10:00) avant la réservation (14:00).
-        titres_ordonnes = [e["titre"] for e in mercredi["elements"]]
-        assert titres_ordonnes.index(f"Atelier {contexte['suf']}") < titres_ordonnes.index(f"Réu {contexte['suf']}")
+        # Chaque élément horodaté porte son placement en colonnes (agenda).
+        for e in mercredi["elements"]:
+            if e["fin_min"] > e["debut_min"]:
+                assert e["lanes"] >= 1
 
 
 # ---------------------------------------------------------------------------
-# Prêts de matériel
+# Prêts de matériel (workflow + retard)
 # ---------------------------------------------------------------------------
 
 def test_pret_retard_et_retour(app, contexte):
@@ -137,9 +231,10 @@ def test_pret_retard_et_retour(app, contexte):
         from app.models import PretMateriel
         from app.services.planning import enregistrer_retour, prets_en_cours, prets_en_retard
 
-        # Prêt dont le retour prévu est déjà passé.
+        # Prêt APPROUVÉ dont le retour prévu est déjà passé.
         pret = PretMateriel(
             item_id=contexte["item_id"], emprunteur="Partenaire X", quantite=1,
+            motif="Fête de quartier", statut="approuvee",
             date_pret=date.today() - timedelta(days=10),
             date_retour_prevue=date.today() - timedelta(days=3),
         )
@@ -159,6 +254,66 @@ def test_pret_retard_et_retour(app, contexte):
         assert not any(p.id == pid for p in prets_en_cours())
 
 
+def test_pret_workflow(app, contexte):
+    with app.app_context():
+        from app.extensions import db
+        from app.models import InventaireItem
+        from app.services.planning import (
+            approuver_pret,
+            demander_pret,
+            prets_en_attente,
+            prets_en_cours,
+        )
+
+        secteur = f"Sec{contexte['suf']}"
+        item = db.session.get(InventaireItem, contexte["item_id"])
+        p = demander_pret(item=item, emprunteur=f"Asso {contexte['suf']}",
+                          motif="Projection en plein air", auto_approuver=False)
+        assert p.statut == "demandee"
+        assert any(x.id == p.id for x in prets_en_attente(secteur))
+        assert not any(x.id == p.id for x in prets_en_cours(secteur))
+
+        approuver_pret(p, approbateur=None)
+        assert p.statut == "approuvee"
+        assert any(x.id == p.id for x in prets_en_cours(secteur))
+
+
+def test_pret_motif_obligatoire(app, contexte):
+    with app.app_context():
+        from app.extensions import db
+        from app.models import InventaireItem
+        from app.services.planning import ReservationInvalide, demander_pret
+
+        item = db.session.get(InventaireItem, contexte["item_id"])
+        with pytest.raises(ReservationInvalide, match="motif"):
+            demander_pret(item=item, emprunteur="Sans motif", motif="")
+
+
+# ---------------------------------------------------------------------------
+# Notifications : une demande crée un rappel interne « À traiter »
+# ---------------------------------------------------------------------------
+
+def test_notifier_demande_cree_rappel_interne(app, contexte):
+    with app.app_context():
+        from app.models import SuiviRappel
+        from app.services.planning_notifs import notifier_demande
+
+        intitule = f"Réservation-{contexte['suf']}"
+        avant = SuiviRappel.query.filter_by(categorie="planning").count()
+        notifier_demande(
+            type_libelle="Réservation de salle", intitule=intitule,
+            demandeur="Testeur", detail="Le 01/01 de 09:00 à 10:00. Motif : test.",
+            secteur=f"Sec{contexte['suf']}", lien_url="/planning/",
+        )
+        apres = SuiviRappel.query.filter_by(categorie="planning").count()
+        assert apres == avant + 1
+        rappel = (SuiviRappel.query
+                  .filter(SuiviRappel.categorie == "planning")
+                  .filter(SuiviRappel.titre.like(f"%{intitule}%"))
+                  .first())
+        assert rappel is not None
+
+
 # ---------------------------------------------------------------------------
 # Pages & permissions
 # ---------------------------------------------------------------------------
@@ -172,23 +327,55 @@ def test_page_semaine(admin_client, contexte):
 
 
 def test_reservation_via_formulaire(admin_client, app, contexte):
+    # L'admin (rôle direction) a planning:approve -> réservation auto-approuvée.
     r = admin_client.post("/planning/reservations/creer", data={
         "salle_id": contexte["salle_id"],
         "titre": f"Réunion {contexte['suf']}",
         "date_reservation": contexte["mercredi"].isoformat(),
         "heure_debut": "09:00", "heure_fin": "10:00",
+        "motif": "Réunion de service",
     }, follow_redirects=True)
     assert r.status_code == 200
     assert "réservée le" in r.get_data(as_text=True)
 
-    # Deuxième réservation en conflit -> message d'avertissement.
+    # Deuxième réservation en conflit avec l'approuvée -> avertissement.
     r = admin_client.post("/planning/reservations/creer", data={
         "salle_id": contexte["salle_id"],
         "titre": "Conflit",
         "date_reservation": contexte["mercredi"].isoformat(),
         "heure_debut": "09:30", "heure_fin": "10:30",
+        "motif": "autre",
     }, follow_redirects=True)
     assert "déjà réservée" in r.get_data(as_text=True)
+
+
+def test_reservation_formulaire_sans_motif_refuse(admin_client, contexte):
+    r = admin_client.post("/planning/reservations/creer", data={
+        "salle_id": contexte["salle_id"],
+        "titre": "Sans motif",
+        "date_reservation": contexte["mercredi"].isoformat(),
+        "heure_debut": "11:00", "heure_fin": "12:00",
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert "motif" in r.get_data(as_text=True).lower()
+
+
+def test_salle_externe_via_formulaire(admin_client, app):
+    suf = uuid.uuid4().hex[:6]
+    r = admin_client.post("/planning/salles", data={
+        "nom": f"Gymnase {suf}",
+        "est_externe": "1",
+        "adresse": "10 rue du Stade, Creil",
+        "contact": "Mairie · 03.44...",
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        from app.models import Salle
+        salle = Salle.query.filter_by(nom=f"Gymnase {suf}").first()
+        assert salle is not None
+        assert salle.est_externe is True
+        assert salle.adresse == "10 rue du Stade, Creil"
+        assert salle.type_label == "Externe"
 
 
 def test_page_prets_et_creation(admin_client, app, contexte):
@@ -200,6 +387,7 @@ def test_page_prets_et_creation(admin_client, app, contexte):
         "item_id": contexte["item_id"],
         "emprunteur": f"Ludo {contexte['suf']}",
         "quantite": "1",
+        "motif": "Animation de rue",
         "date_pret": date.today().isoformat(),
     }, follow_redirects=True)
     assert r.status_code == 200
@@ -207,8 +395,11 @@ def test_page_prets_et_creation(admin_client, app, contexte):
 
     with app.app_context():
         from app.models import PretMateriel
-        assert PretMateriel.query.filter(
-            PretMateriel.emprunteur == f"Ludo {contexte['suf']}").count() == 1
+        pret = PretMateriel.query.filter(
+            PretMateriel.emprunteur == f"Ludo {contexte['suf']}").first()
+        assert pret is not None
+        # L'admin approuve d'office -> le prêt est directement en cours.
+        assert pret.statut == "approuvee"
 
 
 def test_refus_anonymes(client):
@@ -223,6 +414,7 @@ def test_permissions_rbac(app):
 
         assert Permission.query.filter_by(code="planning:view").first() is not None
         assert Permission.query.filter_by(code="planning:edit").first() is not None
+        assert Permission.query.filter_by(code="planning:approve").first() is not None
         direction = Role.query.filter_by(code="direction").first()
         codes = {p.code for p in direction.permissions}
-        assert {"planning:view", "planning:edit"} <= codes
+        assert {"planning:view", "planning:edit", "planning:approve"} <= codes

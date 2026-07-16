@@ -1,9 +1,11 @@
-"""Planning interne — vue semaine, salles & réservations, prêts de matériel.
+"""Planning interne — vue semaine, salles & réservations, prêts, workflow.
 
-Portée : la vue semaine et les salles sont partagées (ressources communes du
-bâtiment) — tout titulaire de ``planning:view`` voit l'ensemble, avec un
-filtre secteur optionnel. Les prêts touchent des items d'inventaire : un rôle
-sans ``scope:all_secteurs`` est borné aux items de son secteur.
+Portée : la vue semaine et les salles sont partagées (ressources communes) —
+tout titulaire de ``planning:view`` voit l'ensemble, filtre secteur optionnel.
+Une demande (réservation ou prêt) est validée par un titulaire de
+``planning:approve`` ; un demandeur qui a lui-même ce droit est auto-approuvé.
+Les prêts touchent l'inventaire : un rôle sans ``scope:all_secteurs`` est
+borné aux items de son secteur.
 """
 from __future__ import annotations
 
@@ -17,18 +19,26 @@ from app.models import InventaireItem, PretMateriel, ReservationSalle, Salle
 from app.rbac import can, require_perm
 from app.services.planning import (
     ReservationInvalide,
-    creer_reservation,
+    approuver_pret,
+    approuver_reservation,
+    demander_pret,
+    demander_reservation,
     enregistrer_retour,
+    prets_en_attente,
     prets_en_cours,
     prets_en_retard,
+    refuser_pret,
+    refuser_reservation,
+    reservations_en_attente,
     salles_actives,
     semaine_equipe,
 )
+from app.services.planning_notifs import notifier_decision, notifier_demande
 
 from . import bp
 
 
-def _parse_date(brut: str | None, defaut: date) -> date:
+def _parse_date(brut: str | None, defaut):
     try:
         return datetime.strptime((brut or "").strip(), "%Y-%m-%d").date()
     except (TypeError, ValueError):
@@ -36,16 +46,24 @@ def _parse_date(brut: str | None, defaut: date) -> date:
 
 
 def _secteur_filtre_optionnel() -> str | None:
-    """Filtre secteur choisi (portée globale) ou secteur assigné (borné)."""
     if can("scope:all_secteurs"):
         return (request.args.get("secteur") or "").strip() or None
     return (getattr(current_user, "secteur_assigne", None) or "").strip() or None
+
+
+def _secteur_borne() -> str | None:
+    return None if can("scope:all_secteurs") else (getattr(current_user, "secteur_assigne", None) or "")
 
 
 def _peut_voir_item(item: InventaireItem) -> bool:
     if can("scope:all_secteurs"):
         return True
     return (getattr(current_user, "secteur_assigne", "") or "") == (item.secteur or "")
+
+
+def _rappel_jours(champ: str) -> int | None:
+    val = request.form.get(champ, type=int)
+    return val if val and val > 0 else None
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +79,7 @@ def semaine():
     jour = _parse_date(request.args.get("jour"), date.today())
     secteur = _secteur_filtre_optionnel()
     data = semaine_equipe(jour, secteur)
+    a_valider = reservations_en_attente(_secteur_borne()) if can("planning:approve") else []
     return render_template(
         "planning/semaine.html",
         data=data,
@@ -68,13 +87,15 @@ def semaine():
         secteurs=get_secteur_labels(active_only=True),
         portee_globale=can("scope:all_secteurs"),
         salles=salles_actives(),
-        retards=prets_en_retard(None if can("scope:all_secteurs") else secteur),
+        retards=prets_en_retard(_secteur_borne()),
+        a_valider=a_valider,
+        heure_min=8, heure_max=21,
         today=date.today(),
     )
 
 
 # ---------------------------------------------------------------------------
-# Salles & réservations
+# Salles
 # ---------------------------------------------------------------------------
 
 @bp.route("/salles", methods=["GET", "POST"])
@@ -87,18 +108,22 @@ def salles():
         if not nom:
             flash("Donnez un nom à la salle.", "danger")
             return redirect(url_for("planning.salles"))
+        est_externe = request.form.get("est_externe") == "1"
         db.session.add(Salle(
             nom=nom,
             secteur=(request.form.get("secteur") or "").strip() or None,
             capacite=request.form.get("capacite", type=int),
             localisation=(request.form.get("localisation") or "").strip() or None,
             couleur=(request.form.get("couleur") or "").strip() or None,
+            est_externe=est_externe,
+            adresse=(request.form.get("adresse") or "").strip() or None if est_externe else None,
+            contact=(request.form.get("contact") or "").strip() or None if est_externe else None,
         ))
         db.session.commit()
         flash(f"Salle « {nom} » ajoutée ✅", "success")
         return redirect(url_for("planning.salles"))
 
-    toutes = Salle.query.order_by(Salle.actif.desc(), Salle.nom.asc()).all()
+    toutes = Salle.query.order_by(Salle.actif.desc(), Salle.est_externe.asc(), Salle.nom.asc()).all()
     return render_template("planning/salles.html", salles=toutes)
 
 
@@ -113,6 +138,10 @@ def salle_basculer(salle_id: int):
     return redirect(url_for("planning.salles"))
 
 
+# ---------------------------------------------------------------------------
+# Réservations : demande + décisions
+# ---------------------------------------------------------------------------
+
 @bp.route("/reservations/creer", methods=["POST"])
 @login_required
 @require_perm("planning:edit")
@@ -123,21 +152,77 @@ def reservation_creer():
         return redirect(url_for("planning.semaine"))
 
     jour = _parse_date(request.form.get("date_reservation"), date.today())
+    auto = can("planning:approve")
     try:
-        creer_reservation(
+        reservation = demander_reservation(
             salle=salle,
             titre=request.form.get("titre"),
             jour=jour,
             heure_debut=(request.form.get("heure_debut") or "").strip(),
             heure_fin=(request.form.get("heure_fin") or "").strip(),
+            motif=request.form.get("motif"),
             secteur=request.form.get("secteur"),
             description=request.form.get("description"),
-            user_id=getattr(current_user, "id", None),
+            rappel_jours_avant=_rappel_jours("rappel_jours_avant"),
+            user=current_user,
+            auto_approuver=auto,
         )
-        flash(f"« {salle.nom} » réservée le {jour.strftime('%d/%m/%Y')} ✅", "success")
     except ReservationInvalide as exc:
         flash(str(exc), "warning")
+        return redirect(url_for("planning.semaine", jour=jour.isoformat()))
+
+    if reservation.statut == "approuvee":
+        flash(f"« {salle.nom} » réservée le {jour.strftime('%d/%m/%Y')} ✅", "success")
+    else:
+        notifier_demande(
+            type_libelle="Réservation de salle",
+            intitule=f"{reservation.titre} — {salle.nom}",
+            demandeur=getattr(current_user, "nom", None) or getattr(current_user, "email", "?"),
+            detail=f"Le {jour.strftime('%d/%m/%Y')} de {reservation.heure_debut} à {reservation.heure_fin}. Motif : {reservation.motif}.",
+            secteur=reservation.secteur,
+            lien_url=url_for("planning.semaine", jour=jour.isoformat()),
+        )
+        flash("Demande de réservation envoyée pour validation ✅", "success")
     return redirect(url_for("planning.semaine", jour=jour.isoformat()))
+
+
+@bp.route("/reservations/<int:reservation_id>/approuver", methods=["POST"])
+@login_required
+@require_perm("planning:approve")
+def reservation_approuver(reservation_id: int):
+    reservation = db.get_or_404(ReservationSalle, reservation_id)
+    try:
+        approuver_reservation(reservation, current_user)
+    except ReservationInvalide as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("planning.semaine", jour=reservation.date_reservation.isoformat()))
+    notifier_decision(
+        type_libelle="Réservation de salle", approuvee=True, motif_refus=None,
+        destinataire_user_id=reservation.created_by_user_id,
+        intitule=f"{reservation.titre} — {reservation.salle.nom if reservation.salle else ''}",
+        detail=f"Le {reservation.date_reservation.strftime('%d/%m/%Y')} de {reservation.heure_debut} à {reservation.heure_fin}.",
+        lien_url=url_for("planning.semaine", jour=reservation.date_reservation.isoformat()),
+    )
+    flash("Réservation approuvée ✅", "success")
+    return redirect(url_for("planning.semaine", jour=reservation.date_reservation.isoformat()))
+
+
+@bp.route("/reservations/<int:reservation_id>/refuser", methods=["POST"])
+@login_required
+@require_perm("planning:approve")
+def reservation_refuser(reservation_id: int):
+    reservation = db.get_or_404(ReservationSalle, reservation_id)
+    motif_refus = request.form.get("motif_refus")
+    refuser_reservation(reservation, current_user, motif_refus)
+    notifier_decision(
+        type_libelle="Réservation de salle", approuvee=False, motif_refus=motif_refus,
+        destinataire_user_id=reservation.created_by_user_id,
+        intitule=f"{reservation.titre} — {reservation.salle.nom if reservation.salle else ''}",
+        detail=f"Le {reservation.date_reservation.strftime('%d/%m/%Y')} de {reservation.heure_debut} à {reservation.heure_fin}.",
+        lien_url=url_for("planning.semaine", jour=reservation.date_reservation.isoformat()),
+    )
+    flash("Demande refusée, le demandeur est prévenu.", "info")
+    return redirect(url_for("planning.semaine", jour=reservation.date_reservation.isoformat()))
 
 
 @bp.route("/reservations/<int:reservation_id>/supprimer", methods=["POST"])
@@ -167,8 +252,9 @@ def _items_visibles():
 @login_required
 @require_perm("planning:view")
 def prets():
-    secteur = None if can("scope:all_secteurs") else (getattr(current_user, "secteur_assigne", None) or "")
+    secteur = _secteur_borne()
     en_cours = prets_en_cours(secteur)
+    en_attente = prets_en_attente(secteur) if can("planning:approve") else []
     historique = (
         PretMateriel.query
         .filter(PretMateriel.date_retour_reel.isnot(None))
@@ -182,6 +268,7 @@ def prets():
         "planning/prets.html",
         en_cours=en_cours,
         retards=[p for p in en_cours if p.en_retard],
+        en_attente=en_attente,
         historique=historique,
         items=_items_visibles(),
         today=date.today(),
@@ -193,25 +280,74 @@ def prets():
 @require_perm("planning:edit")
 def pret_creer():
     item = db.session.get(InventaireItem, request.form.get("item_id", type=int) or 0)
-    emprunteur = (request.form.get("emprunteur") or "").strip()
     if item is None or not _peut_voir_item(item):
         flash("Choisissez un matériel de votre périmètre.", "danger")
         return redirect(url_for("planning.prets"))
-    if not emprunteur:
-        flash("Indiquez qui emprunte le matériel.", "danger")
+
+    auto = can("planning:approve")
+    try:
+        pret = demander_pret(
+            item=item,
+            emprunteur=request.form.get("emprunteur"),
+            motif=request.form.get("motif"),
+            quantite=request.form.get("quantite", type=int) or 1,
+            date_pret=_parse_date(request.form.get("date_pret"), date.today()),
+            date_retour_prevue=_parse_date(request.form.get("date_retour_prevue"), None) if request.form.get("date_retour_prevue") else None,
+            rappel_jours_avant=_rappel_jours("rappel_jours_avant"),
+            user=current_user,
+            auto_approuver=auto,
+        )
+    except ReservationInvalide as exc:
+        flash(str(exc), "warning")
         return redirect(url_for("planning.prets"))
 
-    db.session.add(PretMateriel(
-        item_id=item.id,
-        emprunteur=emprunteur,
-        quantite=max(1, request.form.get("quantite", type=int) or 1),
-        date_pret=_parse_date(request.form.get("date_pret"), date.today()),
-        date_retour_prevue=_parse_date(request.form.get("date_retour_prevue"), None) if request.form.get("date_retour_prevue") else None,
-        notes=(request.form.get("notes") or "").strip() or None,
-        created_by_user_id=getattr(current_user, "id", None),
-    ))
-    db.session.commit()
-    flash(f"Prêt de « {item.designation} » à {emprunteur} enregistré ✅", "success")
+    if pret.statut == "approuvee":
+        flash(f"Prêt de « {item.designation} » à {pret.emprunteur} enregistré ✅", "success")
+    else:
+        notifier_demande(
+            type_libelle="Prêt de matériel",
+            intitule=f"{item.designation} — {pret.emprunteur}",
+            demandeur=getattr(current_user, "nom", None) or getattr(current_user, "email", "?"),
+            detail=f"Prêt du {pret.date_pret.strftime('%d/%m/%Y')}. Motif : {pret.motif}.",
+            secteur=item.secteur,
+            lien_url=url_for("planning.prets"),
+        )
+        flash("Demande de prêt envoyée pour validation ✅", "success")
+    return redirect(url_for("planning.prets"))
+
+
+@bp.route("/prets/<int:pret_id>/approuver", methods=["POST"])
+@login_required
+@require_perm("planning:approve")
+def pret_approuver(pret_id: int):
+    pret = db.get_or_404(PretMateriel, pret_id)
+    approuver_pret(pret, current_user)
+    notifier_decision(
+        type_libelle="Prêt de matériel", approuvee=True, motif_refus=None,
+        destinataire_user_id=pret.created_by_user_id,
+        intitule=f"{pret.item.designation if pret.item else 'matériel'} — {pret.emprunteur}",
+        detail=f"Prêt du {pret.date_pret.strftime('%d/%m/%Y')}.",
+        lien_url=url_for("planning.prets"),
+    )
+    flash("Prêt approuvé ✅", "success")
+    return redirect(url_for("planning.prets"))
+
+
+@bp.route("/prets/<int:pret_id>/refuser", methods=["POST"])
+@login_required
+@require_perm("planning:approve")
+def pret_refuser(pret_id: int):
+    pret = db.get_or_404(PretMateriel, pret_id)
+    motif_refus = request.form.get("motif_refus")
+    refuser_pret(pret, current_user, motif_refus)
+    notifier_decision(
+        type_libelle="Prêt de matériel", approuvee=False, motif_refus=motif_refus,
+        destinataire_user_id=pret.created_by_user_id,
+        intitule=f"{pret.item.designation if pret.item else 'matériel'} — {pret.emprunteur}",
+        detail=f"Prêt du {pret.date_pret.strftime('%d/%m/%Y')}.",
+        lien_url=url_for("planning.prets"),
+    )
+    flash("Demande de prêt refusée, le demandeur est prévenu.", "info")
     return redirect(url_for("planning.prets"))
 
 
