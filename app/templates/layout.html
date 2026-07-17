@@ -544,12 +544,13 @@
             <span>Menu</span>
           </button>
 
-          {% set is_finance = ep.startswith('projets.finance') or ep.startswith('budget.') or ep.startswith('main.subventions') or ep.startswith('previsionnel.') %}
+          {% set is_finance = ep.startswith('projets.finance') or ep.startswith('budget.') or ep.startswith('main.subventions') or ep.startswith('previsionnel.') or ep.startswith('main.caisse') or ep in ('main.impayes', 'main.tarifs_cotisations', 'main.dons_registre', 'main.don_recu', 'main.cout_unitaire') %}
           {% set is_publics = ep == 'main.hub_publics' or ep.startswith('participants.') or ep.startswith('insertion.') or ep.startswith('quartiers.') %}
           {% set is_presences = ep.startswith('activite.') or ep.startswith('kiosk.') %}
           {% set is_activites = ep == 'main.hub_activites' or ep.startswith('statsimpact.') or ep.startswith('pedagogie.') %}
-          {% set is_bilans = ep == 'main.hub_bilans' or ep == 'main.documents_exports' or ep.startswith('main.stats_bilans') or ep.startswith('main.bilan_global') or ep.startswith('main.stats') or ep.startswith('bilans.') or ep.startswith('questionnaires.') %}
-          {% set is_ressources = ep == 'main.hub_ressources' or ep.startswith('inventaire_materiel.') or ep.startswith('partenaires.') %}
+          {% set is_bilans = ep == 'main.hub_bilans' or ep == 'main.documents_exports' or ep.startswith('main.stats_bilans') or ep.startswith('main.bilan_global') or ep.startswith('main.stats') or ep.startswith('bilans.') or ep.startswith('questionnaires.') or ep.startswith('transitions.') %}
+          {% set is_salles = ep.startswith('planning.') or ep.startswith('inventaire_materiel.') %}
+          {% set is_vie_centre = ep == 'main.hub_ressources' or ep.startswith('gouvernance.') or ep.startswith('partenaires.') or ep in ('main.benevolat', 'main.rh', 'main.hart_collectif') %}
           {% set is_admin_area = ep.startswith('admin.') or ep.startswith('main.controle') %}
           {% set is_suivi = ep == 'main.suivi_rappels' %}
 
@@ -572,6 +573,9 @@
               {% elif can('pedagogie:view') %}
                 <a class="pill {% if is_activites %}active{% endif %}" href="{{ url_for('main.hub_activites') }}">Activités</a>
               {% endif %}
+              {% if can('planning:view') %}
+                <a class="pill {% if ep.startswith('planning.') %}active{% endif %}" href="{{ url_for('planning.semaine') }}">🗓️ Planning</a>
+              {% endif %}
               {% if can('projets:view') or can('subventions:view') or can('depenses:view') %}
                 <a class="pill {% if is_finance %}active{% endif %}" href="{{ url_for('projets.finance_home') }}">Finances</a>
               {% endif %}
@@ -581,27 +585,78 @@
                 <a class="pill {% if is_bilans %}active{% endif %}" href="{{ url_for('main.hub_bilans') }}">Bilans</a>
               {% endif %}
               <details class="nav-more">
-                <summary class="pill {% if is_publics or is_ressources or is_admin_area %}active{% endif %}">Plus</summary>
+                <summary class="pill {% if is_publics or is_salles or is_vie_centre or is_admin_area %}active{% endif %}">Plus</summary>
                 <div class="nav-more-panel">
-                  {% if can('insertion:view') %}
-                    <a class="pill {% if ep.startswith('insertion.') %}active{% endif %}" href="{{ url_for('insertion.index') }}">Insertion</a>
+                  {% if can('emargement:view') %}
+                    <div class="nav-more-heading">Mes outils</div>
+                    <a class="pill {% if ep.startswith('main.mon_agenda') %}active{% endif %}" href="{{ url_for('main.mon_agenda') }}">📅 Mon agenda (synchro)</a>
                   {% endif %}
-                  {% if can('quartiers:view') %}
-                    <a class="pill {% if ep.startswith('quartiers.') %}active{% endif %}" href="{{ url_for('quartiers.index') }}">Quartiers</a>
-                    <a class="pill {% if ep == 'quartiers.carte' %}active{% endif %}" href="{{ url_for('quartiers.carte') }}">Carte des habitants</a>
+                  {% if can('planning:view') or can('inventaire:view') %}
+                    <div class="nav-more-heading">Salles &amp; matériel</div>
+                    {% if can('planning:view') %}
+                      <a class="pill {% if ep == 'planning.prets' %}active{% endif %}" href="{{ url_for('planning.prets') }}">Prêts de matériel</a>
+                      <a class="pill {% if ep == 'planning.locations' %}active{% endif %}" href="{{ url_for('planning.locations') }}">💶 Locations</a>
+                    {% endif %}
+                    {% if can('inventaire:view') %}
+                      <a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire matériel</a>
+                    {% endif %}
                   {% endif %}
-                  {% if can('pedagogie:view') %}
-                    <a class="pill {% if ep.startswith('pedagogie.') %}active{% endif %}" href="{{ url_for('pedagogie.index') }}">Apprentissages</a>
+                  {% if can('gouvernance:view') or can('participants:view') or can('partenaires:view') or can('rh:view') %}
+                    <div class="nav-more-heading">Vie du centre</div>
+                    {% if can('gouvernance:view') %}
+                      <a class="pill {% if ep.startswith('gouvernance.') %}active{% endif %}" href="{{ url_for('gouvernance.dashboard') }}">🏛️ Vie associative</a>
+                    {% endif %}
+                    {% if can('participants:view') %}
+                      <a class="pill {% if ep == 'main.benevolat' %}active{% endif %}" href="{{ url_for('main.benevolat') }}">Bénévolat</a>
+                      <a class="pill {% if ep == 'main.hart_collectif' %}active{% endif %}" href="{{ url_for('main.hart_collectif') }}">Participation des habitants</a>
+                    {% endif %}
+                    {% if can('partenaires:view') %}
+                      <a class="pill {% if ep.startswith('partenaires.') and ep != 'partenaires.carte' %}active{% endif %}" href="{{ url_for('partenaires.index') }}">Partenaires</a>
+                      <a class="pill {% if ep == 'partenaires.carte' %}active{% endif %}" href="{{ url_for('partenaires.carte') }}">Carte des partenaires</a>
+                    {% endif %}
+                    {% if can('rh:view') %}
+                      <a class="pill {% if ep == 'main.rh' %}active{% endif %}" href="{{ url_for('main.rh') }}">Équipe salariée</a>
+                    {% endif %}
                   {% endif %}
-                  {% if can('inventaire:view') %}
-                    <a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire</a>
+                  {% if can('insertion:view') or can('quartiers:view') or can('pedagogie:view') %}
+                    <div class="nav-more-heading">Publics &amp; accompagnement</div>
+                    {% if can('insertion:view') %}
+                      <a class="pill {% if ep.startswith('insertion.') %}active{% endif %}" href="{{ url_for('insertion.index') }}">Insertion</a>
+                    {% endif %}
+                    {% if can('quartiers:view') %}
+                      <a class="pill {% if ep.startswith('quartiers.') %}active{% endif %}" href="{{ url_for('quartiers.index') }}">Quartiers</a>
+                      <a class="pill {% if ep == 'quartiers.carte' %}active{% endif %}" href="{{ url_for('quartiers.carte') }}">Carte des habitants</a>
+                    {% endif %}
+                    {% if can('pedagogie:view') %}
+                      <a class="pill {% if ep.startswith('pedagogie.') %}active{% endif %}" href="{{ url_for('pedagogie.index') }}">Apprentissages</a>
+                    {% endif %}
                   {% endif %}
-                  {% if can('partenaires:view') %}
-                    <a class="pill {% if ep.startswith('partenaires.') and ep != 'partenaires.carte' %}active{% endif %}" href="{{ url_for('partenaires.index') }}">Partenaires</a>
-                    <a class="pill {% if ep == 'partenaires.carte' %}active{% endif %}" href="{{ url_for('partenaires.carte') }}">Carte des partenaires</a>
+                  {% if can('caisse:view') or can('cotisations:view') or can('dons:view') %}
+                    <div class="nav-more-heading">Argent au quotidien</div>
+                    {% if can('caisse:view') %}
+                      <a class="pill {% if ep.startswith('main.caisse') %}active{% endif %}" href="{{ url_for('main.caisse') }}">Caisse</a>
+                    {% endif %}
+                    {% if can('cotisations:view') %}
+                      <a class="pill {% if ep == 'main.impayes' %}active{% endif %}" href="{{ url_for('main.impayes') }}">Impayés</a>
+                    {% endif %}
+                    {% if can('cotisations:tarifs') %}
+                      <a class="pill {% if ep == 'main.tarifs_cotisations' %}active{% endif %}" href="{{ url_for('main.tarifs_cotisations') }}">Tarifs adhésions</a>
+                    {% endif %}
+                    {% if can('dons:view') %}
+                      <a class="pill {% if ep in ('main.dons_registre', 'main.don_recu') %}active{% endif %}" href="{{ url_for('main.dons_registre') }}">Dons &amp; reçus fiscaux</a>
+                    {% endif %}
                   {% endif %}
-                  {% if can('questionnaires:view') %}
-                    <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires</a>
+                  {% if can('questionnaires:view') or can('transitions:view') or can('bilans:view') %}
+                    <div class="nav-more-heading">Bilans &amp; enquêtes</div>
+                    {% if can('questionnaires:view') %}
+                      <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires</a>
+                    {% endif %}
+                    {% if can('transitions:view') %}
+                      <a class="pill {% if ep.startswith('transitions.') %}active{% endif %}" href="{{ url_for('transitions.dashboard') }}">🌱 Transitions</a>
+                    {% endif %}
+                    {% if can('bilans:view') %}
+                      <a class="pill {% if ep == 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.redaction_bilan') }}">📝 Rédiger un bilan</a>
+                    {% endif %}
                   {% endif %}
                   {% if can('admin:users') or can('admin:rbac') or can('controle:view') %}
                     <div class="nav-more-heading">Administration</div>
@@ -687,6 +742,24 @@
                   {% if can('projets:view') %}
                     <a class="pill {% if ep.startswith('projets.projets') or ep.startswith('projets.projet_') %}active{% endif %}" href="{{ url_for('projets.projets_list') }}">Projets financés</a>
                   {% endif %}
+                  {% if can('caisse:view') or can('cotisations:view') or can('dons:view') or can('stats:view') %}
+                    <div class="nav-more-heading">Argent au quotidien</div>
+                    {% if can('caisse:view') %}
+                      <a class="pill {% if ep.startswith('main.caisse') %}active{% endif %}" href="{{ url_for('main.caisse') }}">Caisse</a>
+                    {% endif %}
+                    {% if can('cotisations:view') %}
+                      <a class="pill {% if ep == 'main.impayes' %}active{% endif %}" href="{{ url_for('main.impayes') }}">Impayés (adhésions &amp; participation)</a>
+                    {% endif %}
+                    {% if can('cotisations:tarifs') %}
+                      <a class="pill {% if ep == 'main.tarifs_cotisations' %}active{% endif %}" href="{{ url_for('main.tarifs_cotisations') }}">Tarifs adhésions &amp; participation</a>
+                    {% endif %}
+                    {% if can('dons:view') %}
+                      <a class="pill {% if ep in ('main.dons_registre', 'main.don_recu') %}active{% endif %}" href="{{ url_for('main.dons_registre') }}">Dons &amp; reçus fiscaux</a>
+                    {% endif %}
+                    {% if can('stats:view') %}
+                      <a class="pill {% if ep == 'main.cout_unitaire' %}active{% endif %}" href="{{ url_for('main.cout_unitaire') }}">Coût unitaire</a>
+                    {% endif %}
+                  {% endif %}
                 </div>
               </details>
 
@@ -711,40 +784,36 @@
                 </div>
               </details>
 
+              {% if can('planning:view') or can('inventaire:view') %}
               <details class="nav-more">
-                <summary class="pill {% if is_ressources %}active{% endif %}">Ressources</summary>
+                <summary class="pill {% if is_salles %}active{% endif %}">Salles &amp; matériel</summary>
                 <div class="nav-more-panel">
-                  <a class="pill {% if ep == 'main.hub_ressources' %}active{% endif %}" href="{{ url_for('main.hub_ressources') }}">Accueil ressources</a>
+                  {% if can('planning:view') %}
+                    <a class="pill {% if ep == 'planning.semaine' %}active{% endif %}" href="{{ url_for('planning.semaine') }}">🗓️ Planning de la semaine</a>
+                    <a class="pill {% if ep == 'planning.salles' %}active{% endif %}" href="{{ url_for('planning.salles') }}">Salles &amp; lieux</a>
+                    <a class="pill {% if ep == 'planning.prets' %}active{% endif %}" href="{{ url_for('planning.prets') }}">Prêts de matériel</a>
+                    <a class="pill {% if ep == 'planning.locations' %}active{% endif %}" href="{{ url_for('planning.locations') }}">💶 Locations</a>
+                  {% endif %}
+                  {% if can('inventaire:view') %}
+                    <a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire matériel</a>
+                  {% endif %}
+                </div>
+              </details>
+              {% endif %}
+
+              <details class="nav-more">
+                <summary class="pill {% if is_vie_centre %}active{% endif %}">Vie du centre</summary>
+                <div class="nav-more-panel">
+                  <a class="pill {% if ep == 'main.hub_ressources' %}active{% endif %}" href="{{ url_for('main.hub_ressources') }}">Vue d'ensemble</a>
+                  {% if can('gouvernance:view') %}
+                    <a class="pill {% if ep.startswith('gouvernance.') %}active{% endif %}" href="{{ url_for('gouvernance.dashboard') }}">🏛️ Vie associative (AG, CA)</a>
+                  {% endif %}
                   {% if can('participants:view') %}
                     <a class="pill {% if ep == 'main.hart_collectif' %}active{% endif %}" href="{{ url_for('main.hart_collectif') }}">Participation des habitants</a>
                     <a class="pill {% if ep == 'main.benevolat' %}active{% endif %}" href="{{ url_for('main.benevolat') }}">Bénévolat</a>
                   {% endif %}
                   {% if can('rh:view') %}
                     <a class="pill {% if ep == 'main.rh' %}active{% endif %}" href="{{ url_for('main.rh') }}">Équipe salariée</a>
-                  {% endif %}
-                  {% if can('dons:view') %}
-                    <a class="pill {% if ep in ('main.dons_registre', 'main.don_recu') %}active{% endif %}" href="{{ url_for('main.dons_registre') }}">Dons &amp; reçus fiscaux</a>
-                  {% endif %}
-                  {% if can('cotisations:view') %}
-                    <a class="pill {% if ep == 'main.impayes' %}active{% endif %}" href="{{ url_for('main.impayes') }}">Impayés (adhésions &amp; participation)</a>
-                  {% endif %}
-                  {% if can('cotisations:tarifs') %}
-                    <a class="pill {% if ep == 'main.tarifs_cotisations' %}active{% endif %}" href="{{ url_for('main.tarifs_cotisations') }}">Tarifs adhésions &amp; participation</a>
-                  {% endif %}
-                  {% if can('caisse:view') %}
-                    <a class="pill {% if ep.startswith('main.caisse') %}active{% endif %}" href="{{ url_for('main.caisse') }}">Caisse</a>
-                  {% endif %}
-                  {% if can('stats:view') %}
-                    <a class="pill {% if ep == 'main.cout_unitaire' %}active{% endif %}" href="{{ url_for('main.cout_unitaire') }}">Coût unitaire</a>
-                  {% endif %}
-                  {% if can('inventaire:view') %}
-                    <a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire matériel</a>
-                  {% endif %}
-                  {% if can('planning:view') %}
-                    <a class="pill {% if ep.startswith('planning.') %}active{% endif %}" href="{{ url_for('planning.semaine') }}">🗓️ Planning &amp; salles</a>
-                  {% endif %}
-                  {% if can('gouvernance:view') %}
-                    <a class="pill {% if ep.startswith('gouvernance.') %}active{% endif %}" href="{{ url_for('gouvernance.dashboard') }}">🏛️ Vie associative</a>
                   {% endif %}
                   {% if can('partenaires:view') %}
                     <a class="pill {% if ep.startswith('partenaires.') and ep != 'partenaires.carte' %}active{% endif %}" href="{{ url_for('partenaires.index') }}">Annuaire partenaires</a>
