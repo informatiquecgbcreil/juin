@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <div class="inline" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div>
+        <h1>{{ reunion.titre }}</h1>
+        <p class="muted">
+          {{ reunion.type_label }} ·
+          <a href="{{ url_for('gouvernance.instance_detail', instance_id=reunion.instance_id) }}">{{ reunion.instance.nom if reunion.instance else '' }}</a><br>
+          {{ reunion.date_reunion.strftime('%d/%m/%Y') }}{% if reunion.heure %} à {{ reunion.heure }}{% endif %}{% if reunion.lieu %} · {{ reunion.lieu }}{% endif %}
+        </p>
+        {% if reunion.statut == 'tenue' %}<span class="status-badge status-info">tenue</span>
+        {% elif reunion.statut == 'annulee' %}<span class="status-badge">annulée</span>
+        {% else %}<span class="status-badge status-warn">planifiée</span>{% endif %}
+      </div>
+      <div class="inline" style="gap:8px; align-items:flex-start; flex-wrap:wrap;">
+        <a class="btn" href="{{ url_for('gouvernance.reunion_convocation', reunion_id=reunion.id) }}">📄 Convocation</a>
+        <a class="btn" href="{{ url_for('gouvernance.reunion_emargement', reunion_id=reunion.id) }}">📝 Feuille d'émargement</a>
+      </div>
+    </div>
+    {% if can('gouvernance:edit') %}
+      <div class="inline" style="gap:6px; margin-top:8px; flex-wrap:wrap;">
+        {% for s, lib in [('planifiee','Planifiée'), ('tenue','Tenue'), ('annulee','Annulée')] %}
+          <form method="post" action="{{ url_for('gouvernance.reunion_statut', reunion_id=reunion.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="statut" value="{{ s }}">
+            <button class="btn" type="submit" {% if reunion.statut == s %}disabled{% endif %}>{{ lib }}</button>
+          </form>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="inline" style="gap:12px; flex-wrap:wrap; align-items:stretch;">
+    <div class="card" style="flex:2; min-width:280px;">
+      <h2>Ordre du jour</h2>
+      {% if reunion.ordre_du_jour %}
+        <ol>
+          {% for ligne in reunion.ordre_du_jour.splitlines() %}{% if ligne.strip() %}<li>{{ ligne.strip() }}</li>{% endif %}{% endfor %}
+        </ol>
+      {% else %}
+        <p class="muted">Non renseigné.</p>
+      {% endif %}
+    </div>
+
+    <div class="card" style="flex:1; min-width:230px;">
+      <h2>Quorum</h2>
+      <table class="table">
+        <tbody>
+          <tr><td>Base électeurs</td><td><strong>{{ reunion.base_electeurs if reunion.base_electeurs is not none else '—' }}</strong></td></tr>
+          <tr><td>Présents</td><td><strong>{{ reunion.nb_presents }}</strong></td></tr>
+          <tr><td>Pouvoirs</td><td><strong>{{ reunion.nb_pouvoirs }}</strong></td></tr>
+          <tr><td>Excusés</td><td>{{ reunion.nb_excuses }}</td></tr>
+          <tr><td>Total voix</td><td><strong>{{ reunion.total_votes }}</strong></td></tr>
+          <tr><td>Quorum requis</td><td>{{ reunion.quorum_requis if reunion.quorum_requis is not none else '—' }}</td></tr>
+        </tbody>
+      </table>
+      {% if reunion.quorum_atteint is not none %}
+        {% if reunion.quorum_atteint %}
+          <p class="callout success" style="margin-top:8px;">✅ Quorum atteint — l'assemblée peut délibérer.</p>
+        {% else %}
+          <p class="callout danger" style="margin-top:8px;">⚠️ Quorum non atteint ({{ reunion.total_votes }} / {{ reunion.quorum_requis }}).</p>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Émargement ({{ presences|length }})</h2>
+    {% if presences %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Nom</th><th>Statut</th><th>Représenté·e par</th>{% if can('gouvernance:edit') %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for p in presences %}
+            <tr>
+              <td>{{ p.nom }}</td>
+              <td>
+                {% if p.present %}<span class="status-badge status-info">présent·e</span>
+                {% elif p.pouvoir %}<span class="status-badge status-warn">pouvoir</span>
+                {% elif p.excuse %}<span class="status-badge">excusé·e</span>
+                {% else %}<span class="muted">absent·e</span>{% endif %}
+              </td>
+              <td>{{ p.represente_par or '—' }}</td>
+              {% if can('gouvernance:edit') %}
+              <td>
+                <form method="post" action="{{ url_for('gouvernance.presence_supprimer', presence_id=p.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn" type="submit">✕</button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="muted">Personne n'est encore émargé·e.</p>
+    {% endif %}
+
+    {% if can('gouvernance:edit') %}
+    <h3>Ajouter une présence</h3>
+    <form method="post" action="{{ url_for('gouvernance.presence_creer', reunion_id=reunion.id) }}" class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field-stack slim"><span>Nom</span>
+        <input type="text" name="nom" list="membres_instance" required placeholder="Prénom Nom"></label>
+      <datalist id="membres_instance">
+        {% for m in mandats %}<option value="{{ m.nom }}">{% endfor %}
+      </datalist>
+      <label class="field-stack slim"><span>Statut</span>
+        <select name="etat">
+          <option value="present">Présent·e</option>
+          <option value="pouvoir">Représenté·e (pouvoir)</option>
+          <option value="excuse">Excusé·e</option>
+          <option value="absent">Absent·e</option>
+        </select></label>
+      <label class="field-stack slim"><span>Pouvoir donné à</span><input type="text" name="represente_par" placeholder="si pouvoir"></label>
+      <button class="btn" type="submit">Émarger</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Relevé de décisions</h2>
+    {% if can('gouvernance:edit') %}
+      <form method="post" action="{{ url_for('gouvernance.reunion_releve', reunion_id=reunion.id) }}" class="stack" style="gap:8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="releve_decisions" rows="8" placeholder="Décisions prises, votes, points de suivi…">{{ reunion.releve_decisions or '' }}</textarea>
+        <div><button class="btn" type="submit">Enregistrer le relevé</button></div>
+      </form>
+    {% elif reunion.releve_decisions %}
+      <p style="white-space:pre-wrap;">{{ reunion.releve_decisions }}</p>
+    {% else %}
+      <p class="muted">Aucun relevé saisi.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

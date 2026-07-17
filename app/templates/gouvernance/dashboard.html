@@ -1,0 +1,102 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>🏛️ Vie associative</h1>
+    <p class="muted">
+      Les instances de gouvernance (assemblée générale, conseil d'administration,
+      bureau, commissions), les mandats et leurs échéances, les réunions et leur quorum.
+    </p>
+  </div>
+
+  {% if mandats_echeance %}
+  <div class="callout warning">
+    ⏰ {{ mandats_echeance|length }} mandat(s) arrivent à échéance ou sont échus.
+    Pensez au renouvellement.
+  </div>
+  {% endif %}
+
+  <div class="inline" style="gap:12px; flex-wrap:wrap; align-items:stretch;">
+    <div class="card" style="flex:2; min-width:280px;">
+      <h2>Prochaines réunions</h2>
+      {% if reunions %}
+        <div class="tablewrap">
+        <table class="table">
+          <thead><tr><th>Date</th><th>Instance</th><th>Réunion</th><th></th></tr></thead>
+          <tbody>
+            {% for r in reunions %}
+              <tr>
+                <td>{{ r.date_reunion.strftime('%d/%m/%Y') }}{% if r.heure %}<br><span class="muted">{{ r.heure }}</span>{% endif %}</td>
+                <td>{{ r.instance.nom if r.instance else '—' }}<br><span class="muted">{{ r.type_label }}</span></td>
+                <td>{{ r.titre }}</td>
+                <td><a class="btn" href="{{ url_for('gouvernance.reunion_detail', reunion_id=r.id) }}">Ouvrir</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+        <p class="muted">Aucune réunion planifiée. Créez-en une depuis une instance.</p>
+      {% endif %}
+    </div>
+
+    <div class="card" style="flex:1; min-width:230px;">
+      <h2>Mandats à surveiller</h2>
+      {% if mandats_echeance %}
+        <ul style="list-style:none; padding:0; margin:0;">
+          {% for m in mandats_echeance %}
+            <li style="padding:6px 0; border-bottom:1px solid var(--border,#eee);">
+              <strong>{{ m.nom }}</strong> — {{ m.fonction_label }}<br>
+              <span class="muted">{{ m.instance.nom if m.instance else '' }}</span><br>
+              {% if m.est_echu %}<span class="status-badge status-danger">échu le {{ m.date_fin.strftime('%d/%m/%Y') }}</span>
+              {% else %}<span class="status-badge status-warn">échéance {{ m.date_fin.strftime('%d/%m/%Y') }} ({{ m.jours_avant_echeance }} j)</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Aucune échéance proche. 👍</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Instances ({{ instances|length }})</h2>
+    {% if instances %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Instance</th><th>Type</th><th>Membres actifs</th><th></th></tr></thead>
+        <tbody>
+          {% for i in instances %}
+            <tr>
+              <td><strong>{{ i.nom }}</strong></td>
+              <td>{{ i.type_label }}</td>
+              <td>{{ i.mandats_actifs|length }}</td>
+              <td><a class="btn" href="{{ url_for('gouvernance.instance_detail', instance_id=i.id) }}">Ouvrir</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="muted">Aucune instance pour le moment.</p>
+    {% endif %}
+  </div>
+
+  {% if can('gouvernance:edit') %}
+  <div class="card">
+    <h2>Nouvelle instance</h2>
+    <form method="post" action="{{ url_for('gouvernance.instance_creer') }}" class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field-stack slim"><span>Nom</span><input type="text" name="nom" required placeholder="Conseil d'administration"></label>
+      <label class="field-stack slim"><span>Type</span>
+        <select name="type_instance">{% for v, l in types_instance %}<option value="{{ v }}"{% if v == 'ca' %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+      <label class="field-stack slim" style="flex:1; min-width:220px;"><span>Description</span><input type="text" name="description" placeholder="Rôle, périmètre…"></label>
+      <button class="btn" type="submit">Créer</button>
+    </form>
+    <p class="ux-helper">Pour une AG, la base d'électeurs suggérée (adhérents à jour de cotisation) est actuellement d'environ <strong>{{ adherents_a_jour }}</strong>.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

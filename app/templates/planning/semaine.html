@@ -91,6 +91,7 @@
       {% endif %}
       <a class="btn" href="{{ url_for('planning.salles') }}">Salles</a>
       <a class="btn" href="{{ url_for('planning.prets') }}">Prêts de matériel{% if retards %} · {{ retards|length }} en retard{% endif %}</a>
+      <a class="btn" href="{{ url_for('planning.locations') }}">💶 Locations</a>
     </div>
   </div>
 
@@ -227,6 +228,19 @@
         </label>
         <label class="field-stack slim"><span>Rappel (jours avant)</span>
           <input type="number" name="rappel_jours_avant" min="1" max="30" placeholder="ex. 2" style="width:110px;"></label>
+        <label class="inline" style="gap:6px; align-items:center; margin-bottom:6px;">
+          <input type="checkbox" name="est_location" value="1"
+                 onchange="document.getElementById('resa_loc_fields').style.display = this.checked ? 'flex' : 'none';">
+          <span>💶 Location payante</span>
+        </label>
+        <span id="resa_loc_fields" class="inline" style="gap:8px; align-items:flex-end; display:none; flex-wrap:wrap;">
+          <label class="field-stack slim"><span>Locataire</span><input type="text" name="locataire" placeholder="Nom / structure"></label>
+          <label class="field-stack slim"><span>Contact</span><input type="text" name="contact" placeholder="Tél / e-mail"></label>
+          <label class="field-stack slim"><span>Montant (€)</span><input type="number" name="tarif_montant" min="0" step="0.01" style="width:100px;"></label>
+          <label class="field-stack slim"><span>Base</span>
+            <select name="tarif_unite">{% for v, l in tarif_unites %}<option value="{{ v }}"{% if v == 'forfait' %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+          <label class="field-stack slim"><span>Caution (€)</span><input type="number" name="caution_montant" min="0" step="0.01" style="width:100px;"></label>
+        </span>
         <button class="btn" type="submit">{% if can('planning:approve') %}Réserver{% else %}Envoyer la demande{% endif %}</button>
       </form>
       <p class="ux-helper">

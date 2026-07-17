@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+
+{% macro euros(v) %}{{ '%.2f'|format(v or 0) }} €{% endmacro %}
+
+{% macro payer_form(obj, kind) %}
+  <form method="post"
+        action="{{ url_for('planning.reservation_payer', reservation_id=obj.id) if kind == 'salle' else url_for('planning.pret_payer', pret_id=obj.id) }}"
+        class="inline" style="gap:4px; align-items:flex-end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="paiement_mode" style="max-width:130px;">
+      <option value="">Mode…</option>
+      {% for v, l in paiement_modes %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+    </select>
+    <button class="btn" type="submit">Marquer réglé</button>
+  </form>
+{% endmacro %}
+
+{% macro convention_link(obj, kind) %}
+  <a class="btn" href="{{ url_for('planning.reservation_convention', reservation_id=obj.id) if kind == 'salle' else url_for('planning.pret_convention', pret_id=obj.id) }}">📄 Convention</a>
+{% endmacro %}
+
+{% macro ligne_encaisser(obj, kind) %}
+  <tr>
+    <td>
+      {% if kind == 'salle' %}📍 {{ obj.salle.nom if obj.salle else 'Salle' }}
+      {% else %}📦 {{ obj.item.designation if obj.item else 'Matériel' }}{% if obj.quantite and obj.quantite > 1 %} ×{{ obj.quantite }}{% endif %}{% endif %}
+    </td>
+    <td>{% if kind == 'salle' %}{{ obj.locataire or '—' }}{% else %}{{ obj.emprunteur or '—' }}{% endif %}</td>
+    <td>
+      {% if kind == 'salle' %}{{ obj.date_reservation.strftime('%d/%m/%Y') }}<br><span class="muted">{{ obj.heure_debut }}–{{ obj.heure_fin }}</span>
+      {% else %}{{ obj.date_pret.strftime('%d/%m/%Y') }}{% if obj.date_retour_prevue %}<br><span class="muted">→ {{ obj.date_retour_prevue.strftime('%d/%m/%Y') }}</span>{% endif %}{% endif %}
+    </td>
+    <td><strong>{{ euros(obj.tarif_montant) }}</strong>{% if obj.tarif_unite %} <span class="muted">{{ obj.tarif_unite_label }}</span>{% endif %}
+        {% if obj.caution_montant %}<br><span class="muted">caution {{ euros(obj.caution_montant) }}</span>{% endif %}</td>
+    <td>
+      {% if can('planning:edit') %}
+        <div class="inline" style="gap:6px; flex-wrap:wrap;">{{ payer_form(obj, kind) }}{{ convention_link(obj, kind) }}</div>
+      {% else %}{{ convention_link(obj, kind) }}{% endif %}
+    </td>
+  </tr>
+{% endmacro %}
+
+{% macro ligne_caution(obj, kind) %}
+  <tr>
+    <td>
+      {% if kind == 'salle' %}📍 {{ obj.salle.nom if obj.salle else 'Salle' }} — {{ obj.locataire or '—' }}
+      {% else %}📦 {{ obj.item.designation if obj.item else 'Matériel' }} — {{ obj.emprunteur or '—' }}{% endif %}
+    </td>
+    <td><strong>{{ euros(obj.caution_montant) }}</strong></td>
+    <td>{% if obj.est_paye %}<span class="status-badge status-info">loyer réglé</span>{% else %}<span class="status-badge status-warn">loyer à régler</span>{% endif %}</td>
+    <td>
+      {% if can('planning:edit') %}
+      <form method="post"
+            action="{{ url_for('planning.reservation_caution', reservation_id=obj.id) if kind == 'salle' else url_for('planning.pret_caution', pret_id=obj.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">↩ Caution rendue</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+{% endmacro %}
+
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <h1>💶 Locations de salles &amp; de matériel</h1>
+    <p class="muted">Les mises à disposition <strong>payantes</strong> : loyers à encaisser, cautions à rendre, recettes de l'année. Une location se crée depuis le planning (salle) ou la page prêts (matériel), en cochant « Location payante ».</p>
+    <div class="inline" style="gap:8px; flex-wrap:wrap;">
+      <a class="btn" href="{{ url_for('planning.semaine') }}">← Planning</a>
+      <a class="btn" href="{{ url_for('planning.prets') }}">Prêts &amp; matériel</a>
+    </div>
+  </div>
+
+  <div class="inline" style="gap:12px; flex-wrap:wrap;">
+    <div class="card" style="flex:1; min-width:210px;">
+      <div class="muted">Recettes encaissées {{ annee }}</div>
+      <div style="font-size:28px; font-weight:800;">{{ euros(recettes.total) }}</div>
+      <div class="muted">{{ recettes.nb }} location(s) réglée(s)</div>
+    </div>
+    <div class="card" style="flex:1; min-width:210px;">
+      <div class="muted">À encaisser</div>
+      <div style="font-size:28px; font-weight:800;">{{ euros(a_encaisser.total) }}</div>
+      <div class="muted">{{ a_encaisser.reservations|length + a_encaisser.prets|length }} location(s)</div>
+    </div>
+    <div class="card" style="flex:1; min-width:210px;">
+      <div class="muted">Cautions détenues</div>
+      <div style="font-size:28px; font-weight:800;">{{ cautions_resa|length + cautions_pret|length }}</div>
+      <div class="muted">à restituer après état des lieux</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Loyers à encaisser</h2>
+    {% if a_encaisser.reservations or a_encaisser.prets %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Ressource</th><th>Locataire</th><th>Quand</th><th>Montant</th><th></th></tr></thead>
+        <tbody>
+          {% for r in a_encaisser.reservations %}{{ ligne_encaisser(r, 'salle') }}{% endfor %}
+          {% for p in a_encaisser.prets %}{{ ligne_encaisser(p, 'materiel') }}{% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="muted">Aucun loyer en attente d'encaissement. 👍</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Cautions à rendre</h2>
+    {% if cautions_resa or cautions_pret %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Location</th><th>Caution</th><th>Loyer</th><th></th></tr></thead>
+        <tbody>
+          {% for r in cautions_resa %}{{ ligne_caution(r, 'salle') }}{% endfor %}
+          {% for p in cautions_pret %}{{ ligne_caution(p, 'materiel') }}{% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="muted">Aucune caution en cours.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

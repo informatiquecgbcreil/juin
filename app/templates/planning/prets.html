@@ -15,6 +15,7 @@
           <td>
             {% if p.en_retard %}<span class="status-badge status-danger">en retard</span>
             {% else %}<span class="status-badge">en cours</span>{% endif %}
+            {% if p.est_location %}<span class="status-badge status-info" title="Location payante">💶 {% if p.est_paye %}réglé{% else %}à régler{% endif %}</span>{% endif %}
           </td>
           {% if editable %}
           <td>
@@ -57,6 +58,18 @@
         <label class="field-stack slim"><span>Prêté le</span><input type="date" name="date_pret" value="{{ today.isoformat() }}" required></label>
         <label class="field-stack slim"><span>Retour prévu</span><input type="date" name="date_retour_prevue"></label>
         <label class="field-stack slim"><span>Rappel (jours avant)</span><input type="number" name="rappel_jours_avant" min="1" max="30" placeholder="ex. 1" style="width:110px;"></label>
+        <label class="inline" style="gap:6px; align-items:center; margin-bottom:6px;">
+          <input type="checkbox" name="est_location" value="1"
+                 onchange="document.getElementById('pret_loc_fields').style.display = this.checked ? 'flex' : 'none';">
+          <span>💶 Location payante</span>
+        </label>
+        <span id="pret_loc_fields" class="inline" style="gap:8px; align-items:flex-end; display:none; flex-wrap:wrap;">
+          <label class="field-stack slim"><span>Contact locataire</span><input type="text" name="contact" placeholder="Tél / e-mail"></label>
+          <label class="field-stack slim"><span>Montant (€)</span><input type="number" name="tarif_montant" min="0" step="0.01" style="width:100px;"></label>
+          <label class="field-stack slim"><span>Base</span>
+            <select name="tarif_unite">{% for v, l in tarif_unites %}<option value="{{ v }}"{% if v == 'forfait' %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+          <label class="field-stack slim"><span>Caution (€)</span><input type="number" name="caution_montant" min="0" step="0.01" style="width:100px;"></label>
+        </span>
         <button class="btn" type="submit">{% if can('planning:approve') %}Enregistrer le prêt{% else %}Envoyer la demande{% endif %}</button>
       </form>
       <p class="ux-helper">

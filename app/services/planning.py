@@ -31,6 +31,22 @@ class ReservationInvalide(ValueError):
     """Erreur métier à afficher telle quelle (créneau, conflit…)."""
 
 
+def _valider_location(est_location: bool, tarif_montant, locataire) -> float | None:
+    """Contrôle la cohérence d'une location. Renvoie le montant nettoyé (ou None
+    si opération gratuite)."""
+    if not est_location:
+        return None
+    try:
+        montant = float(tarif_montant) if tarif_montant not in (None, "") else 0.0
+    except (TypeError, ValueError):
+        montant = 0.0
+    if montant <= 0:
+        raise ReservationInvalide("Indiquez le montant de la location (supérieur à 0).")
+    if not (locataire or "").strip():
+        raise ReservationInvalide("Indiquez le nom du locataire.")
+    return round(montant, 2)
+
+
 # ---------------------------------------------------------------------------
 # Salles
 # ---------------------------------------------------------------------------
@@ -119,10 +135,20 @@ def demander_reservation(
     secteur: str | None = None,
     description: str | None = None,
     rappel_jours_avant: int | None = None,
+    est_location: bool = False,
+    locataire: str | None = None,
+    contact: str | None = None,
+    tarif_montant: float | None = None,
+    tarif_unite: str | None = None,
+    caution_montant: float | None = None,
+    paiement_mode: str | None = None,
     user=None,
     auto_approuver: bool = False,
 ) -> ReservationSalle:
-    """Dépose une demande de réservation (ou l'approuve directement)."""
+    """Dépose une demande de réservation (ou l'approuve directement).
+
+    Si ``est_location`` : mise à disposition facturée (tarif obligatoire).
+    """
     titre = (titre or "").strip()
     motif = (motif or "").strip()
     if not titre:
@@ -131,6 +157,7 @@ def demander_reservation(
         raise ReservationInvalide("Indiquez le motif de la demande.")
     if _hhmm_en_minutes(heure_fin) <= _hhmm_en_minutes(heure_debut):
         raise ReservationInvalide("L'heure de fin doit être après l'heure de début.")
+    tarif_montant = _valider_location(est_location, tarif_montant, locataire)
 
     # Un créneau déjà APPROUVÉ bloque, quel que soit le statut de la demande.
     conflits = conflits_reservation(salle.id, jour, heure_debut, heure_fin, statuts=("approuvee",))
@@ -151,6 +178,13 @@ def demander_reservation(
         secteur=(secteur or "").strip() or None,
         description=(description or "").strip() or None,
         rappel_jours_avant=rappel_jours_avant,
+        est_location=bool(est_location),
+        locataire=(locataire or "").strip() or None if est_location else None,
+        contact=(contact or "").strip() or None if est_location else None,
+        tarif_montant=tarif_montant,
+        tarif_unite=(tarif_unite or "").strip() or None if est_location else None,
+        caution_montant=caution_montant if est_location else None,
+        paiement_mode=(paiement_mode or "").strip() or None if est_location else None,
         statut="approuvee" if auto_approuver else "demandee",
         created_by_user_id=getattr(user, "id", None),
     )
@@ -308,6 +342,12 @@ def demander_pret(
     date_retour_prevue: date | None = None,
     rappel_jours_avant: int | None = None,
     notes: str | None = None,
+    est_location: bool = False,
+    contact: str | None = None,
+    tarif_montant: float | None = None,
+    tarif_unite: str | None = None,
+    caution_montant: float | None = None,
+    paiement_mode: str | None = None,
     user=None,
     auto_approuver: bool = False,
 ) -> PretMateriel:
@@ -317,6 +357,7 @@ def demander_pret(
         raise ReservationInvalide("Indiquez qui emprunte le matériel.")
     if not motif:
         raise ReservationInvalide("Indiquez le motif de la demande.")
+    tarif_montant = _valider_location(est_location, tarif_montant, emprunteur)
 
     pret = PretMateriel(
         item_id=item.id,
@@ -327,6 +368,12 @@ def demander_pret(
         date_retour_prevue=date_retour_prevue,
         rappel_jours_avant=rappel_jours_avant,
         notes=(notes or "").strip() or None,
+        est_location=bool(est_location),
+        contact=(contact or "").strip() or None if est_location else None,
+        tarif_montant=tarif_montant,
+        tarif_unite=(tarif_unite or "").strip() or None if est_location else None,
+        caution_montant=caution_montant if est_location else None,
+        paiement_mode=(paiement_mode or "").strip() or None if est_location else None,
         statut="approuvee" if auto_approuver else "demandee",
         created_by_user_id=getattr(user, "id", None),
     )

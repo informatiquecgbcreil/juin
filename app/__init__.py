@@ -118,6 +118,7 @@ def create_app():
     from app.questionnaires import bp as questionnaires_bp
     from app.transitions import bp as transitions_bp
     from app.planning import bp as planning_bp
+    from app.gouvernance import bp as gouvernance_bp
     from app.insertion.routes import bp as insertion_bp
     from app.setup import bp as setup_bp
     from app.aide import bp as aide_bp
@@ -145,6 +146,7 @@ def create_app():
     app.register_blueprint(insertion_bp)
     app.register_blueprint(transitions_bp)
     app.register_blueprint(planning_bp)
+    app.register_blueprint(gouvernance_bp)
 
     @app.before_request
     def _facade_kiosque_publique():
@@ -272,6 +274,29 @@ def create_app():
         from app.services.planning_notifs import rappels_planning_quotidiens_si_necessaire
 
         rappels_planning_quotidiens_si_necessaire()
+        return None
+
+    # ------------------------------------------------------------------
+    # Alertes d'échéance des mandats (vie associative) : passe quotidienne.
+    # ------------------------------------------------------------------
+    _gouvernance_marqueur = {"jour": None}
+
+    @app.before_request
+    def _alertes_gouvernance_quotidien():
+        from datetime import date as _date
+
+        endpoint = (request.endpoint or "")
+        if endpoint.startswith("static") or endpoint.startswith("setup.") or endpoint in {"media_file", "healthz"}:
+            return None
+
+        aujourd_hui = _date.today()
+        if _gouvernance_marqueur["jour"] == aujourd_hui:
+            return None
+        _gouvernance_marqueur["jour"] = aujourd_hui
+
+        from app.services.gouvernance import alertes_gouvernance_quotidiennes_si_necessaire
+
+        alertes_gouvernance_quotidiennes_si_necessaire()
         return None
 
     # ------------------------------------------------------------------
