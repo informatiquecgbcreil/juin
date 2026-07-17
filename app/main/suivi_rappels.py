@@ -81,6 +81,8 @@ SUIVI_RAPPEL_CATEGORIES = {
     "projet": "Projet",
     "finance": "Finance",
     "admin": "Administratif",
+    "planning": "Planning & salles",
+    "gouvernance": "Vie associative",
 }
 
 SUIVI_RAPPEL_PRIORITES = {
