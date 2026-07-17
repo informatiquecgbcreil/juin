@@ -10,13 +10,31 @@ borné aux items de son secteur.
 from __future__ import annotations
 
 from datetime import date, datetime
+from io import BytesIO
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
-from app.models import InventaireItem, PretMateriel, ReservationSalle, Salle
+from app.models import (
+    PAIEMENT_MODES,
+    PAIEMENT_MODES_LABELS,
+    TARIF_UNITES,
+    TARIF_UNITES_LABELS,
+    InventaireItem,
+    PretMateriel,
+    ReservationSalle,
+    Salle,
+)
 from app.rbac import can, require_perm
+from app.services.locations import (
+    cautions_a_rendre,
+    construire_convention_docx,
+    locations_a_encaisser,
+    marquer_caution_rendue,
+    marquer_paye,
+    recettes_encaissees,
+)
 from app.services.planning import (
     ReservationInvalide,
     approuver_pret,
@@ -36,6 +54,8 @@ from app.services.planning import (
 from app.services.planning_notifs import notifier_decision, notifier_demande
 
 from . import bp
+
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 def _parse_date(brut: str | None, defaut):
@@ -66,6 +86,43 @@ def _rappel_jours(champ: str) -> int | None:
     return val if val and val > 0 else None
 
 
+def _montant(champ: str) -> float | None:
+    val = request.form.get(champ, type=float)
+    return val if val and val > 0 else None
+
+
+def _location_form() -> dict:
+    """Lit les champs de location communs (réservation & prêt)."""
+    return {
+        "est_location": request.form.get("est_location") == "1",
+        "contact": request.form.get("contact"),
+        "tarif_montant": _montant("tarif_montant"),
+        "tarif_unite": (request.form.get("tarif_unite") or "").strip() or None,
+        "caution_montant": _montant("caution_montant"),
+        "paiement_mode": (request.form.get("paiement_mode") or "").strip() or None,
+    }
+
+
+def _options_location() -> dict:
+    """Listes (valeur, libellé) pour les menus déroulants de location."""
+    return {
+        "tarif_unites": [(u, TARIF_UNITES_LABELS[u]) for u in TARIF_UNITES],
+        "paiement_modes": [(m, PAIEMENT_MODES_LABELS[m]) for m in PAIEMENT_MODES],
+    }
+
+
+def _servir_convention(obj, prefixe: str):
+    doc = construire_convention_docx(obj)
+    bio = BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+    return send_file(
+        bio, as_attachment=True,
+        download_name=f"convention_{prefixe}_{obj.id}.docx",
+        mimetype=DOCX_MIME,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Vue semaine équipe
 # ---------------------------------------------------------------------------
@@ -91,6 +148,7 @@ def semaine():
         a_valider=a_valider,
         heure_min=8, heure_max=21,
         today=date.today(),
+        **_options_location(),
     )
 
 
@@ -153,6 +211,7 @@ def reservation_creer():
 
     jour = _parse_date(request.form.get("date_reservation"), date.today())
     auto = can("planning:approve")
+    loc = _location_form()
     try:
         reservation = demander_reservation(
             salle=salle,
@@ -164,8 +223,10 @@ def reservation_creer():
             secteur=request.form.get("secteur"),
             description=request.form.get("description"),
             rappel_jours_avant=_rappel_jours("rappel_jours_avant"),
+            locataire=request.form.get("locataire"),
             user=current_user,
             auto_approuver=auto,
+            **loc,
         )
     except ReservationInvalide as exc:
         flash(str(exc), "warning")
@@ -272,6 +333,7 @@ def prets():
         historique=historique,
         items=_items_visibles(),
         today=date.today(),
+        **_options_location(),
     )
 
 
@@ -285,6 +347,7 @@ def pret_creer():
         return redirect(url_for("planning.prets"))
 
     auto = can("planning:approve")
+    loc = _location_form()
     try:
         pret = demander_pret(
             item=item,
@@ -296,6 +359,7 @@ def pret_creer():
             rappel_jours_avant=_rappel_jours("rappel_jours_avant"),
             user=current_user,
             auto_approuver=auto,
+            **loc,
         )
     except ReservationInvalide as exc:
         flash(str(exc), "warning")
@@ -363,3 +427,89 @@ def pret_retour(pret_id: int):
     enregistrer_retour(pret)
     flash(f"Retour de « {designation} » enregistré ✅", "success")
     return redirect(url_for("planning.prets"))
+
+
+# ---------------------------------------------------------------------------
+# Location payante : paiement, caution, convention, vue d'ensemble
+# ---------------------------------------------------------------------------
+
+@bp.route("/locations")
+@login_required
+@require_perm("planning:view")
+def locations():
+    secteur = _secteur_borne()
+    a_encaisser = locations_a_encaisser(secteur)
+    cautions = cautions_a_rendre(secteur)
+    debut, fin = date.today().replace(month=1, day=1), date.today()
+    recettes = recettes_encaissees(debut, fin, secteur)
+    return render_template(
+        "planning/locations.html",
+        a_encaisser=a_encaisser,
+        cautions_resa=[c for c in cautions if isinstance(c, ReservationSalle)],
+        cautions_pret=[c for c in cautions if isinstance(c, PretMateriel)],
+        recettes=recettes,
+        annee=date.today().year,
+        **_options_location(),
+    )
+
+
+@bp.route("/reservations/<int:reservation_id>/payer", methods=["POST"])
+@login_required
+@require_perm("planning:edit")
+def reservation_payer(reservation_id: int):
+    reservation = db.get_or_404(ReservationSalle, reservation_id)
+    marquer_paye(reservation, mode=request.form.get("paiement_mode"))
+    flash("Location marquée comme réglée ✅", "success")
+    return redirect(request.referrer or url_for("planning.locations"))
+
+
+@bp.route("/reservations/<int:reservation_id>/caution-rendue", methods=["POST"])
+@login_required
+@require_perm("planning:edit")
+def reservation_caution(reservation_id: int):
+    reservation = db.get_or_404(ReservationSalle, reservation_id)
+    marquer_caution_rendue(reservation)
+    flash("Caution rendue ✅", "success")
+    return redirect(request.referrer or url_for("planning.locations"))
+
+
+@bp.route("/reservations/<int:reservation_id>/convention")
+@login_required
+@require_perm("planning:view")
+def reservation_convention(reservation_id: int):
+    reservation = db.get_or_404(ReservationSalle, reservation_id)
+    if not reservation.est_location:
+        flash("Cette réservation n'est pas une location.", "warning")
+        return redirect(url_for("planning.locations"))
+    return _servir_convention(reservation, "salle")
+
+
+@bp.route("/prets/<int:pret_id>/payer", methods=["POST"])
+@login_required
+@require_perm("planning:edit")
+def pret_payer(pret_id: int):
+    pret = db.get_or_404(PretMateriel, pret_id)
+    marquer_paye(pret, mode=request.form.get("paiement_mode"))
+    flash("Location marquée comme réglée ✅", "success")
+    return redirect(request.referrer or url_for("planning.locations"))
+
+
+@bp.route("/prets/<int:pret_id>/caution-rendue", methods=["POST"])
+@login_required
+@require_perm("planning:edit")
+def pret_caution(pret_id: int):
+    pret = db.get_or_404(PretMateriel, pret_id)
+    marquer_caution_rendue(pret)
+    flash("Caution rendue ✅", "success")
+    return redirect(request.referrer or url_for("planning.locations"))
+
+
+@bp.route("/prets/<int:pret_id>/convention")
+@login_required
+@require_perm("planning:view")
+def pret_convention(pret_id: int):
+    pret = db.get_or_404(PretMateriel, pret_id)
+    if not pret.est_location:
+        flash("Ce prêt n'est pas une location.", "warning")
+        return redirect(url_for("planning.locations"))
+    return _servir_convention(pret, "materiel")

@@ -3305,6 +3305,19 @@ class ReservationSalle(db.Model):
     rappel_jours_avant = db.Column(db.Integer, nullable=True)
     rappel_envoye_at = db.Column(db.DateTime, nullable=True)
 
+    # Location payante (option) : une réservation peut être une mise à
+    # disposition facturée. est_location=False => réservation interne / gratuite.
+    est_location = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    locataire = db.Column(db.String(200), nullable=True)      # nom du locataire
+    contact = db.Column(db.String(200), nullable=True)        # coordonnées du locataire
+    tarif_montant = db.Column(db.Float, nullable=True)        # montant convenu (€)
+    tarif_unite = db.Column(db.String(10), nullable=True)     # heure / jour / forfait
+    caution_montant = db.Column(db.Float, nullable=True)      # dépôt de garantie (€)
+    caution_rendue = db.Column(db.Boolean, nullable=False, default=False)
+    paiement_statut = db.Column(db.String(20), nullable=False, default="a_regler")
+    paiement_mode = db.Column(db.String(20), nullable=True)
+    paiement_date = db.Column(db.Date, nullable=True)
+
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
@@ -3333,8 +3346,36 @@ class ReservationSalle(db.Model):
     def statut_label(self) -> str:
         return STATUTS_PLANNING_LABELS.get(self.statut, self.statut)
 
+    @property
+    def est_paye(self) -> bool:
+        return self.paiement_statut == "regle"
+
+    @property
+    def caution_a_rendre(self) -> bool:
+        return bool(self.est_location and self.caution_montant and not self.caution_rendue)
+
+    @property
+    def tarif_unite_label(self) -> str:
+        return TARIF_UNITES_LABELS.get(self.tarif_unite or "", self.tarif_unite or "")
+
+    @property
+    def paiement_statut_label(self) -> str:
+        return PAIEMENT_STATUTS_LABELS.get(self.paiement_statut, self.paiement_statut)
+
 
 STATUTS_PRET = ["en_cours", "rendu"]
+
+#: Location payante : base tarifaire, statuts et modes de paiement (communs
+#: aux réservations de salle et aux prêts de matériel).
+TARIF_UNITES = ["heure", "jour", "forfait"]
+TARIF_UNITES_LABELS = {"heure": "à l'heure", "jour": "à la journée", "forfait": "au forfait"}
+PAIEMENT_STATUTS = ["a_regler", "regle"]
+PAIEMENT_STATUTS_LABELS = {"a_regler": "À régler", "regle": "Réglé"}
+PAIEMENT_MODES = ["especes", "cheque", "virement", "cb", "autre"]
+PAIEMENT_MODES_LABELS = {
+    "especes": "Espèces", "cheque": "Chèque", "virement": "Virement",
+    "cb": "Carte bancaire", "autre": "Autre",
+}
 
 #: Statuts communs au workflow demande -> approbation (réservations & prêts).
 STATUTS_PLANNING = ["demandee", "approuvee", "refusee", "annulee"]
@@ -3375,6 +3416,18 @@ class PretMateriel(db.Model):
     rappel_jours_avant = db.Column(db.Integer, nullable=True)
     rappel_envoye_at = db.Column(db.DateTime, nullable=True)
 
+    # Location payante (option) : un prêt peut être une location facturée.
+    # est_location=False => prêt gratuit. L'emprunteur tient lieu de locataire.
+    est_location = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    contact = db.Column(db.String(200), nullable=True)        # coordonnées du locataire
+    tarif_montant = db.Column(db.Float, nullable=True)        # montant convenu (€)
+    tarif_unite = db.Column(db.String(10), nullable=True)     # heure / jour / forfait
+    caution_montant = db.Column(db.Float, nullable=True)      # dépôt de garantie (€)
+    caution_rendue = db.Column(db.Boolean, nullable=False, default=False)
+    paiement_statut = db.Column(db.String(20), nullable=False, default="a_regler")
+    paiement_mode = db.Column(db.String(20), nullable=True)
+    paiement_date = db.Column(db.Date, nullable=True)
+
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
@@ -3408,3 +3461,19 @@ class PretMateriel(db.Model):
         if self.en_retard:
             return "En retard"
         return "En cours"
+
+    @property
+    def est_paye(self) -> bool:
+        return self.paiement_statut == "regle"
+
+    @property
+    def caution_a_rendre(self) -> bool:
+        return bool(self.est_location and self.caution_montant and not self.caution_rendue)
+
+    @property
+    def tarif_unite_label(self) -> str:
+        return TARIF_UNITES_LABELS.get(self.tarif_unite or "", self.tarif_unite or "")
+
+    @property
+    def paiement_statut_label(self) -> str:
+        return PAIEMENT_STATUTS_LABELS.get(self.paiement_statut, self.paiement_statut)
