@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="stack">
+  <div class="card">
+    <div class="inline" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div>
+        <h1>{{ instance.nom }}</h1>
+        <p class="muted">{{ instance.type_label }}{% if not instance.actif %} · <span class="status-badge">archivée</span>{% endif %}</p>
+        {% if instance.description %}<p>{{ instance.description }}</p>{% endif %}
+      </div>
+      <div class="inline" style="gap:8px; align-items:flex-start;">
+        <a class="btn" href="{{ url_for('gouvernance.dashboard') }}">← Vie associative</a>
+        {% if can('gouvernance:edit') %}
+        <form method="post" action="{{ url_for('gouvernance.instance_basculer', instance_id=instance.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn" type="submit">{{ 'Réactiver' if not instance.actif else 'Archiver' }}</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Mandats ({{ mandats|length }})</h2>
+    {% if mandats %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Nom</th><th>Fonction</th><th>Contact</th><th>Échéance</th><th>État</th>{% if can('gouvernance:edit') %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for m in mandats %}
+            <tr {% if not m.actif %}style="opacity:.55;"{% endif %}>
+              <td><strong>{{ m.nom }}</strong></td>
+              <td>{{ m.fonction_label }}</td>
+              <td>{% if m.email %}{{ m.email }}{% endif %}{% if m.telephone %}{% if m.email %}<br>{% endif %}{{ m.telephone }}{% endif %}{% if not m.email and not m.telephone %}—{% endif %}</td>
+              <td>
+                {% if m.date_fin %}{{ m.date_fin.strftime('%d/%m/%Y') }}
+                  {% if m.actif and m.est_echu %}<br><span class="status-badge status-danger">échu</span>
+                  {% elif m.actif and m.echeance_proche %}<br><span class="status-badge status-warn">{{ m.jours_avant_echeance }} j</span>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td>{% if m.actif %}<span class="status-badge status-info">en cours</span>{% else %}<span class="muted">clôturé</span>{% endif %}</td>
+              {% if can('gouvernance:edit') %}
+              <td>
+                <div class="inline" style="gap:6px;">
+                  {% if m.actif %}
+                  <form method="post" action="{{ url_for('gouvernance.mandat_cloturer', mandat_id=m.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn" type="submit">Clôturer</button>
+                  </form>
+                  {% endif %}
+                  <form method="post" action="{{ url_for('gouvernance.mandat_supprimer', mandat_id=m.id) }}" onsubmit="return confirm('Supprimer ce mandat ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn" type="submit">✕</button>
+                  </form>
+                </div>
+              </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="muted">Aucun mandat enregistré.</p>
+    {% endif %}
+
+    {% if can('gouvernance:edit') %}
+    <h3>Ajouter un mandat</h3>
+    <form method="post" action="{{ url_for('gouvernance.mandat_creer', instance_id=instance.id) }}" class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field-stack slim"><span>Nom</span><input type="text" name="nom" required placeholder="Prénom Nom"></label>
+      <label class="field-stack slim"><span>Fonction</span>
+        <select name="fonction">{% for v, l in fonctions %}<option value="{{ v }}"{% if v == 'membre' %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+      <label class="field-stack slim"><span>E-mail</span><input type="email" name="email"></label>
+      <label class="field-stack slim"><span>Téléphone</span><input type="text" name="telephone"></label>
+      <label class="field-stack slim"><span>Début</span><input type="date" name="date_debut"></label>
+      <label class="field-stack slim"><span>Échéance</span><input type="date" name="date_fin"></label>
+      <button class="btn" type="submit">Ajouter</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Réunions ({{ reunions|length }})</h2>
+    {% if reunions %}
+      <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Date</th><th>Réunion</th><th>Type</th><th>Statut</th><th>Quorum</th><th></th></tr></thead>
+        <tbody>
+          {% for r in reunions %}
+            <tr>
+              <td>{{ r.date_reunion.strftime('%d/%m/%Y') }}</td>
+              <td>{{ r.titre }}</td>
+              <td>{{ r.type_label }}</td>
+              <td>
+                {% if r.statut == 'tenue' %}<span class="status-badge status-info">tenue</span>
+                {% elif r.statut == 'annulee' %}<span class="status-badge">annulée</span>
+                {% else %}<span class="status-badge status-warn">planifiée</span>{% endif %}
+              </td>
+              <td>
+                {% if r.quorum_atteint is none %}<span class="muted">—</span>
+                {% elif r.quorum_atteint %}<span class="status-badge status-info">atteint</span>
+                {% else %}<span class="status-badge status-danger">non atteint</span>{% endif %}
+              </td>
+              <td><a class="btn" href="{{ url_for('gouvernance.reunion_detail', reunion_id=r.id) }}">Ouvrir</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="muted">Aucune réunion.</p>
+    {% endif %}
+
+    {% if can('gouvernance:edit') %}
+    <h3>Planifier une réunion</h3>
+    <form method="post" action="{{ url_for('gouvernance.reunion_creer', instance_id=instance.id) }}" class="stack" style="gap:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+        <label class="field-stack slim"><span>Type</span>
+          <select name="type_reunion">{% for v, l in types_reunion %}<option value="{{ v }}"{% if instance.type_instance == 'ag' and v == 'ag_ordinaire' %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+        <label class="field-stack slim" style="flex:1; min-width:220px;"><span>Intitulé</span><input type="text" name="titre" required placeholder="CA de rentrée, AG 2026…"></label>
+        <label class="field-stack slim"><span>Date</span><input type="date" name="date_reunion" value="{{ today.isoformat() }}" required></label>
+        <label class="field-stack slim"><span>Heure</span><input type="time" name="heure"></label>
+        <label class="field-stack slim"><span>Lieu</span><input type="text" name="lieu" placeholder="Salle, visio…"></label>
+      </div>
+      <label class="field-stack"><span>Ordre du jour (une ligne par point)</span>
+        <textarea name="ordre_du_jour" rows="3" placeholder="Approbation du PV précédent&#10;Rapport moral&#10;Rapport financier&#10;Questions diverses"></textarea></label>
+      <div class="inline" style="gap:8px; flex-wrap:wrap; align-items:flex-end;">
+        <label class="field-stack slim"><span>Base électeurs</span><input type="number" name="base_electeurs" min="0" style="width:120px;" value="{{ adherents_a_jour }}"></label>
+        <label class="field-stack slim"><span>Quorum requis</span><input type="number" name="quorum_requis" min="0" style="width:120px;" placeholder="présents + pouvoirs"></label>
+        <button class="btn" type="submit">Créer la réunion</button>
+      </div>
+      <p class="ux-helper">Base d'électeurs pré-remplie avec les adhérents à jour ({{ adherents_a_jour }}) — ajustez-la, ainsi que le quorum requis (nombre minimal de présents + représentés), selon vos statuts.</p>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

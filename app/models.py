@@ -3477,3 +3477,198 @@ class PretMateriel(db.Model):
     @property
     def paiement_statut_label(self) -> str:
         return PAIEMENT_STATUTS_LABELS.get(self.paiement_statut, self.paiement_statut)
+
+
+# ===========================================================================
+# Vie associative : instances de gouvernance, mandats, réunions, quorum
+# ===========================================================================
+
+INSTANCE_TYPES = ["ag", "ca", "bureau", "commission"]
+INSTANCE_TYPES_LABELS = {
+    "ag": "Assemblée générale",
+    "ca": "Conseil d'administration",
+    "bureau": "Bureau",
+    "commission": "Commission / groupe de travail",
+}
+
+MANDAT_FONCTIONS = [
+    "president", "vice_president", "tresorier", "tresorier_adjoint",
+    "secretaire", "secretaire_adjoint", "membre",
+]
+MANDAT_FONCTIONS_LABELS = {
+    "president": "Président·e",
+    "vice_president": "Vice-président·e",
+    "tresorier": "Trésorier·ère",
+    "tresorier_adjoint": "Trésorier·ère adjoint·e",
+    "secretaire": "Secrétaire",
+    "secretaire_adjoint": "Secrétaire adjoint·e",
+    "membre": "Membre",
+}
+
+REUNION_TYPES = ["reunion", "ag_ordinaire", "ag_extraordinaire"]
+REUNION_TYPES_LABELS = {
+    "reunion": "Réunion",
+    "ag_ordinaire": "Assemblée générale ordinaire",
+    "ag_extraordinaire": "Assemblée générale extraordinaire",
+}
+REUNION_STATUTS = ["planifiee", "tenue", "annulee"]
+REUNION_STATUTS_LABELS = {
+    "planifiee": "Planifiée",
+    "tenue": "Tenue",
+    "annulee": "Annulée",
+}
+
+#: Fenêtre d'alerte (jours) avant l'échéance d'un mandat.
+MANDAT_ALERTE_JOURS = 60
+
+
+class InstanceGouvernance(db.Model):
+    """Organe de gouvernance : AG, conseil d'administration, bureau, commission."""
+    __tablename__ = "instance_gouvernance"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(160), nullable=False)
+    type_instance = db.Column(db.String(20), nullable=False, default="ca", index=True)
+    description = db.Column(db.Text, nullable=True)
+    actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    mandats = db.relationship("Mandat", back_populates="instance",
+                              cascade="all, delete-orphan", passive_deletes=True)
+    reunions = db.relationship("Reunion", back_populates="instance",
+                               cascade="all, delete-orphan", passive_deletes=True)
+
+    @property
+    def type_label(self) -> str:
+        return INSTANCE_TYPES_LABELS.get(self.type_instance, self.type_instance)
+
+    @property
+    def mandats_actifs(self):
+        return [m for m in self.mandats if m.actif]
+
+
+class Mandat(db.Model):
+    """Mandat d'une personne dans une instance (fonction + échéance)."""
+    __tablename__ = "mandat"
+
+    id = db.Column(db.Integer, primary_key=True)
+    instance_id = db.Column(db.Integer, db.ForeignKey("instance_gouvernance.id", ondelete="CASCADE"), nullable=False, index=True)
+    nom = db.Column(db.String(200), nullable=False)
+    fonction = db.Column(db.String(30), nullable=False, default="membre")
+    email = db.Column(db.String(200), nullable=True)
+    telephone = db.Column(db.String(40), nullable=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participant.id", ondelete="SET NULL"), nullable=True, index=True)
+    date_debut = db.Column(db.Date, nullable=True)
+    date_fin = db.Column(db.Date, nullable=True, index=True)  # échéance du mandat
+    actif = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    # Marqueur anti-doublon : dernière alerte d'échéance émise pour ce mandat.
+    alerte_echeance_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    instance = db.relationship("InstanceGouvernance", back_populates="mandats")
+    participant = db.relationship("Participant")
+
+    @property
+    def fonction_label(self) -> str:
+        return MANDAT_FONCTIONS_LABELS.get(self.fonction, self.fonction)
+
+    @property
+    def jours_avant_echeance(self):
+        if not self.date_fin:
+            return None
+        return (self.date_fin - date.today()).days
+
+    @property
+    def est_echu(self) -> bool:
+        j = self.jours_avant_echeance
+        return j is not None and j < 0
+
+    @property
+    def echeance_proche(self) -> bool:
+        j = self.jours_avant_echeance
+        return j is not None and 0 <= j <= MANDAT_ALERTE_JOURS
+
+
+class Reunion(db.Model):
+    """Réunion d'une instance (CA, bureau) ou assemblée générale."""
+    __tablename__ = "reunion_instance"
+
+    id = db.Column(db.Integer, primary_key=True)
+    instance_id = db.Column(db.Integer, db.ForeignKey("instance_gouvernance.id", ondelete="CASCADE"), nullable=False, index=True)
+    type_reunion = db.Column(db.String(20), nullable=False, default="reunion")
+    titre = db.Column(db.String(200), nullable=False)
+    date_reunion = db.Column(db.Date, nullable=False, index=True)
+    heure = db.Column(db.String(5), nullable=True)
+    lieu = db.Column(db.String(200), nullable=True)
+    ordre_du_jour = db.Column(db.Text, nullable=True)
+    statut = db.Column(db.String(20), nullable=False, default="planifiee", index=True)
+    # Quorum : base des membres à voix délibérative (figée à la création) et
+    # nombre minimal de présents + représentés requis.
+    base_electeurs = db.Column(db.Integer, nullable=True)
+    quorum_requis = db.Column(db.Integer, nullable=True)
+    releve_decisions = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    instance = db.relationship("InstanceGouvernance", back_populates="reunions")
+    presences = db.relationship("PresenceReunion", back_populates="reunion",
+                                cascade="all, delete-orphan", passive_deletes=True)
+
+    @property
+    def type_label(self) -> str:
+        return REUNION_TYPES_LABELS.get(self.type_reunion, self.type_reunion)
+
+    @property
+    def statut_label(self) -> str:
+        return REUNION_STATUTS_LABELS.get(self.statut, self.statut)
+
+    @property
+    def nb_presents(self) -> int:
+        return sum(1 for p in self.presences if p.present)
+
+    @property
+    def nb_pouvoirs(self) -> int:
+        return sum(1 for p in self.presences if p.pouvoir and not p.present)
+
+    @property
+    def nb_excuses(self) -> int:
+        return sum(1 for p in self.presences if p.excuse and not p.present and not p.pouvoir)
+
+    @property
+    def total_votes(self) -> int:
+        """Présents + représentés (pouvoirs)."""
+        return self.nb_presents + self.nb_pouvoirs
+
+    @property
+    def quorum_atteint(self):
+        if not self.quorum_requis:
+            return None
+        return self.total_votes >= self.quorum_requis
+
+
+class PresenceReunion(db.Model):
+    """Émargement d'une réunion : une ligne par personne convoquée / présente."""
+    __tablename__ = "presence_reunion"
+
+    id = db.Column(db.Integer, primary_key=True)
+    reunion_id = db.Column(db.Integer, db.ForeignKey("reunion_instance.id", ondelete="CASCADE"), nullable=False, index=True)
+    nom = db.Column(db.String(200), nullable=False)
+    present = db.Column(db.Boolean, nullable=False, default=True)
+    pouvoir = db.Column(db.Boolean, nullable=False, default=False)   # représenté
+    excuse = db.Column(db.Boolean, nullable=False, default=False)
+    represente_par = db.Column(db.String(200), nullable=True)        # bénéficiaire du pouvoir
+    mandat_id = db.Column(db.Integer, db.ForeignKey("mandat.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    reunion = db.relationship("Reunion", back_populates="presences")
+
+    @property
+    def statut_label(self) -> str:
+        if self.present:
+            return "Présent·e"
+        if self.pouvoir:
+            return "Représenté·e"
+        if self.excuse:
+            return "Excusé·e"
+        return "Absent·e"
