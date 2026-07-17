@@ -1,9 +1,10 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
   <div class="card">
-    <h1>🏛️ Vie associative</h1>
+    <h1>{{ ic.icon('landmark', 22) }} Vie associative</h1>
     <p class="muted">
       Les instances de gouvernance (assemblée générale, conseil d'administration,
       bureau, commissions), les mandats et leurs échéances, les réunions et leur quorum.
@@ -12,8 +13,7 @@
 
   {% if mandats_echeance %}
   <div class="callout warning">
-    ⏰ {{ mandats_echeance|length }} mandat(s) arrivent à échéance ou sont échus.
-    Pensez au renouvellement.
+    {{ ic.icon('bell', 15) }} {{ mandats_echeance|length }} mandat{{ 's arrivent' if mandats_echeance|length > 1 else ' arrive' }} à échéance (ou {{ 'sont échus' if mandats_echeance|length > 1 else 'est échu' }}). Pensez au renouvellement.
   </div>
   {% endif %}
 

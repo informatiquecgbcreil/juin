@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -51,7 +52,7 @@
                   {% endif %}
                   <form method="post" action="{{ url_for('gouvernance.mandat_supprimer', mandat_id=m.id) }}" onsubmit="return confirm('Supprimer ce mandat ?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn" type="submit">✕</button>
+                    <button class="btn" type="submit">{{ ic.icon('x', 13) }}</button>
                   </form>
                 </div>
               </td>

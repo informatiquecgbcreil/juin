@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -50,7 +51,7 @@
                 <strong>{{ s.nom }}</strong>
                 {% if s.est_externe and (s.adresse or s.contact) %}
                   <div class="muted" style="font-size:12px;">
-                    {% if s.adresse %}📍 {{ s.adresse }}{% endif %}{% if s.adresse and s.contact %} · {% endif %}{% if s.contact %}☎ {{ s.contact }}{% endif %}
+                    {% if s.adresse %}{{ ic.icon('map-pin', 12) }} {{ s.adresse }}{% endif %}{% if s.adresse and s.contact %} · {% endif %}{% if s.contact %}{{ ic.icon('phone', 12) }} {{ s.contact }}{% endif %}
                   </div>
                 {% endif %}
               </td>

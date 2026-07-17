@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -16,8 +17,8 @@
         {% else %}<span class="status-badge status-warn">planifiée</span>{% endif %}
       </div>
       <div class="inline" style="gap:8px; align-items:flex-start; flex-wrap:wrap;">
-        <a class="btn" href="{{ url_for('gouvernance.reunion_convocation', reunion_id=reunion.id) }}">📄 Convocation</a>
-        <a class="btn" href="{{ url_for('gouvernance.reunion_emargement', reunion_id=reunion.id) }}">📝 Feuille d'émargement</a>
+        <a class="btn" href="{{ url_for('gouvernance.reunion_convocation', reunion_id=reunion.id) }}">{{ ic.icon('file-text', 14) }} Convocation</a>
+        <a class="btn" href="{{ url_for('gouvernance.reunion_emargement', reunion_id=reunion.id) }}">{{ ic.icon('pen-line', 14) }} Feuille d'émargement</a>
       </div>
     </div>
     {% if can('gouvernance:edit') %}
@@ -59,9 +60,9 @@
       </table>
       {% if reunion.quorum_atteint is not none %}
         {% if reunion.quorum_atteint %}
-          <p class="callout success" style="margin-top:8px;">✅ Quorum atteint — l'assemblée peut délibérer.</p>
+          <p class="callout success" style="margin-top:8px;">{{ ic.icon('check', 14) }} Quorum atteint — l'assemblée peut délibérer.</p>
         {% else %}
-          <p class="callout danger" style="margin-top:8px;">⚠️ Quorum non atteint ({{ reunion.total_votes }} / {{ reunion.quorum_requis }}).</p>
+          <p class="callout danger" style="margin-top:8px;">{{ ic.icon('alert-triangle', 14) }} Quorum non atteint ({{ reunion.total_votes }} / {{ reunion.quorum_requis }}).</p>
         {% endif %}
       {% endif %}
     </div>
@@ -88,7 +89,7 @@
               <td>
                 <form method="post" action="{{ url_for('gouvernance.presence_supprimer', presence_id=p.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn" type="submit">✕</button>
+                  <button class="btn" type="submit">{{ ic.icon('x', 13) }}</button>
                 </form>
               </td>
               {% endif %}

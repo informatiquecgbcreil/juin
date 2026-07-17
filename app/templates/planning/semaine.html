@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% set jours_noms = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'] %}
 {% set hh = 46 %}{# hauteur d'une heure, en px #}
 {% set gh = (heure_max - heure_min) * hh %}{# hauteur de la grille #}
@@ -70,7 +71,7 @@
 
 <div class="stack">
   <div class="card">
-    <h1>🗓️ Planning de l'équipe</h1>
+    <h1>{{ ic.icon('calendar', 22) }} Planning de l'équipe</h1>
     <p class="muted">
       La semaine comme un agenda : séances d'ateliers et réservations de salles, positionnées à l'heure.
       Demandez une salle ou un prêt ; un responsable valide.
@@ -91,13 +92,13 @@
       {% endif %}
       <a class="btn" href="{{ url_for('planning.salles') }}">Salles</a>
       <a class="btn" href="{{ url_for('planning.prets') }}">Prêts de matériel{% if retards %} · {{ retards|length }} en retard{% endif %}</a>
-      <a class="btn" href="{{ url_for('planning.locations') }}">💶 Locations</a>
+      <a class="btn" href="{{ url_for('planning.locations') }}">{{ ic.icon('euro', 15) }} Locations</a>
     </div>
   </div>
 
   {% if retards %}
     <div class="callout danger">
-      ⚠️ {{ retards|length }} prêt(s) de matériel en retard.
+      {{ ic.icon('alert-triangle', 15) }} {{ retards|length }} prêt(s) de matériel en retard.
       <a href="{{ url_for('planning.prets') }}">Voir les retours attendus</a>
     </div>
   {% endif %}
@@ -119,7 +120,7 @@
               <div class="inline" style="gap:6px; flex-wrap:wrap; align-items:flex-end;">
                 <form method="post" action="{{ url_for('planning.reservation_approuver', reservation_id=r.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn" type="submit">✅ Approuver</button>
+                  <button class="btn" type="submit">{{ ic.icon('check', 14) }} Approuver</button>
                 </form>
                 <form method="post" action="{{ url_for('planning.reservation_refuser', reservation_id=r.id) }}" class="inline" style="gap:4px; align-items:flex-end;">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -147,7 +148,7 @@
             {% for e in jour.elements if not (e.fin_min > e.debut_min) %}
               <span class="agenda-chip {% if e.annulee %}annulee{% endif %}" style="--evc:{{ e.couleur }};"
                     title="{{ e.titre }}{% if e.salle %} · {{ e.salle }}{% endif %}">
-                {% if e.type == 'seance' %}🎓{% else %}📍{% endif %} {{ e.titre }}
+                {% if e.type == 'seance' %}{{ ic.icon('graduation-cap', 11) }}{% else %}{{ ic.icon('map-pin', 11) }}{% endif %} {{ e.titre }}
               </span>
             {% endfor %}
           </div>
@@ -182,7 +183,7 @@
                   </form>
                 {% endif %}
                 <div class="ev-h">{{ e.heure_debut }}{% if height > 30 %}–{{ e.heure_fin }}{% endif %}</div>
-                <div class="ev-t">{% if e.type == 'seance' %}🎓{% elif e.statut == 'demandee' %}⏳{% else %}📍{% endif %} {{ e.titre }}</div>
+                <div class="ev-t">{% if e.type == 'seance' %}{{ ic.icon('graduation-cap', 12) }}{% elif e.statut == 'demandee' %}{{ ic.icon('hourglass', 12) }}{% else %}{{ ic.icon('map-pin', 12) }}{% endif %} {{ e.titre }}</div>
                 {% if height > 44 %}
                   <div class="ev-m">{% if e.type == 'seance' %}{{ e.secteur or '' }}{% else %}{{ e.salle or 'salle' }}{% if e.secteur %} · {{ e.secteur }}{% endif %}{% endif %}</div>
                 {% endif %}
@@ -195,7 +196,7 @@
     <div class="agenda-legend">
       <span class="lg"><span class="sw" style="background:#94a3b8;"></span> Séance d'atelier</span>
       <span class="lg"><span class="sw" style="background:#2563eb;"></span> Réservation approuvée</span>
-      <span class="lg"><span class="sw" style="background:repeating-linear-gradient(135deg,#c7d2fe 0 5px,#fff 5px 10px); border:1px dashed #2563eb;"></span> En attente ⏳</span>
+      <span class="lg"><span class="sw" style="background:repeating-linear-gradient(135deg,#c7d2fe 0 5px,#fff 5px 10px); border:1px dashed #2563eb;"></span> En attente</span>
     </div>
   </div>
 
@@ -231,7 +232,7 @@
         <label class="inline" style="gap:6px; align-items:center; margin-bottom:6px;">
           <input type="checkbox" name="est_location" value="1"
                  onchange="document.getElementById('resa_loc_fields').style.display = this.checked ? 'flex' : 'none';">
-          <span>💶 Location payante</span>
+          <span>{{ ic.icon('euro', 15) }} Location payante</span>
         </label>
         <span id="resa_loc_fields" class="inline" style="gap:8px; align-items:flex-end; display:none; flex-wrap:wrap;">
           <label class="field-stack slim"><span>Locataire</span><input type="text" name="locataire" placeholder="Nom / structure"></label>

@@ -78,21 +78,21 @@ def test_notice_refusee_aux_anonymes(client):
 def test_bandeau_comprendre_cette_page(admin_client):
     r = admin_client.get("/dashboard")
     page = r.get_data(as_text=True)
-    assert '<section class="aide-page' in page
+    assert 'class="aide-page--slim' in page
     assert "À quoi sert cette page ?" in page
-    assert "Le tableau de bord" in page
+    assert "votre page d" in page  # « votre page d'accueil » (apostrophe échappée en HTML)
 
 
 def test_bandeau_absent_sur_page_non_referencee(admin_client):
     r = admin_client.get("/rbac-test")
     assert r.status_code == 200
-    assert '<section class="aide-page' not in r.get_data(as_text=True)
+    assert 'class="aide-page--slim' not in r.get_data(as_text=True)
 
 
 def test_bouton_aide_dans_entete(admin_client):
     page = admin_client.get("/dashboard").get_data(as_text=True)
     assert "/aide/" in page
-    assert "❓ Aide" in page
+    assert "Aide</a>" in page  # bouton d'aide (icône SVG + libellé)
 
 
 def test_infobulles_sur_pages_cles(app, admin_client):

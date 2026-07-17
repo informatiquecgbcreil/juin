@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 
 {% macro euros(v) %}{{ '%.2f'|format(v or 0) }} €{% endmacro %}
 
@@ -16,14 +17,14 @@
 {% endmacro %}
 
 {% macro convention_link(obj, kind) %}
-  <a class="btn" href="{{ url_for('planning.reservation_convention', reservation_id=obj.id) if kind == 'salle' else url_for('planning.pret_convention', pret_id=obj.id) }}">📄 Convention</a>
+  <a class="btn" href="{{ url_for('planning.reservation_convention', reservation_id=obj.id) if kind == 'salle' else url_for('planning.pret_convention', pret_id=obj.id) }}">{{ ic.icon('file-text', 14) }} Convention</a>
 {% endmacro %}
 
 {% macro ligne_encaisser(obj, kind) %}
   <tr>
     <td>
-      {% if kind == 'salle' %}📍 {{ obj.salle.nom if obj.salle else 'Salle' }}
-      {% else %}📦 {{ obj.item.designation if obj.item else 'Matériel' }}{% if obj.quantite and obj.quantite > 1 %} ×{{ obj.quantite }}{% endif %}{% endif %}
+      {% if kind == 'salle' %}{{ ic.icon('map-pin', 13) }} {{ obj.salle.nom if obj.salle else 'Salle' }}
+      {% else %}{{ ic.icon('package', 13) }} {{ obj.item.designation if obj.item else 'Matériel' }}{% if obj.quantite and obj.quantite > 1 %} ×{{ obj.quantite }}{% endif %}{% endif %}
     </td>
     <td>{% if kind == 'salle' %}{{ obj.locataire or '—' }}{% else %}{{ obj.emprunteur or '—' }}{% endif %}</td>
     <td>
@@ -43,8 +44,8 @@
 {% macro ligne_caution(obj, kind) %}
   <tr>
     <td>
-      {% if kind == 'salle' %}📍 {{ obj.salle.nom if obj.salle else 'Salle' }} — {{ obj.locataire or '—' }}
-      {% else %}📦 {{ obj.item.designation if obj.item else 'Matériel' }} — {{ obj.emprunteur or '—' }}{% endif %}
+      {% if kind == 'salle' %}{{ ic.icon('map-pin', 13) }} {{ obj.salle.nom if obj.salle else 'Salle' }} — {{ obj.locataire or '—' }}
+      {% else %}{{ ic.icon('package', 13) }} {{ obj.item.designation if obj.item else 'Matériel' }} — {{ obj.emprunteur or '—' }}{% endif %}
     </td>
     <td><strong>{{ euros(obj.caution_montant) }}</strong></td>
     <td>{% if obj.est_paye %}<span class="status-badge status-info">loyer réglé</span>{% else %}<span class="status-badge status-warn">loyer à régler</span>{% endif %}</td>
@@ -53,7 +54,7 @@
       <form method="post"
             action="{{ url_for('planning.reservation_caution', reservation_id=obj.id) if kind == 'salle' else url_for('planning.pret_caution', pret_id=obj.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit">↩ Caution rendue</button>
+        <button class="btn" type="submit">{{ ic.icon('rotate-ccw', 14) }} Caution rendue</button>
       </form>
       {% endif %}
     </td>
@@ -64,7 +65,7 @@
 
 <div class="stack">
   <div class="card">
-    <h1>💶 Locations de salles &amp; de matériel</h1>
+    <h1>{{ ic.icon('euro', 22) }} Locations de salles &amp; de matériel</h1>
     <p class="muted">Les mises à disposition <strong>payantes</strong> : loyers à encaisser, cautions à rendre, recettes de l'année. Une location se crée depuis le planning (salle) ou la page prêts (matériel), en cochant « Location payante ».</p>
     <div class="inline" style="gap:8px; flex-wrap:wrap;">
       <a class="btn" href="{{ url_for('planning.semaine') }}">← Planning</a>

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 
 {% macro table_prets(prets, editable) %}
   <div class="tablewrap">
@@ -15,13 +16,13 @@
           <td>
             {% if p.en_retard %}<span class="status-badge status-danger">en retard</span>
             {% else %}<span class="status-badge">en cours</span>{% endif %}
-            {% if p.est_location %}<span class="status-badge status-info" title="Location payante">💶 {% if p.est_paye %}réglé{% else %}à régler{% endif %}</span>{% endif %}
+            {% if p.est_location %}<span class="status-badge status-info" title="Location payante">{{ ic.icon('euro', 12) }} {% if p.est_paye %}réglé{% else %}à régler{% endif %}</span>{% endif %}
           </td>
           {% if editable %}
           <td>
             <form method="post" action="{{ url_for('planning.pret_retour', pret_id=p.id) }}" style="display:inline;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn" type="submit">✔ Retour</button>
+              <button class="btn" type="submit">{{ ic.icon('check', 14) }} Retour</button>
             </form>
           </td>
           {% endif %}
@@ -61,7 +62,7 @@
         <label class="inline" style="gap:6px; align-items:center; margin-bottom:6px;">
           <input type="checkbox" name="est_location" value="1"
                  onchange="document.getElementById('pret_loc_fields').style.display = this.checked ? 'flex' : 'none';">
-          <span>💶 Location payante</span>
+          <span>{{ ic.icon('euro', 15) }} Location payante</span>
         </label>
         <span id="pret_loc_fields" class="inline" style="gap:8px; align-items:flex-end; display:none; flex-wrap:wrap;">
           <label class="field-stack slim"><span>Contact locataire</span><input type="text" name="contact" placeholder="Tél / e-mail"></label>
@@ -102,7 +103,7 @@
               <div class="inline" style="gap:6px; flex-wrap:wrap; align-items:flex-end;">
                 <form method="post" action="{{ url_for('planning.pret_approuver', pret_id=p.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn" type="submit">✅ Approuver</button>
+                  <button class="btn" type="submit">{{ ic.icon('check', 14) }} Approuver</button>
                 </form>
                 <form method="post" action="{{ url_for('planning.pret_refuser', pret_id=p.id) }}" class="inline" style="gap:4px; align-items:flex-end;">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -121,7 +122,7 @@
 
   {% if retards %}
   <div class="card" style="border-color:var(--danger,#dc2626);">
-    <h2>⚠️ {{ retards|length }} en retard</h2>
+    <h2>{{ ic.icon('alert-triangle', 16) }} {{ retards|length }} en retard</h2>
     {{ table_prets(retards, can('planning:edit')) }}
   </div>
   {% endif %}

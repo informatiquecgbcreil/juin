@@ -1,4 +1,5 @@
 <!doctype html>
+{% import "_icons.html" as ic %}
 <html lang="fr" data-theme="light">
 <head>
   <meta charset="utf-8">
@@ -437,8 +438,43 @@
     }
     .easy-banner__title{ font-weight:800; }
     .easy-banner__text{ color:var(--muted); font-size:13px; }
+    .easy-banner__close{
+      margin-left:auto; border:0; background:transparent; cursor:pointer;
+      color:var(--muted); font-size:16px; line-height:1; padding:4px 8px; border-radius:8px;
+    }
+    .easy-banner__close:hover{ color:var(--text); background:color-mix(in srgb, var(--accent) 10%, transparent); }
     .context-banner--simple{ gap:6px; }
     .context-banner--simple .context-badge{ font-size:11px; }
+
+    /* Icônes SVG en ligne (jeu embarqué _icons.html) */
+    .ico{ vertical-align:-3px; flex:none; }
+    .pill .ico, .btn .ico{ margin-right:2px; }
+
+    /* Ligne de contexte unique : fil d'Ariane à gauche, rôle/portée à droite */
+    .page-context-row{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; margin:2px 0 6px;
+    }
+    .page-context-row .breadcrumb{ margin:0; }
+    .context-mini{
+      color:var(--muted); font-size:12px; white-space:nowrap; margin-left:auto;
+    }
+    .context-mini strong{ font-weight:700; color:var(--text); }
+
+    /* Encart « À quoi sert cette page ? » replié par défaut : une ligne discrète */
+    .aide-page--slim{
+      border:1px dashed var(--border-soft); border-radius:12px;
+      background:color-mix(in srgb, var(--surface) 55%, transparent);
+      margin:0 0 10px; padding:0;
+    }
+    .aide-page--slim > summary{
+      cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;
+      padding:8px 12px; color:var(--muted); font-size:13px; font-weight:600;
+    }
+    .aide-page--slim > summary::-webkit-details-marker{ display:none; }
+    .aide-page--slim > summary:hover{ color:var(--text); }
+    .aide-page--slim[open] > summary{ border-bottom:1px dashed var(--border-soft); color:var(--text); }
+    .aide-page--slim .aide-page__corps{ padding:10px 14px 12px; }
 
   
     .nav-more-panel{
@@ -574,7 +610,7 @@
                 <a class="pill {% if is_activites %}active{% endif %}" href="{{ url_for('main.hub_activites') }}">Activités</a>
               {% endif %}
               {% if can('planning:view') %}
-                <a class="pill {% if ep.startswith('planning.') %}active{% endif %}" href="{{ url_for('planning.semaine') }}">🗓️ Planning</a>
+                <a class="pill {% if ep.startswith('planning.') %}active{% endif %}" href="{{ url_for('planning.semaine') }}">{{ ic.icon('calendar', 15) }} Planning</a>
               {% endif %}
               {% if can('projets:view') or can('subventions:view') or can('depenses:view') %}
                 <a class="pill {% if is_finance %}active{% endif %}" href="{{ url_for('projets.finance_home') }}">Finances</a>
@@ -589,13 +625,13 @@
                 <div class="nav-more-panel">
                   {% if can('emargement:view') %}
                     <div class="nav-more-heading">Mes outils</div>
-                    <a class="pill {% if ep.startswith('main.mon_agenda') %}active{% endif %}" href="{{ url_for('main.mon_agenda') }}">📅 Mon agenda (synchro)</a>
+                    <a class="pill {% if ep.startswith('main.mon_agenda') %}active{% endif %}" href="{{ url_for('main.mon_agenda') }}">{{ ic.icon('calendar', 15) }} Mon agenda (synchro)</a>
                   {% endif %}
                   {% if can('planning:view') or can('inventaire:view') %}
                     <div class="nav-more-heading">Salles &amp; matériel</div>
                     {% if can('planning:view') %}
                       <a class="pill {% if ep == 'planning.prets' %}active{% endif %}" href="{{ url_for('planning.prets') }}">Prêts de matériel</a>
-                      <a class="pill {% if ep == 'planning.locations' %}active{% endif %}" href="{{ url_for('planning.locations') }}">💶 Locations</a>
+                      <a class="pill {% if ep == 'planning.locations' %}active{% endif %}" href="{{ url_for('planning.locations') }}">{{ ic.icon('euro', 15) }} Locations</a>
                     {% endif %}
                     {% if can('inventaire:view') %}
                       <a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire matériel</a>
@@ -604,7 +640,7 @@
                   {% if can('gouvernance:view') or can('participants:view') or can('partenaires:view') or can('rh:view') %}
                     <div class="nav-more-heading">Vie du centre</div>
                     {% if can('gouvernance:view') %}
-                      <a class="pill {% if ep.startswith('gouvernance.') %}active{% endif %}" href="{{ url_for('gouvernance.dashboard') }}">🏛️ Vie associative</a>
+                      <a class="pill {% if ep.startswith('gouvernance.') %}active{% endif %}" href="{{ url_for('gouvernance.dashboard') }}">{{ ic.icon('landmark', 15) }} Vie associative</a>
                     {% endif %}
                     {% if can('participants:view') %}
                       <a class="pill {% if ep == 'main.benevolat' %}active{% endif %}" href="{{ url_for('main.benevolat') }}">Bénévolat</a>
@@ -652,10 +688,10 @@
                       <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires</a>
                     {% endif %}
                     {% if can('transitions:view') %}
-                      <a class="pill {% if ep.startswith('transitions.') %}active{% endif %}" href="{{ url_for('transitions.dashboard') }}">🌱 Transitions</a>
+                      <a class="pill {% if ep.startswith('transitions.') %}active{% endif %}" href="{{ url_for('transitions.dashboard') }}">{{ ic.icon('leaf', 15) }} Transitions</a>
                     {% endif %}
                     {% if can('bilans:view') %}
-                      <a class="pill {% if ep == 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.redaction_bilan') }}">📝 Rédiger un bilan</a>
+                      <a class="pill {% if ep == 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.redaction_bilan') }}">{{ ic.icon('pen-line', 15) }} Rédiger un bilan</a>
                     {% endif %}
                   {% endif %}
                   {% if can('admin:users') or can('admin:rbac') or can('controle:view') %}
@@ -709,7 +745,7 @@
                   <a class="pill {% if ep == 'main.hub_activites' %}active{% endif %}" href="{{ url_for('main.hub_activites') }}">Accueil activités</a>
                   {% if can('emargement:view') %}
                     <a class="pill {% if is_presences %}active{% endif %}" href="{{ url_for('activite.index') }}">Présences / émargement</a>
-                    <a class="pill {% if ep.startswith('main.mon_agenda') %}active{% endif %}" href="{{ url_for('main.mon_agenda') }}">📅 Mon agenda (synchro)</a>
+                    <a class="pill {% if ep.startswith('main.mon_agenda') %}active{% endif %}" href="{{ url_for('main.mon_agenda') }}">{{ ic.icon('calendar', 15) }} Mon agenda (synchro)</a>
                   {% endif %}
                   {% if can('statsimpact:view') or can('stats:view') %}
                     <a class="pill {% if ep.startswith('statsimpact.') %}active{% endif %}" href="{{ url_for('statsimpact.dashboard') }}">Fréquentation &amp; résultats</a>
@@ -773,13 +809,13 @@
                   {% endif %}
                   {% if can('bilans:view') %}
                     <a class="pill {% if ep.startswith('bilans.') and ep != 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.bilans_lourds', year=2026) }}">Bilans complets</a>
-                    <a class="pill {% if ep == 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.redaction_bilan') }}">📝 Rédiger un bilan</a>
+                    <a class="pill {% if ep == 'bilans.redaction_bilan' %}active{% endif %}" href="{{ url_for('bilans.redaction_bilan') }}">{{ ic.icon('pen-line', 15) }} Rédiger un bilan</a>
                   {% endif %}
                   {% if can('questionnaires:view') %}
                     <a class="pill {% if ep.startswith('questionnaires.') %}active{% endif %}" href="{{ url_for('questionnaires.index') }}">Questionnaires d’impact</a>
                   {% endif %}
                   {% if can('transitions:view') %}
-                    <a class="pill {% if ep.startswith('transitions.') %}active{% endif %}" href="{{ url_for('transitions.dashboard') }}">🌱 Transitions</a>
+                    <a class="pill {% if ep.startswith('transitions.') %}active{% endif %}" href="{{ url_for('transitions.dashboard') }}">{{ ic.icon('leaf', 15) }} Transitions</a>
                   {% endif %}
                 </div>
               </details>
@@ -789,10 +825,10 @@
                 <summary class="pill {% if is_salles %}active{% endif %}">Salles &amp; matériel</summary>
                 <div class="nav-more-panel">
                   {% if can('planning:view') %}
-                    <a class="pill {% if ep == 'planning.semaine' %}active{% endif %}" href="{{ url_for('planning.semaine') }}">🗓️ Planning de la semaine</a>
+                    <a class="pill {% if ep == 'planning.semaine' %}active{% endif %}" href="{{ url_for('planning.semaine') }}">{{ ic.icon('calendar', 15) }} Planning de la semaine</a>
                     <a class="pill {% if ep == 'planning.salles' %}active{% endif %}" href="{{ url_for('planning.salles') }}">Salles &amp; lieux</a>
                     <a class="pill {% if ep == 'planning.prets' %}active{% endif %}" href="{{ url_for('planning.prets') }}">Prêts de matériel</a>
-                    <a class="pill {% if ep == 'planning.locations' %}active{% endif %}" href="{{ url_for('planning.locations') }}">💶 Locations</a>
+                    <a class="pill {% if ep == 'planning.locations' %}active{% endif %}" href="{{ url_for('planning.locations') }}">{{ ic.icon('euro', 15) }} Locations</a>
                   {% endif %}
                   {% if can('inventaire:view') %}
                     <a class="pill {% if ep.startswith('inventaire_materiel.') %}active{% endif %}" href="{{ url_for('inventaire_materiel.list_items') }}">Inventaire matériel</a>
@@ -806,7 +842,7 @@
                 <div class="nav-more-panel">
                   <a class="pill {% if ep == 'main.hub_ressources' %}active{% endif %}" href="{{ url_for('main.hub_ressources') }}">Vue d'ensemble</a>
                   {% if can('gouvernance:view') %}
-                    <a class="pill {% if ep.startswith('gouvernance.') %}active{% endif %}" href="{{ url_for('gouvernance.dashboard') }}">🏛️ Vie associative (AG, CA)</a>
+                    <a class="pill {% if ep.startswith('gouvernance.') %}active{% endif %}" href="{{ url_for('gouvernance.dashboard') }}">{{ ic.icon('landmark', 15) }} Vie associative (AG, CA)</a>
                   {% endif %}
                   {% if can('participants:view') %}
                     <a class="pill {% if ep == 'main.hart_collectif' %}active{% endif %}" href="{{ url_for('main.hart_collectif') }}">Participation des habitants</a>
@@ -928,7 +964,7 @@
               </div>
             </details>
             <button class="pill theme-toggle" id="themeToggle" type="button" title="Changer de thème" aria-label="Changer de thème">🌙</button>
-            <a class="pill" href="{{ url_for('aide.notice') }}" title="Ouvrir la notice d'utilisation" aria-label="Aide et notice d'utilisation">❓ Aide</a>
+            <a class="pill" href="{{ url_for('aide.notice') }}" title="Ouvrir la notice d'utilisation" aria-label="Aide et notice d'utilisation">{{ ic.icon('circle-help', 15) }} Aide</a>
 
             <div class="tag">
               {{ current_user.nom }}
@@ -947,12 +983,26 @@
   {% endif %}
 
   {% if current_user.is_authenticated and ui_simplified and not embed %}
-  <div class="wrap">
+  <div class="wrap" id="easyBannerWrap" hidden>
     <div class="easy-banner" aria-label="Mode simplifié activé">
       <div class="easy-banner__title">Mode simplifié actif</div>
-      <div class="easy-banner__text">Tu vois d’abord les actions utiles au quotidien. Passe en mode expert si tu veux toutes les pages en permanence.</div>
+      <div class="easy-banner__text">Vous voyez d’abord les actions utiles au quotidien. Le mode expert (en haut à droite) montre toutes les pages en permanence.</div>
+      <button type="button" class="easy-banner__close" id="easyBannerClose" title="J'ai compris, ne plus afficher" aria-label="Fermer ce bandeau définitivement">✕</button>
     </div>
   </div>
+  <script>
+  (function(){
+    try{
+      if(!localStorage.getItem("easyBannerDismissed")){
+        document.getElementById("easyBannerWrap").hidden = false;
+      }
+      document.getElementById("easyBannerClose").addEventListener("click", function(){
+        localStorage.setItem("easyBannerDismissed", "1");
+        document.getElementById("easyBannerWrap").hidden = true;
+      });
+    }catch(e){ document.getElementById("easyBannerWrap").hidden = false; }
+  })();
+  </script>
   {% endif %}
 
   <main id="main-content" class="container" tabindex="-1">
@@ -1052,6 +1102,9 @@
         } %}
         {% set module_hub = safe_url_for(module_hubs.get(endpoint_module, 'invalide.endpoint'), fallback='') %}
         {% set module_label = module_labels.get(endpoint_module, endpoint_module|capitalize) %}
+      {% endif %}
+      <div class="page-context-row no-print">
+      {% if ep != 'main.dashboard' %}
         <nav class="breadcrumb" aria-label="Fil d’Ariane">
           <a class="breadcrumb__item breadcrumb__home" href="{{ url_for('main.dashboard') }}">Accueil</a>
           <span class="breadcrumb__sep">›</span>
@@ -1072,44 +1125,31 @@
         </nav>
       {% endif %}
 
-      <section class="context-banner {% if ui_simplified %}context-banner--simple{% endif %}" aria-label="Contexte de visibilité">
-        <span class="context-badge"><strong>Rôle</strong> · {{ role_labels.get(role_code, role_code or 'Utilisateur') }}</span>
-        <span class="context-badge"><strong>Portée</strong> · {% if can('scope:all_secteurs') %}Tous secteurs{% else %}{{ current_user.secteur_assigne or 'Secteur non défini' }}{% endif %}</span>
-        {% set hint = perm_hints.get(endpoint_module) %}
-        {% if hint and not ui_simplified %}
-          <span class="context-badge"><strong>Pourquoi je vois cette page</strong> · accès prévu par votre rôle</span>
-        {% endif %}
-      </section>
+        <span class="context-mini" aria-label="Contexte de visibilité">
+          <strong>{{ role_labels.get(role_code, role_code or 'Utilisateur') }}</strong>
+          · {% if can('scope:all_secteurs') %}tous secteurs{% else %}{{ current_user.secteur_assigne or 'secteur non défini' }}{% endif %}
+        </span>
+      </div>
     {% endif %}
 
     {% include "_guide_bandeau.html" %}
 
     {% if AIDE_PAGE %}
-      <section class="aide-page no-print" aria-label="Aide pour cette page">
-        <div class="aide-page__intro">
-          <span class="aide-page__icon" aria-hidden="true">?</span>
-          <div>
-            <strong class="aide-page__label">À quoi sert cette page ?</strong>
-            <p class="aide-page__resume">{{ AIDE_PAGE.resume }}</p>
-          </div>
+      <details class="aide-page--slim no-print" aria-label="Aide pour cette page">
+        <summary>{{ ic.icon('circle-help', 15) }} À quoi sert cette page ?</summary>
+        <div class="aide-page__corps">
+          <p class="aide-page__resume">{{ AIDE_PAGE.resume }}</p>
+          {% if AIDE_PAGE.etapes %}
+            <ol>
+              {% for etape in AIDE_PAGE.etapes %}<li>{{ etape }}</li>{% endfor %}
+            </ol>
+          {% endif %}
+          {% if AIDE_PAGE.astuce %}
+            <p class="aide-page__astuce">💡 {{ AIDE_PAGE.astuce }}</p>
+          {% endif %}
+          <p><a href="{{ url_for('aide.notice') }}">Ouvrir la notice complète →</a></p>
         </div>
-        {% if AIDE_PAGE.etapes or AIDE_PAGE.astuce %}
-          <details class="aide-page__details">
-            <summary>Voir comment faire — {{ AIDE_PAGE.titre }}</summary>
-            <div class="aide-page__corps">
-              {% if AIDE_PAGE.etapes %}
-                <ol>
-                  {% for etape in AIDE_PAGE.etapes %}<li>{{ etape }}</li>{% endfor %}
-                </ol>
-              {% endif %}
-              {% if AIDE_PAGE.astuce %}
-                <p class="aide-page__astuce">💡 {{ AIDE_PAGE.astuce }}</p>
-              {% endif %}
-              <p><a href="{{ url_for('aide.notice') }}">Ouvrir la notice complète →</a></p>
-            </div>
-          </details>
-        {% endif %}
-      </section>
+      </details>
     {% endif %}
     {% block body %}{% endblock %}
   </main>
