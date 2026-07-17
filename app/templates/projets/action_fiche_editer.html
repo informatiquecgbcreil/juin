@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
 
@@ -9,7 +10,7 @@
         <p class="muted">{{ projet.nom }} · {{ projet.secteur }}</p>
       </div>
       <div class="inline" style="gap:8px;">
-        <a class="btn ok" href="{{ url_for('projets.projet_action_fiche_docx', projet_id=projet.id, action_id=action.id) }}">⬇ Générer la fiche (Word)</a>
+        <a class="btn ok" href="{{ url_for('projets.projet_action_fiche_docx', projet_id=projet.id, action_id=action.id) }}">{{ ic.icon('download', 14) }} Générer la fiche (Word)</a>
         <a class="btn" href="{{ url_for('projets.projet_action_detail', projet_id=projet.id, action_id=action.id) }}">Retour à l'action</a>
       </div>
     </div>
@@ -71,7 +72,7 @@
                 placeholder="{% if s.format == 'table' %}{{ s.colonnes | join(' | ') }}{% endif %}">{{ contenu.get(s.cle, '') }}</textarea>
       {% if s.cle == 'indicateurs_quali' %}
         <p class="muted" style="margin-top:8px;">
-          💡 Ne saisissez ici que les indicateurs <em>qualitatifs</em>. Les indicateurs chiffrés
+          {{ ic.icon('lightbulb', 15) }} Ne saisissez ici que les indicateurs <em>qualitatifs</em>. Les indicateurs chiffrés
           sont injectés automatiquement sous ce bloc dans le document généré.
         </p>
       {% endif %}
@@ -81,8 +82,8 @@
 
     <div class="card">
       <div class="inline" style="gap:10px;">
-        <button class="btn ok" type="submit">💾 Enregistrer la fiche</button>
-        <a class="btn" href="{{ url_for('projets.projet_action_fiche_docx', projet_id=projet.id, action_id=action.id) }}">⬇ Générer la fiche (Word)</a>
+        <button class="btn ok" type="submit">{{ ic.icon('save', 14) }} Enregistrer la fiche</button>
+        <a class="btn" href="{{ url_for('projets.projet_action_fiche_docx', projet_id=projet.id, action_id=action.id) }}">{{ ic.icon('download', 14) }} Générer la fiche (Word)</a>
       </div>
     </div>
   </form>

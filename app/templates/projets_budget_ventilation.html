@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
 
@@ -133,7 +134,7 @@
                   </td>
                 {% endfor %}
 
-                {# ✅ COLONNE TOTAL VENTILÉ AVEC MINI BARRE #}
+                {# {{ ic.icon('check', 15) }} COLONNE TOTAL VENTILÉ AVEC MINI BARRE #}
                 <td class="num">
                   <div class="cell-money">
                     <div class="cell-money__main mono">{{ "%.2f"|format(vtot) }}€</div>

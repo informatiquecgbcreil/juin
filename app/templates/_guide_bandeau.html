@@ -1,3 +1,4 @@
+{% import "_icons.html" as ic %}
 {# Bandeau du guide actif : le fil conducteur, visible sur toutes les pages. #}
 {% if GUIDE_ACTIF %}
 <style>
@@ -50,7 +51,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
       <button class="btn primary" type="submit">
-        {% if GUIDE_ACTIF.derniere %}✔ Terminer le guide{% else %}J'ai fini → étape suivante{% endif %}
+        {% if GUIDE_ACTIF.derniere %}{{ ic.icon('check', 15) }} Terminer le guide{% else %}J'ai fini → étape suivante{% endif %}
       </button>
     </form>
     <form method="post" action="{{ url_for('main.guide_quitter') }}">

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Feuille de temps — {{ sub.nom }}{% endblock %}
 {% block body %}
 <style>
@@ -28,14 +29,14 @@
 <div class="page-shell stack">
   <div class="page-header no-print">
     <div class="page-title-wrap">
-      <h1 class="page-title">⏱️ Feuille de temps — {{ sub.nom }}</h1>
+      <h1 class="page-title">{{ ic.icon('clock', 20) }} Feuille de temps — {{ sub.nom }}</h1>
       <p class="page-subtitle">Le temps effectif passé sur cette subvention : séances des ateliers financés,
         créneaux rattachés au projet, préparation. À imprimer, signer et joindre au dossier — ou à comparer
         avec ce que la plateforme du financeur a extrait.</p>
     </div>
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">📊 Justificatif d'activité</a>
-      <button class="btn ok" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <a class="btn" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">{{ ic.icon('bar-chart', 14) }} Justificatif d'activité</a>
+      <button class="btn ok" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 

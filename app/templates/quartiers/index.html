@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 {% block body %}
 
@@ -10,8 +11,8 @@
         <p class="muted">Retrouve les quartiers utilisés dans les fiches et les statistiques, puis mets-les à jour si besoin.</p>
       </div>
       <div class="inline" style="gap:8px;">
-        <a class="btn" href="{{ url_for('quartiers.carte') }}">🗺️ Carte des habitants</a>
-        <a class="btn" href="{{ url_for('quartiers.stats') }}">📊 Voir les statistiques</a>
+        <a class="btn" href="{{ url_for('quartiers.carte') }}">{{ ic.icon('map', 14) }} Carte des habitants</a>
+        <a class="btn" href="{{ url_for('quartiers.stats') }}">{{ ic.icon('bar-chart', 14) }} Voir les statistiques</a>
       </div>
     </div>
   </div>
@@ -31,7 +32,7 @@
       </div>
       <textarea class="in" name="description" placeholder="Description (optionnel)" rows="3"></textarea>
       <div>
-        <button class="btn" type="submit">➕ Ajouter</button>
+        <button class="btn" type="submit">{{ ic.icon('plus', 14) }} Ajouter</button>
       </div>
     </form>
   </div>
@@ -64,7 +65,7 @@
                   {% if can('quartiers:delete') %}
                     <form method="post" action="{{ url_for('quartiers.delete', quartier_id=q.id) }}" style="display:inline;">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce quartier ?');">🗑️ Supprimer</button>
+                      <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce quartier ?');">{{ ic.icon('trash', 14) }} Supprimer</button>
                     </form>
                   {% endif %}
                 </div>
@@ -95,7 +96,7 @@
             {% if can('quartiers:delete') %}
               <form method="post" action="{{ url_for('quartiers.delete', quartier_id=q.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce quartier ?');">🗑️ Supprimer</button>
+                <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce quartier ?');">{{ ic.icon('trash', 14) }} Supprimer</button>
               </form>
             {% endif %}
           </div>

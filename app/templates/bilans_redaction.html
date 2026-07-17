@@ -1,9 +1,10 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
   <div class="card">
-    <h1>📝 Rédiger le bilan financeur</h1>
+    <h1>{{ ic.icon('pen-line', 20) }} Rédiger le bilan financeur</h1>
     <p class="muted">
       Une trame pré-remplie avec les <strong>chiffres réels</strong> de l'application :
       paragraphes prêts à copier, matière narrative déjà saisie, tableau financier,
@@ -27,7 +28,7 @@
 
     {% if selected %}
       <div class="inline" style="gap:8px; flex-wrap:wrap; margin-top:10px;">
-        <a class="btn ok" href="{{ url_for('bilans.redaction_bilan_export_docx', subvention_id=selected.id, year=year) }}">⬇ Exporter la trame (Word)</a>
+        <a class="btn ok" href="{{ url_for('bilans.redaction_bilan_export_docx', subvention_id=selected.id, year=year) }}">{{ ic.icon('download', 14) }} Exporter la trame (Word)</a>
         <a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=selected.id) }}">Pilotage de la subvention</a>
         <a class="btn" href="{{ url_for('main.subvention_feuille_temps', subvention_id=selected.id) }}">Feuille de temps</a>
         <a class="btn" href="{{ url_for('main.assistant_bilan_financeur', subvention_id=selected.id, year=year) }}">Checklist assistant</a>
@@ -47,7 +48,7 @@
       <ul style="list-style:none; padding:0; margin:0;">
         {% for point in trame.checklist %}
           <li style="padding:4px 0;">
-            {% if point.ok %}✅{% else %}⚠️{% endif %}
+            {% if point.ok %}{{ ic.icon('check', 15) }}{% else %}{{ ic.icon('alert-triangle', 15) }}{% endif %}
             <strong>{{ point.label }}</strong>
             {% if not point.ok %}<div class="muted" style="font-size:13px; margin-left:26px;">{{ point.aide }}</div>{% endif %}
           </li>
@@ -87,7 +88,7 @@
           <div style="border:1px solid var(--border,#ddd); border-radius:8px; padding:12px 14px; margin:10px 0;">
             <div class="inline" style="justify-content:space-between; align-items:baseline;">
               <strong>{{ para.titre }}</strong>
-              <button class="btn" type="button" data-copie="para-{{ loop.index }}">📋 Copier</button>
+              <button class="btn" type="button" data-copie="para-{{ loop.index }}">{{ ic.icon('clipboard', 14) }} Copier</button>
             </div>
             <p id="para-{{ loop.index }}" style="margin:8px 0 4px;">{{ para.texte }}</p>
             <div class="muted" style="font-size:12px;">Source : {{ para.source }}</div>

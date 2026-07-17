@@ -987,7 +987,7 @@
     <div class="easy-banner" aria-label="Mode simplifié activé">
       <div class="easy-banner__title">Mode simplifié actif</div>
       <div class="easy-banner__text">Vous voyez d’abord les actions utiles au quotidien. Le mode expert (en haut à droite) montre toutes les pages en permanence.</div>
-      <button type="button" class="easy-banner__close" id="easyBannerClose" title="J'ai compris, ne plus afficher" aria-label="Fermer ce bandeau définitivement">✕</button>
+      <button type="button" class="easy-banner__close" id="easyBannerClose" title="J'ai compris, ne plus afficher" aria-label="Fermer ce bandeau définitivement">{{ ic.icon('x', 14) }}</button>
     </div>
   </div>
   <script>
@@ -1145,7 +1145,7 @@
             </ol>
           {% endif %}
           {% if AIDE_PAGE.astuce %}
-            <p class="aide-page__astuce">💡 {{ AIDE_PAGE.astuce }}</p>
+            <p class="aide-page__astuce">{{ ic.icon('lightbulb', 15) }} {{ AIDE_PAGE.astuce }}</p>
           {% endif %}
           <p><a href="{{ url_for('aide.notice') }}">Ouvrir la notice complète →</a></p>
         </div>

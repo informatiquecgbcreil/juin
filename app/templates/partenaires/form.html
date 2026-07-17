@@ -1,11 +1,12 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="page-shell long-form-shell stack">
   <div class="page-header">
     <div class="page-title-wrap"><h1 class="page-title">{{ 'Nouveau partenaire' if not partenaire else 'Partenaire' }}</h1><p class="page-subtitle">Coordonnées, secteurs et historique des interventions.</p></div>
     <div class="hero-actions">
       <a class="btn" href="{{ url_for('partenaires.orientations') }}">Orientations</a>
-      <a class="btn" href="{{ url_for('partenaires.index') }}">⬅ Retour</a>
+      <a class="btn" href="{{ url_for('partenaires.index') }}">{{ ic.icon('arrow-left', 14) }} Retour</a>
     </div>
   </div>
   <div class="section-card">
@@ -56,7 +57,7 @@
         <div class="field-stack"><label class="muted">Secteur</label><select class="in" name="secteur"><option value="">—</option>{% for s in SECTEURS %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
         <div class="field-stack grow-2"><label class="muted">Description</label><textarea class="in" name="description" rows="3"></textarea></div>
       </div>
-      <div class="inline-actions"><button class="btn" type="submit">➕ Ajouter</button></div>
+      <div class="inline-actions"><button class="btn" type="submit">{{ ic.icon('plus', 14) }} Ajouter</button></div>
     </form>
     <div class="tablewrap clean"><table><thead><tr><th>Date</th><th>Secteur</th><th>Description</th><th style="width:140px;">Actions</th></tr></thead><tbody>{% for i in interventions %}<tr><td>{{ i.date_intervention }}</td><td>{{ i.secteur or '—' }}</td><td>{{ i.description or '—' }}</td><td><form method="post" action="{{ url_for('partenaires.delete_intervention', partenaire_id=partenaire.id, intervention_id=i.id) }}" onsubmit="return confirm('Supprimer cette intervention ?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn danger" type="submit">Supprimer</button></form></td></tr>{% else %}<tr><td colspan="4" class="muted">Aucune intervention enregistrée.</td></tr>{% endfor %}</tbody></table></div>
   </div>

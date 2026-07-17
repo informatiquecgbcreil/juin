@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
   <div class="stack">
     <div class="inline">
       <h1 style="margin:0">Inventaire #{{ item.id }}</h1>
       <div class="inline" style="gap:8px">
-        <a class="btn" href="{{ url_for('inventaire_materiel.list_items') }}">⬅ Retour</a>
+        <a class="btn" href="{{ url_for('inventaire_materiel.list_items') }}">{{ ic.icon('arrow-left', 14) }} Retour</a>
       </div>
     </div>
 
@@ -107,7 +108,7 @@
       <div class="inline" style="justify-content:flex-end; margin-top:12px">
         <form method="POST" action="{{ url_for('inventaire_materiel.delete_item', item_id=item.id) }}" onsubmit="return confirm('Supprimer définitivement cette entrée inventaire ?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn danger" type="submit">🗑️ Supprimer définitivement</button>
+          <button class="btn danger" type="submit">{{ ic.icon('trash', 14) }} Supprimer définitivement</button>
         </form>
       </div>
     </div>

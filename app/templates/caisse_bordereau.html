@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Bordereau de dépôt{% endblock %}
 {% block body %}
 <style>
@@ -19,7 +20,7 @@
 </style>
 <div class="ui-page">
   <div class="ui-actions inline-actions no-print" style="margin:10px 0;">
-    <button type="button" class="btn primary" onclick="window.print()">🖨️ Imprimer le bordereau</button>
+    <button type="button" class="btn primary" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer le bordereau</button>
     <a class="btn" href="{{ url_for('main.caisse') }}">← Retour à la caisse</a>
   </div>
 

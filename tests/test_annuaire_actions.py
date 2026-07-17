@@ -100,7 +100,8 @@ def test_regrouper_selection_en_famille(app, admin_client):
     with app.app_context():
         nom = db.session.get(Participant, pids[0]).nom
     body = admin_client.get(f"/participants/?q={nom}").get_data(as_text=True)
-    assert "👪" in body
+    # Badge famille : lien vers la synthèse, ancre #famille (icône SVG désormais).
+    assert "#famille" in body
 
 
 def test_refus_fusion_de_deux_familles_existantes(app, admin_client):

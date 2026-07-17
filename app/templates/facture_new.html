@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
   <div class="page-shell long-form-shell stack">
     <div class="page-header">
@@ -7,7 +8,7 @@
         <p class="page-subtitle">Crée la facture, puis ajoute ses lignes. Le fichier justificatif reste optionnel à cette étape.</p>
       </div>
       <div class="hero-actions">
-        <a class="btn" href="{{ url_for('inventaire.factures_list') }}">⬅ Retour aux factures</a>
+        <a class="btn" href="{{ url_for('inventaire.factures_list') }}">{{ ic.icon('arrow-left', 14) }} Retour aux factures</a>
       </div>
     </div>
 

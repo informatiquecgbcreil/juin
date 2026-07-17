@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
 
@@ -70,7 +71,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="token" value="{{ token }}">
 
-        <p>✅ <strong>{{ n_nouveaux }} fiches fiables</strong> seront créées (nom, prénom, année de naissance, sexe).
+        <p>{{ ic.icon('check', 15) }} <strong>{{ n_nouveaux }} fiches fiables</strong> seront créées (nom, prénom, année de naissance, sexe).
            La date de naissance sera fixée au <em>1er janvier</em> de l'année connue (jour et mois inconnus).</p>
 
         {% if n_ambigus %}

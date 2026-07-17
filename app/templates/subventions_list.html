@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_macros.html" as ui %}
 {% block body %}
 
@@ -33,8 +34,8 @@
         </form>
         <span class="context-pill">Création rapide disponible ci-dessous</span>
         <a class="btn" href="{{ url_for('main.subventions_par_financeur', annee=selected_year) }}">Vue par financeur</a>
-        <a class="btn" href="{{ url_for('main.tresorerie', annee=selected_year) }}">💶 Trésorerie</a>
-        <a class="btn" href="{{ url_for('main.export_subventions_xlsx', annee=selected_year) }}">⬇ Export Excel</a>
+        <a class="btn" href="{{ url_for('main.tresorerie', annee=selected_year) }}">{{ ic.icon('euro', 14) }} Trésorerie</a>
+        <a class="btn" href="{{ url_for('main.export_subventions_xlsx', annee=selected_year) }}">{{ ic.icon('download', 14) }} Export Excel</a>
         {% if voir_archives %}
           <a class="btn" href="{{ url_for('main.subventions_list', annee=selected_year) }}">← Dossiers actifs</a>
         {% else %}
@@ -53,7 +54,7 @@
         <span class="context-pill">Bascule annuelle :</span>
         <label class="field-stack slim"><span>Reconduire {{ selected_year }} vers</span>
           <input class="in" type="number" name="annee_cible" value="{{ selected_year + 1 }}" style="width:110px;"></label>
-        <button class="btn" type="submit">🔁 Reconduire les dossiers</button>
+        <button class="btn" type="submit">{{ ic.icon('rotate-ccw', 14) }} Reconduire les dossiers</button>
       </form>
     </div>
     {% endif %}
@@ -72,7 +73,7 @@
   {% if alertes and alertes|length %}
   <section class="section-card" style="border-color: color-mix(in srgb, var(--warn) 55%, var(--border));">
     <div class="page-header">
-      <div class="page-title-wrap"><h2>⏰ Échéances à surveiller</h2><p class="muted">Versements attendus, bilans à rendre et dossiers en attente de décision.</p></div>
+      <div class="page-title-wrap"><h2>{{ ic.icon('clock', 16) }} Échéances à surveiller</h2><p class="muted">Versements attendus, bilans à rendre et dossiers en attente de décision.</p></div>
     </div>
     <ul style="margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px;">
       {% for a in alertes %}

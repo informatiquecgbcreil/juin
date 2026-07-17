@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   /* --- Scène : un vrai escalier, la foule debout sur les marches --- */
@@ -51,7 +52,7 @@
       </p>
     </div>
     <div class="hero-actions no-print">
-      <button class="btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 
@@ -103,7 +104,7 @@
              title="Échelle de Hart, barreau {{ d.niveau }} : {{ d.libelle }} — {{ d.description }} ({{ d.count }} habitant(s))">
             <div class="hartc-crowd" aria-hidden="true">
               {%- if d.count -%}
-                {%- for _ in range([d.count, 14] | min) -%}🧍{%- endfor -%}
+                {%- for _ in range([d.count, 14] | min) -%}{{ ic.icon('user', 15) }}{%- endfor -%}
                 {%- if d.count > 14 %}<span class="plus">+{{ d.count - 14 }}</span>{% endif -%}
               {%- endif -%}
             </div>
@@ -129,7 +130,7 @@
         <div class="hartc-zone oui">PARTICIPATION EFFECTIVE ↑</div>
       </div>
     </div>
-    <p class="muted no-print" style="font-size:12px; margin-top:8px;">Clique sur une marche pour voir qui s'y trouve. Chaque silhouette 🧍 est un habitant positionné sur la marche (dernier positionnement connu sur la période).</p>
+    <p class="muted no-print" style="font-size:12px; margin-top:8px;">Clique sur une marche pour voir qui s'y trouve. Chaque silhouette {{ ic.icon('user', 15) }} est un habitant positionné sur la marche (dernier positionnement connu sur la période).</p>
     {% if stats.non_evalues %}
       <div class="callout-soft" style="margin-top:14px;">
         <strong>{{ stats.non_evalues|length }} habitant(s) actifs jamais positionnés.</strong>

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 {% block head_extra %}
   <style>@media print { .no-print { display: none !important; } }</style>
@@ -22,9 +23,9 @@
           {% endfor %}
         </select>
         <button class="btn" type="submit">Charger</button>
-        <button class="btn" type="button" onclick="window.print()">🖨️ Imprimer / PDF</button>
-        <a class="btn" href="{{ url_for('bilans.bilans_lourds_export_docx', year=year) }}">⬇️ Export DOCX</a>
-        <a class="btn" href="{{ url_for('bilans.dashboard', year=year) }}">⬅ Retour</a>
+        <button class="btn" type="button" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
+        <a class="btn" href="{{ url_for('bilans.bilans_lourds_export_docx', year=year) }}">{{ ic.icon('download', 14) }} Export DOCX</a>
+        <a class="btn" href="{{ url_for('bilans.dashboard', year=year) }}">{{ ic.icon('arrow-left', 14) }} Retour</a>
       </form>
     </div>
   </div>

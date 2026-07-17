@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -35,9 +36,9 @@
     </details>
     <p class="muted">
       {% if purge_auto %}
-        ✅ La purge automatique est <strong>active</strong> : elle s'exécute une fois par jour, toute seule.
+        {{ ic.icon('check', 15) }} La purge automatique est <strong>active</strong> : elle s'exécute une fois par jour, toute seule.
       {% else %}
-        ⚠️ La purge automatique est <strong>désactivée</strong> : aucune fiche ne sera anonymisée sans votre action.
+        {{ ic.icon('alert-triangle', 15) }} La purge automatique est <strong>désactivée</strong> : aucune fiche ne sera anonymisée sans votre action.
       {% endif %}
       {% if derniere_purge %}
         Dernière vérification : {{ derniere_purge.strftime('%d/%m/%Y à %H:%M') }}.
@@ -107,7 +108,7 @@
         </form>
       {% endif %}
     {% else %}
-      <p class="muted">Aucune fiche inactive depuis plus de {{ annees }} ans. Tout est en règle ✅</p>
+      <p class="muted">Aucune fiche inactive depuis plus de {{ annees }} ans. Tout est en règle {{ ic.icon('check', 15) }}</p>
     {% endif %}
   </div>
 </div>

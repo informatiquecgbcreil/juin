@@ -1,4 +1,5 @@
 {% extends 'kiosk/base.html' %}
+{% import "_icons.html" as ic %}
 {% block header_title %}Signature de présence{% endblock %}
 {% block body %}
 {% if presence is none %}
@@ -9,7 +10,7 @@
   </div>
 {% elif signe %}
   <div class="k-card">
-    <h2 class="k-card__title">✅ Merci {{ participant.prenom }} !</h2>
+    <h2 class="k-card__title">{{ ic.icon('check', 16) }} Merci {{ participant.prenom }} !</h2>
     <p>Votre signature a bien été enregistrée pour
        <strong>{{ atelier.nom if atelier else 'la séance' }}</strong>
        du {{ (session.rdv_date or session.date_session).strftime('%d/%m/%Y') if (session.rdv_date or session.date_session) else '' }}.
@@ -33,7 +34,7 @@
       <canvas id="sig" width="700" height="200" class="k-sig-canvas"></canvas>
       <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
         <button type="button" class="k-btn k-btn--ghost" id="clearSig">↺ Recommencer</button>
-        <button type="submit" class="k-btn k-btn--primary">✔ Valider ma signature</button>
+        <button type="submit" class="k-btn k-btn--primary">{{ ic.icon('check', 14) }} Valider ma signature</button>
       </div>
     </div>
   </form>

@@ -1,9 +1,10 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
   <div class="card">
-    <h1>🌱 Transitions · {{ annee }}{% if secteur %} — {{ secteur }}{% endif %}</h1>
+    <h1>{{ ic.icon('leaf', 20) }} Transitions · {{ annee }}{% if secteur %} — {{ secteur }}{% endif %}</h1>
     <p class="muted">
       Suivi des actions de transition : les chiffres (séances, participations, publics,
       heures, kWh/CO₂) viennent <strong>automatiquement</strong> de l'émargement des
@@ -33,7 +34,7 @@
     <div class="inline" style="gap:8px; flex-wrap:wrap; margin-top:10px;">
       <a class="btn" href="{{ url_for('transitions.ateliers') }}">🏷️ Étiqueter les ateliers</a>
       <a class="btn" href="{{ url_for('transitions.export_xlsx', annee=annee, secteur=secteur or none) }}"
-         title="Synthèse annuelle à recopier dans le portail CSAT.">⬇ Bilan annuel (XLSX)</a>
+         title="Synthèse annuelle à recopier dans le portail CSAT.">{{ ic.icon('download', 15) }} Bilan annuel (XLSX)</a>
     </div>
 
     {% set t = data.totaux %}
@@ -172,7 +173,7 @@
               <td>{{ d.porteur_label }}{% if d.foyer_id %} <span class="muted">(famille)</span>{% endif %}</td>
               <td>{{ d.date_engagement.strftime('%d/%m/%Y') if d.date_engagement else '—' }}</td>
               <td>
-                {% if d.statut == 'realise' %}<span class="status-badge status-info">Réalisé ✓</span>
+                {% if d.statut == 'realise' %}<span class="status-badge status-info">Réalisé {{ ic.icon('check', 15) }}</span>
                 {% elif d.statut == 'abandonne' %}<span class="muted">Abandonné</span>
                 {% else %}<span class="status-badge">En cours</span>{% endif %}
               </td>
@@ -181,7 +182,7 @@
                   <form method="post" action="{{ url_for('transitions.defi_statut', defi_id=d.id) }}" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="statut" value="realise">
-                    <button class="btn" type="submit">🎉 Réalisé</button>
+                    <button class="btn" type="submit">{{ ic.icon('sparkle', 14) }} Réalisé</button>
                   </form>
                   <form method="post" action="{{ url_for('transitions.defi_statut', defi_id=d.id) }}" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -309,7 +310,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="ajouter">
       <input type="text" name="libelle" placeholder="Nouvelle thématique (ex. Eau)" required>
-      <button class="btn" type="submit">➕ Ajouter</button>
+      <button class="btn" type="submit">{{ ic.icon('plus', 14) }} Ajouter</button>
     </form>
   </div>
   {% endif %}

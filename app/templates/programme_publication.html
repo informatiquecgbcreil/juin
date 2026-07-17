@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -13,7 +14,7 @@
 
     {% if configuree %}
       <p class="muted">
-        ✅ Publication configurée vers <strong>{{ config.host }}</strong>{% if config.dir %} (dossier <code>{{ config.dir }}</code>){% endif %},
+        {{ ic.icon('check', 15) }} Publication configurée vers <strong>{{ config.host }}</strong>{% if config.dir %} (dossier <code>{{ config.dir }}</code>){% endif %},
         fichier <code>{{ config.filename }}</code>.
       </p>
       {% if derniere %}
@@ -21,7 +22,7 @@
       {% endif %}
       <form method="post" action="{{ url_for('main.publication_programme_publier') }}" data-no-scroll-restore>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit" data-pending-text="Publication en cours…">🌐 Publier maintenant</button>
+        <button class="btn" type="submit" data-pending-text="Publication en cours…">{{ ic.icon('globe', 14) }} Publier maintenant</button>
       </form>
       {% if config.url_publique %}
         <p class="ux-helper" style="margin-top:8px;">

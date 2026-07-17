@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 
 {% block body %}
@@ -30,9 +31,9 @@
           </div>
           <div class="inline" style="gap:8px; flex-wrap:wrap;">
             <a class="btn" href="{{ url_for('bilans.dashboard', year=year) }}">← Tableau de bord</a>
-            <a class="btn" href="{{ url_for('bilans.bilan_secteur', year=year) }}">📊 Bilan par secteur</a>
-            <a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year) }}">🧾 Bilan par subvention</a>
-            <a class="btn" href="{{ url_for('bilans.inventaire', year=year) }}">📦 Inventaire</a>
+            <a class="btn" href="{{ url_for('bilans.bilan_secteur', year=year) }}">{{ ic.icon('bar-chart', 14) }} Bilan par secteur</a>
+            <a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year) }}">{{ ic.icon('receipt', 14) }} Bilan par subvention</a>
+            <a class="btn" href="{{ url_for('bilans.inventaire', year=year) }}">{{ ic.icon('package', 14) }} Inventaire</a>
           </div>
         </div>
       </div>

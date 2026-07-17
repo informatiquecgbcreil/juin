@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -62,7 +63,7 @@
         </table>
       </div>
 
-      <button class="btn" type="submit" data-pending-text="Enregistrement…">💾 Enregistrer les réglages</button>
+      <button class="btn" type="submit" data-pending-text="Enregistrement…">{{ ic.icon('save', 14) }} Enregistrer les réglages</button>
     </form>
   </div>
 

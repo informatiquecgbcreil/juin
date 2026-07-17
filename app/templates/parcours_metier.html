@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
@@ -15,7 +16,7 @@
       <article class="card profile-card">
         <div class="inline" style="justify-content:space-between;align-items:flex-start;gap:10px;">
           <div><h2 style="margin:0;">{{ profil.title }}</h2><p class="muted">{{ profil.intro }}</p></div>
-          <div class="profile-icon" aria-hidden="true">{{ profil.icon }}</div>
+          <div class="profile-icon" aria-hidden="true">{{ ic.emoji(profil.icon, 24) }}</div>
         </div>
         <div class="profile-actions">
           {% for action in profil.actions %}

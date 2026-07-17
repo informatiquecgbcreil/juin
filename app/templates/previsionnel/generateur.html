@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .gen-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
@@ -71,12 +72,12 @@
         </label>
       </div>
       <div class="inline-actions" style="margin-top:12px;">
-        <button class="btn ok" type="submit" onclick="document.getElementById('cerfaAction').value='export_xlsx'">⬇ Exporter en Excel</button>
+        <button class="btn ok" type="submit" onclick="document.getElementById('cerfaAction').value='export_xlsx'">{{ ic.icon('download', 14) }} Exporter en Excel</button>
         {% if can_edit_budget %}
           <button class="btn" type="submit" onclick="document.getElementById('cerfaAction').value='to_subvention'">→ Créer une subvention</button>
           <button class="btn" type="submit" onclick="document.getElementById('cerfaAction').value='to_previsionnel'">→ Créer un budget prévisionnel</button>
         {% endif %}
-        <button class="btn" type="button" onclick="window.print()">🖨️ Imprimer</button>
+        <button class="btn" type="button" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer</button>
       </div>
       <p class="muted" style="font-size:12px; margin-top:8px;">Les contributions volontaires (86/87) figurent dans l'export Excel mais ne sont pas envoyées vers une subvention ou un budget (ce ne sont pas des flux financiers réels).</p>
     </section>

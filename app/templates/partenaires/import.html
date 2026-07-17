@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
   <div class="card">
@@ -12,7 +13,7 @@
         </p>
       </div>
       <div class="inline" style="gap:8px;">
-        <a class="btn" href="{{ url_for('partenaires.index') }}">⬅ Annuaire</a>
+        <a class="btn" href="{{ url_for('partenaires.index') }}">{{ ic.icon('arrow-left', 14) }} Annuaire</a>
       </div>
     </div>
   </div>
@@ -20,7 +21,7 @@
   <div class="card">
     <h2>1. Récupérer le modèle</h2>
     <p class="muted">Téléchargez le modèle (séparateur « ; », encodage UTF-8), remplissez-le, puis importez-le.</p>
-    <a class="btn" href="{{ url_for('partenaires.import_modele') }}">⬇️ Télécharger le modèle CSV</a>
+    <a class="btn" href="{{ url_for('partenaires.import_modele') }}">{{ ic.icon('download', 14) }} Télécharger le modèle CSV</a>
   </div>
 
   <div class="card">
@@ -29,7 +30,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input class="in" type="file" name="fichier" accept=".csv,text/csv" required>
       <div>
-        <button class="btn" type="submit" data-pending-text="Import…">📥 Importer</button>
+        <button class="btn" type="submit" data-pending-text="Import…">{{ ic.icon('download', 14) }} Importer</button>
       </div>
     </form>
   </div>
@@ -48,7 +49,7 @@
       <li><code>niveau_orientation</code> — {{ orientation_niveaux.keys()|join(' / ') }}</li>
     </ul>
     <p class="muted" style="font-size:13px;">
-      Astuce : après l'import, lancez « 📍 Géocoder les adresses » sur la carte des partenaires
+      Astuce : après l'import, lancez « {{ ic.icon('map-pin', 15) }} Géocoder les adresses » sur la carte des partenaires
       pour les positionner automatiquement.
     </p>
   </div>

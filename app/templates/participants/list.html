@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 {% import "_ux_macros.html" as ui %}
 {% block body %}
@@ -28,8 +29,8 @@
           {% if can('participants:delete') or can('ateliers:sync') %}
           <a class="pill" href="#nettoyage-imports">Nettoyage des imports</a>
           {% endif %}
-          <a class="pill" href="{{ url_for('participants.export_csat_csv') }}" title="Fichier CSV compatible avec l'import « Participants » du portail CSAT (Centres Sociaux Acteurs des Transitions).">⬇ Exporter pour CSAT (CSV)</a>
-          <a class="pill" href="{{ url_for('participants.export_contacts_emailing_csv') }}" title="Fichier CSV des personnes ayant un e-mail renseigné, à importer dans un outil d'envoi de newsletters (Brevo, Mailjet…).">⬇ Exporter les contacts (e-mailing)</a>
+          <a class="pill" href="{{ url_for('participants.export_csat_csv') }}" title="Fichier CSV compatible avec l'import « Participants » du portail CSAT (Centres Sociaux Acteurs des Transitions).">{{ ic.icon('download', 15) }} Exporter pour CSAT (CSV)</a>
+          <a class="pill" href="{{ url_for('participants.export_contacts_emailing_csv') }}" title="Fichier CSV des personnes ayant un e-mail renseigné, à importer dans un outil d'envoi de newsletters (Brevo, Mailjet…).">{{ ic.icon('download', 15) }} Exporter les contacts (e-mailing)</a>
         </div>
       </details>
     </div>
@@ -156,10 +157,10 @@
       {% if can('participants:edit') %}
       <button class="btn ok" type="submit" form="bulk-actions" name="action" value="famille"
               title="Rassemble les personnes cochées dans un même foyer : l'adhésion familiale se règle une fois pour toute la famille."
-              onclick="return confirm('Regrouper les personnes cochées dans une même famille (foyer) ?');">👪 Regrouper en famille</button>
+              onclick="return confirm('Regrouper les personnes cochées dans une même famille (foyer) ?');">{{ ic.icon('users', 15) }} Regrouper en famille</button>
       {% endif %}
       <button class="btn" type="submit" form="bulk-actions" name="action" value="export"
-              title="Télécharge la sélection en tableur (CSV).">⬇ Exporter la sélection</button>
+              title="Télécharge la sélection en tableur (CSV).">{{ ic.icon('download', 15) }} Exporter la sélection</button>
       {% if can('participants:anonymize') %}
       <button class="btn warn" type="submit" form="bulk-actions" name="action" value="anonymiser"
               title="Efface nom et coordonnées, conserve les présences et les statistiques."
@@ -167,7 +168,7 @@
       {% endif %}
       {% if can('participants:delete') %}
       <button class="btn danger" type="submit" form="bulk-actions" name="action" value="supprimer"
-              onclick="return confirm('Supprimer DÉFINITIVEMENT les fiches cochées, avec leurs présences ? Si vous voulez garder les statistiques, utilisez plutôt l\'anonymisation. Action irréversible.');">🗑️ Supprimer la sélection</button>
+              onclick="return confirm('Supprimer DÉFINITIVEMENT les fiches cochées, avec leurs présences ? Si vous voulez garder les statistiques, utilisez plutôt l\'anonymisation. Action irréversible.');">{{ ic.icon('trash', 15) }} Supprimer la sélection</button>
       {% endif %}
       <button class="btn" type="button" id="bulk-clear">Tout décocher</button>
     </div>
@@ -198,7 +199,7 @@
           <tr>
             <td><input type="checkbox" class="bulk-pid" name="pid" value="{{ item.id }}" form="bulk-actions" aria-label="Sélectionner {{ item.prenom }} {{ item.nom }}"></td>
             <td><strong>{{ item.nom }}</strong><br><span class="muted">{{ item.prenom or '—' }}</span>
-              {% if item.foyer_id %}<br><a class="chip" style="text-decoration:none;" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}#famille" title="Membre d'une famille (foyer) — voir la synthèse pour la composition.">👪 {{ item.foyer.nom or 'Famille' }}</a>{% endif %}
+              {% if item.foyer_id %}<br><a class="chip" style="text-decoration:none;" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}#famille" title="Membre d'une famille (foyer) — voir la synthèse pour la composition.">{{ ic.icon('users', 15) }} {{ item.foyer.nom or 'Famille' }}</a>{% endif %}
             </td>
             <td><div>{{ item.email or '—' }}</div><div class="muted">{{ item.telephone or '—' }}</div></td>
             <td>
@@ -209,7 +210,7 @@
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="retour" value="{{ request.full_path }}">
                   <input class="in" type="date" name="date_naissance" required style="max-width:150px; padding:4px 6px;" aria-label="Date de naissance de {{ item.prenom }} {{ item.nom }}">
-                  <button class="btn" type="submit" title="Enregistrer la date de naissance sans ouvrir la fiche">✔</button>
+                  <button class="btn" type="submit" title="Enregistrer la date de naissance sans ouvrir la fiche">{{ ic.icon('check', 14) }}</button>
                 </form>
               {% else %}
                 —
@@ -238,7 +239,7 @@
         <header class="responsive-card__head">
           <strong><label style="display:inline-flex; align-items:center; gap:8px;"><input type="checkbox" class="bulk-pid" name="pid" value="{{ item.id }}" form="bulk-actions"> {{ item.nom }} {{ item.prenom or '' }}</label></strong>
           <span class="chip">{{ item.type_public or 'Public non renseigné' }}</span>
-          {% if item.foyer_id %}<a class="chip" style="text-decoration:none;" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}#famille">👪 {{ item.foyer.nom or 'Famille' }}</a>{% endif %}
+          {% if item.foyer_id %}<a class="chip" style="text-decoration:none;" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}#famille">{{ ic.icon('users', 15) }} {{ item.foyer.nom or 'Famille' }}</a>{% endif %}
         </header>
         <dl class="responsive-card__grid">
           <div><dt>Coordonnées</dt><dd>{{ item.email or '—' }}<br><span class="muted">{{ item.telephone or '—' }}</span></dd></div>

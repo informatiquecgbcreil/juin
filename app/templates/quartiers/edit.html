@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block head_extra %}
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
 {% endblock %}
@@ -12,7 +13,7 @@
         <p class="muted">{{ quartier.ville }} — {{ quartier.nom }}</p>
       </div>
       <div>
-        <a class="btn" href="{{ url_for('quartiers.index') }}">⬅️ Retour</a>
+        <a class="btn" href="{{ url_for('quartiers.index') }}">{{ ic.icon('arrow-left', 14) }} Retour</a>
       </div>
     </div>
   </div>
@@ -34,7 +35,7 @@
         <label class="muted">Position sur la carte des habitants</label>
         <p class="muted" style="font-size:13px; margin:4px 0 8px 0;">
           Cliquez sur la carte pour placer ce quartier (ou déplacez le repère). C'est ici que sa bulle
-          s'affichera. Laissez vide pour laisser le bouton « 🧭 Placer les quartiers » le positionner automatiquement.
+          s'affichera. Laissez vide pour laisser le bouton « {{ ic.icon('compass', 15) }} Placer les quartiers » le positionner automatiquement.
         </p>
         <div id="quartier-map" style="height:360px; width:100%; border-radius:10px;"
              data-tile-url="{{ tile_url }}"
@@ -52,7 +53,7 @@
       </div>
 
       <div>
-        <button class="btn" type="submit">💾 Enregistrer</button>
+        <button class="btn" type="submit">{{ ic.icon('save', 14) }} Enregistrer</button>
       </div>
     </form>
   </div>

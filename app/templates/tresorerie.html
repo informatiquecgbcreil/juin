@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .treso-bar-row { display:grid; grid-template-columns: 160px 1fr 130px; gap:12px; align-items:center; margin:6px 0; }
@@ -26,8 +27,8 @@
         </label>
         <noscript><button class="btn" type="submit">Afficher</button></noscript>
       </form>
-      <a class="btn" href="{{ url_for('main.tresorerie_export_xlsx', annee=annee) }}">⬇ Export Excel</a>
-      <button class="btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <a class="btn" href="{{ url_for('main.tresorerie_export_xlsx', annee=annee) }}">{{ ic.icon('download', 14) }} Export Excel</a>
+      <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 
@@ -71,7 +72,7 @@
 
   {% if alertes and alertes|length %}
   <section class="section-card" style="border-color: color-mix(in srgb, var(--warn) 55%, var(--border));">
-    <h2 class="section-title">⏰ Échéances consolidées</h2>
+    <h2 class="section-title">{{ ic.icon('clock', 16) }} Échéances consolidées</h2>
     <ul style="margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px;">
       {% for a in alertes %}
         <li><span class="status-badge {{ 'status-danger' if a.niveau == 'danger' else 'status-warning' }}">{{ 'Retard' if a.niveau == 'danger' else 'Bientôt' }}</span>

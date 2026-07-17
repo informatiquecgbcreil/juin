@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
   <div class="page-shell wide-shell stack" id="top">
     <div class="page-header">
@@ -7,9 +8,9 @@
         <p class="page-subtitle">Secteur <strong>{{ f.secteur_principal }}</strong> · <span class="status-badge js-auto-status">{{ 'validée' if f.statut == 'valide' else 'brouillon' }}</span> · Total <strong>{{ "%.2f"|format(f.total or 0) }} €</strong></p>
       </div>
       <div class="hero-actions">
-        <a class="btn" href="{{ url_for('inventaire.factures_list') }}">⬅ Retour</a>
+        <a class="btn" href="{{ url_for('inventaire.factures_list') }}">{{ ic.icon('arrow-left', 14) }} Retour</a>
         {% if f.filename %}
-          <a class="btn" href="{{ url_for('inventaire.facture_download', facture_id=f.id) }}">📎 Télécharger</a>
+          <a class="btn" href="{{ url_for('inventaire.facture_download', facture_id=f.id) }}">{{ ic.icon('paperclip', 14) }} Télécharger</a>
         {% endif %}
       </div>
     </div>
@@ -37,7 +38,7 @@
         {% if f.statut != 'valide' %}
           <form method="post" action="{{ url_for('inventaire.facture_validate', facture_id=f.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn ok" type="submit">✅ Valider (générer les dépenses)</button>
+            <button class="btn ok" type="submit">{{ ic.icon('check', 14) }} Valider (générer les dépenses)</button>
             <div class="help">Une fois validée, la facture devient un historique + on bloque la suppression des lignes.</div>
           </form>
         {% else %}
@@ -114,7 +115,7 @@
             </div>
 
             <div class="spacer"></div>
-            <button class="btn ok" type="submit">➕ Ajouter</button>
+            <button class="btn ok" type="submit">{{ ic.icon('plus', 14) }} Ajouter</button>
           </form>
 
           <script>
@@ -206,12 +207,12 @@
                 <td style="text-align:right">
                   <form method="post" action="{{ url_for('inventaire_materiel.create_from_facture_ligne', ligne_id=l.id) }}" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn" type="submit">📦 Inventaire</button>
+                    <button class="btn" type="submit">{{ ic.icon('package', 14) }} Inventaire</button>
                   </form>
                   {% if (l.quantite or 1) > 1 %}
                     <form method="post" action="{{ url_for('inventaire_materiel.create_bulk_from_facture_ligne', ligne_id=l.id) }}" style="display:inline;" onsubmit="return confirm('Créer {{ l.quantite }} items unitaires (quantité=1) ?')">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button class="btn" type="submit">📦 {{ l.quantite }} unitaires</button>
+                      <button class="btn" type="submit">{{ ic.icon('package', 14) }} {{ l.quantite }} unitaires</button>
                     </form>
                   {% endif %}
                   {% if f.statut != 'valide' %}

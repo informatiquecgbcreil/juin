@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
   <div class="page-header">
@@ -7,7 +8,7 @@
       <p class="page-subtitle">Choisissez un quartier, une période et un angle de lecture pour comprendre ce qui se passe vraiment sur le terrain.</p>
     </div>
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('quartiers.index') }}">⬅️ Retour aux villes et quartiers</a>
+      <a class="btn" href="{{ url_for('quartiers.index') }}">{{ ic.icon('arrow-left', 14) }} Retour aux villes et quartiers</a>
     </div>
   </div>
 

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Émargements en attente{% endblock %}
 {% block body %}
 <style>
@@ -22,14 +23,14 @@
 <div class="ui-page">
   <section class="ui-header page-hero-soft">
     <div class="page-title-wrap">
-      <h1 class="ui-title page-title">⏳ Émargements en attente</h1>
+      <h1 class="ui-title page-title">{{ ic.icon('hourglass', 20) }} Émargements en attente</h1>
       <p class="ui-subtitle page-subtitle">
         Les séances passées où aucune présence n'est saisie : soit la feuille n'est pas revenue
         (relance l'animateur), soit elle attend d'être saisie (grille de rattrapage).
       </p>
     </div>
     <div class="ui-actions inline-actions">
-      <a class="btn" href="{{ url_for('activite.saisie_grille') }}">🗓️ Saisie en grille</a>
+      <a class="btn" href="{{ url_for('activite.saisie_grille') }}">{{ ic.icon('calendar', 14) }} Saisie en grille</a>
       <a class="btn" href="{{ url_for('activite.index') }}">Ateliers</a>
     </div>
   </section>
@@ -55,12 +56,12 @@
                 <a class="btn" href="{{ url_for('activite.emargement', session_id=item.session.id) }}">Feuille détaillée</a>
                 {% if can('emargement:edit') %}
                   {% if item.relance_posee %}
-                    <span class="muted" title="Un rappel est déjà dans « À traiter »">🔔 relancé</span>
+                    <span class="muted" title="Un rappel est déjà dans « À traiter »">{{ ic.icon('bell', 15) }} relancé</span>
                   {% else %}
                     <form method="post" action="{{ url_for('activite.emargements_relancer') }}">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <input type="hidden" name="session_id" value="{{ item.session.id }}">
-                      <button class="btn" type="submit" title="Pose un rappel « feuille à récupérer » dans À traiter">🔔 Relancer</button>
+                      <button class="btn" type="submit" title="Pose un rappel « feuille à récupérer » dans À traiter">{{ ic.icon('bell', 14) }} Relancer</button>
                     </form>
                   {% endif %}
                 {% endif %}
@@ -72,7 +73,7 @@
     {% endfor %}
   {% else %}
     <div class="quick-empty" style="margin-top:14px;">
-      <strong>Tout est à jour 🎉</strong>
+      <strong>Tout est à jour {{ ic.icon('sparkle', 15) }}</strong>
       Aucune séance passée sans présence sur les 12 derniers mois.
     </div>
   {% endif %}

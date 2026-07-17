@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="page-shell dense-list-shell wide-shell">
   <section class="hero-card">
@@ -13,7 +14,7 @@
           <button class="btn" type="submit">Afficher</button>
         </form>
         <a class="btn" href="{{ url_for('main.subventions_list', annee=selected_year) }}">← Retour à la liste</a>
-        <a class="btn" href="{{ url_for('main.export_subventions_xlsx', annee=selected_year) }}">⬇ Export Excel</a>
+        <a class="btn" href="{{ url_for('main.export_subventions_xlsx', annee=selected_year) }}">{{ ic.icon('download', 14) }} Export Excel</a>
       </div>
     </div>
     <div class="kpi-grid-modern">

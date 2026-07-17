@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="page-shell stack">
   <div class="page-header">
@@ -7,7 +8,7 @@
       <p class="page-subtitle">{{ projet.secteur }} · jalons et échéances de pilotage du projet.</p>
     </div>
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('projets.projets_edit', projet_id=projet.id) }}">⬅ Retour au projet</a>
+      <a class="btn" href="{{ url_for('projets.projets_edit', projet_id=projet.id) }}">{{ ic.icon('arrow-left', 14) }} Retour au projet</a>
     </div>
   </div>
 

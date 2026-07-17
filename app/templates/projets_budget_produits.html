@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
 
@@ -210,7 +211,7 @@
             </td>
 
             <td class="actions" style="white-space:nowrap">
-              <a class="btn" href="{{ url_for('projets.projet_budget_produit_edit', projet_id=projet.id, produit_id=p.id) }}">✏️</a>
+              <a class="btn" href="{{ url_for('projets.projet_budget_produit_edit', projet_id=projet.id, produit_id=p.id) }}">{{ ic.icon('pen-line', 14) }}</a>
               <form method="post" action="{{ url_for('projets.projet_budget_produit_delete', projet_id=projet.id, produit_id=p.id) }}" style="display:inline" onsubmit="return confirm('Supprimer ce produit/financeur ?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn" type="submit">Supprimer</button>

@@ -1,3 +1,4 @@
+{% import "_icons.html" as ic %}
 {# Adhésion, participation & foyer — année scolaire en cours + historique. #}
 <style>
   .cotis-card{ border:1px solid rgba(15,23,42,.10); border-radius:8px; padding:14px; background:#fff; }
@@ -55,7 +56,7 @@
             </div>
           {% endif %}
           {% if c.montant_regle > 0 %}
-            <div style="margin-top:6px;"><a class="mini-link" href="{{ url_for('participants.cotisation_recu', participant_id=participant.id, cotisation_id=c.id) }}" target="_blank">🧾 Imprimer un reçu de règlement</a></div>
+            <div style="margin-top:6px;"><a class="mini-link" href="{{ url_for('participants.cotisation_recu', participant_id=participant.id, cotisation_id=c.id) }}" target="_blank">{{ ic.icon('receipt', 15) }} Imprimer un reçu de règlement</a></div>
           {% endif %}
           {% if can_edit_cotisations %}
             <form class="cotis-form-inline" method="post" action="{{ url_for('participants.cotisation_versement', participant_id=participant.id, cotisation_id=c.id) }}">
@@ -68,17 +69,17 @@
                 </select>
               </div>
               <div><label>Commentaire</label><input type="text" name="commentaire" size="14" placeholder="optionnel"></div>
-              <button class="btn" type="submit">💶 Enregistrer</button>
+              <button class="btn" type="submit">{{ ic.icon('euro', 14) }} Enregistrer</button>
             </form>
             <div class="cotis-actions-row">
               {% if not c.solde %}
                 <form method="post" action="{{ url_for('participants.cotisation_relancer', participant_id=participant.id, cotisation_id=c.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn" type="submit" title="Pose un rappel dans À traiter">🔔 Relancer</button>
+                  <button class="btn" type="submit" title="Pose un rappel dans À traiter">{{ ic.icon('bell', 14) }} Relancer</button>
                 </form>
               {% endif %}
               <details style="display:inline-block;">
-                <summary class="btn" style="display:inline-block;">✏️ Corriger le montant dû</summary>
+                <summary class="btn" style="display:inline-block;">{{ ic.icon('pen-line', 14) }} Corriger le montant dû</summary>
                 <form class="cotis-form-inline" method="post" action="{{ url_for('participants.cotisation_montant_update', participant_id=participant.id, cotisation_id=c.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <div><label>Nouveau montant dû</label><input type="text" name="montant_du" size="6" value="{{ '%.2f'|format(c.montant_du) }}"></div>
@@ -136,7 +137,7 @@
             </div>
           {% endif %}
           {% if c.montant_regle > 0 %}
-            <div style="margin-top:6px;"><a class="mini-link" href="{{ url_for('participants.cotisation_recu', participant_id=participant.id, cotisation_id=c.id) }}" target="_blank">🧾 Imprimer un reçu de règlement</a></div>
+            <div style="margin-top:6px;"><a class="mini-link" href="{{ url_for('participants.cotisation_recu', participant_id=participant.id, cotisation_id=c.id) }}" target="_blank">{{ ic.icon('receipt', 15) }} Imprimer un reçu de règlement</a></div>
           {% endif %}
           {% if can_edit_cotisations %}
             <form class="cotis-form-inline" method="post" action="{{ url_for('participants.cotisation_versement', participant_id=participant.id, cotisation_id=c.id) }}">
@@ -149,17 +150,17 @@
                 </select>
               </div>
               <div><label>Commentaire</label><input type="text" name="commentaire" size="14" placeholder="optionnel"></div>
-              <button class="btn" type="submit">💶 Enregistrer</button>
+              <button class="btn" type="submit">{{ ic.icon('euro', 14) }} Enregistrer</button>
             </form>
             <div class="cotis-actions-row">
               {% if not c.solde %}
                 <form method="post" action="{{ url_for('participants.cotisation_relancer', participant_id=participant.id, cotisation_id=c.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn" type="submit" title="Pose un rappel dans À traiter">🔔 Relancer</button>
+                  <button class="btn" type="submit" title="Pose un rappel dans À traiter">{{ ic.icon('bell', 14) }} Relancer</button>
                 </form>
               {% endif %}
               <details style="display:inline-block;">
-                <summary class="btn" style="display:inline-block;">✏️ Corriger le montant dû</summary>
+                <summary class="btn" style="display:inline-block;">{{ ic.icon('pen-line', 14) }} Corriger le montant dû</summary>
                 <form class="cotis-form-inline" method="post" action="{{ url_for('participants.cotisation_montant_update', participant_id=participant.id, cotisation_id=c.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <div><label>Nouveau montant dû</label><input type="text" name="montant_du" size="6" value="{{ '%.2f'|format(c.montant_du) }}"></div>
@@ -194,7 +195,7 @@
 
   {% if cotisations_historique %}
     <details style="margin-top:12px;">
-      <summary class="btn" style="display:inline-block;">📜 Historique des années précédentes ({{ cotisations_historique|length }})</summary>
+      <summary class="btn" style="display:inline-block;">{{ ic.icon('file-text', 14) }} Historique des années précédentes ({{ cotisations_historique|length }})</summary>
       <div class="person-list" style="margin-top:8px;">
         {% for annee, lignes in cotisations_historique %}
           <div class="person-row">
@@ -209,7 +210,7 @@
   {% endif %}
 
   <div class="spacer"></div>
-  <h3 id="famille">👪 Famille (foyer)</h3>
+  <h3 id="famille">{{ ic.icon('users', 16) }} Famille (foyer)</h3>
   <p class="person-meta" style="margin:2px 0 8px 0;">Les membres d'une même famille partagent l'adhésion familiale. Astuce : dans l'annuaire, cochez plusieurs personnes puis « Regrouper en famille » pour aller plus vite.</p>
   {% if foyer_membres %}
     <div class="person-list">
@@ -221,7 +222,7 @@
               <form method="post" action="{{ url_for('participants.foyer_detacher', participant_id=participant.id) }}" style="margin:0;" onsubmit="return confirm('Détacher {{ m.nom }} {{ m.prenom }} de ce foyer ?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="membre_id" value="{{ m.id }}">
-                <button class="btn" type="submit" style="padding:0 5px; font-size:11px;" title="Détacher du foyer">✕</button>
+                <button class="btn" type="submit" style="padding:0 5px; font-size:11px;" title="Détacher du foyer">{{ ic.icon('x', 14) }}</button>
               </form>
             {% endif %}
           </span>
@@ -237,7 +238,7 @@
       <label style="font-size:12px; color:#64748b; display:block;">Rapprocher un membre de la famille</label>
       <div style="display:flex; gap:6px;">
         <input type="search" name="q_famille" value="{{ q_famille or '' }}" placeholder="Nom ou prénom…" style="flex:1; padding:6px 8px; border-radius:6px; border:1px solid rgba(15,23,42,.15);">
-        <button class="btn" type="submit">🔎 Chercher</button>
+        <button class="btn" type="submit">{{ ic.icon('search', 14) }} Chercher</button>
       </div>
     </form>
     {% if q_famille %}
@@ -247,7 +248,7 @@
             <form method="post" action="{{ url_for('participants.foyer_rapprocher', participant_id=participant.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="autre_participant_id" value="{{ p.id }}">
-              <button class="btn" type="submit">➕ {{ p.nom }} {{ p.prenom }}{% if p.ville %} · {{ p.ville }}{% endif %}</button>
+              <button class="btn" type="submit">{{ ic.icon('plus', 14) }} {{ p.nom }} {{ p.prenom }}{% if p.ville %} · {{ p.ville }}{% endif %}</button>
             </form>
           {% endfor %}
         </div>

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Impayés{% endblock %}
 {% block body %}
 <style>
@@ -15,7 +16,7 @@
 <div class="ui-page">
   <section class="ui-header page-hero-soft">
     <div class="page-title-wrap">
-      <h1 class="ui-title page-title">🧾 Impayés — adhésions &amp; participation</h1>
+      <h1 class="ui-title page-title">{{ ic.icon('receipt', 20) }} Impayés — adhésions &amp; participation</h1>
       <p class="ui-subtitle page-subtitle">
         Toutes les cotisations non soldées de l'année scolaire, la plus grosse ardoise en premier.
         Chaque ligne mène à la fiche de la personne, où l'on enregistre un règlement ou une relance.
@@ -72,7 +73,7 @@
         </table>
       </div>
     {% else %}
-      <div class="quick-empty" style="margin-top:14px;"><strong>Rien à recouvrer 🎉</strong>Toutes les cotisations {{ libelle_annee }}{% if secteur_filtre %} du secteur {{ secteur_filtre }}{% endif %} sont soldées.</div>
+      <div class="quick-empty" style="margin-top:14px;"><strong>Rien à recouvrer {{ ic.icon('sparkle', 15) }}</strong>Toutes les cotisations {{ libelle_annee }}{% if secteur_filtre %} du secteur {{ secteur_filtre }}{% endif %} sont soldées.</div>
     {% endif %}
   {% endif %}
 </div>

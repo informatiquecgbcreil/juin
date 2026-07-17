@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 {% import "_ux_macros.html" as ui %}
 
@@ -32,9 +33,9 @@
             </form>
           {% endif %}
           <a class="btn" href="{{ url_for('activite.participants') }}" title="Personnes inscrites ou présentes dans les activités de ce secteur. L'annuaire complet est dans Publics → Tous les participants.">Participants du secteur (activité)</a>
-          <a class="btn" href="{{ url_for('activite.saisie_grille') }}" title="Rattraper les feuilles d'émargement papier : un mois entier en cases à cocher.">🗓️ Saisie en grille</a>
-          <a class="btn" href="{{ url_for('activite.emargements_attente') }}" title="Les séances passées sans présence saisie, avec relance des animateurs.">⏳ Émargements en attente</a>
-          <a class="btn" href="{{ url_for('main.mon_agenda') }}" title="Abonne Google Agenda / Apple Calendrier à tes séances : elles s'y ajoutent automatiquement.">📅 Mon agenda (synchro)</a>
+          <a class="btn" href="{{ url_for('activite.saisie_grille') }}" title="Rattraper les feuilles d'émargement papier : un mois entier en cases à cocher.">{{ ic.icon('calendar', 14) }} Saisie en grille</a>
+          <a class="btn" href="{{ url_for('activite.emargements_attente') }}" title="Les séances passées sans présence saisie, avec relance des animateurs.">{{ ic.icon('hourglass', 14) }} Émargements en attente</a>
+          <a class="btn" href="{{ url_for('main.mon_agenda') }}" title="Abonne Google Agenda / Apple Calendrier à tes séances : elles s'y ajoutent automatiquement.">{{ ic.icon('calendar', 14) }} Mon agenda (synchro)</a>
           <a class="btn ok" href="{{ url_for('activite.atelier_new', secteur=secteur or None) }}">Ajouter un atelier</a>
           <details class="nav-more">
             <summary class="btn">Options avancées</summary>
@@ -89,7 +90,7 @@
           <tbody>
             {% for a in ateliers %}
               <tr>
-                <td><strong>{{ a.nom }}</strong>{% if a.est_intersecteur %} <span class="status-badge" title="Visible par tous les secteurs — stats imputées à {{ a.secteur }}">🤝 intersecteur · {{ a.secteur }}</span>{% endif %}<br><span class="muted">{{ a.description or 'Aucune description renseignée.' }}</span></td>
+                <td><strong>{{ a.nom }}</strong>{% if a.est_intersecteur %} <span class="status-badge" title="Visible par tous les secteurs — stats imputées à {{ a.secteur }}">{{ ic.icon('handshake', 15) }} intersecteur · {{ a.secteur }}</span>{% endif %}<br><span class="muted">{{ a.description or 'Aucune description renseignée.' }}</span></td>
                 <td><span class="status-badge {{ 'status-info' if a.type_atelier == 'COLLECTIF' else 'status-warning' }}">{{ 'Collectif' if a.type_atelier == 'COLLECTIF' else 'Individuel mensuel' }}</span></td>
                 <td>
                   {% if a.type_atelier == 'COLLECTIF' %}
@@ -137,7 +138,7 @@
         {% for a in ateliers %}
         <article class="ui-record responsive-card">
           <header class="responsive-card__head">
-            <strong>{{ a.nom }}</strong>{% if a.est_intersecteur %} <span class="status-badge">🤝 intersecteur · {{ a.secteur }}</span>{% endif %}
+            <strong>{{ a.nom }}</strong>{% if a.est_intersecteur %} <span class="status-badge">{{ ic.icon('handshake', 15) }} intersecteur · {{ a.secteur }}</span>{% endif %}
             <span class="status-badge {{ 'status-info' if a.type_atelier == 'COLLECTIF' else 'status-warning' }}">{{ 'Collectif' if a.type_atelier == 'COLLECTIF' else 'Individuel mensuel' }}</span>
           </header>
           <p class="muted">{{ a.description or 'Aucune description renseignée.' }}</p>

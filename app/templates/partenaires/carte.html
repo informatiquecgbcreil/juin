@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block head_extra %}
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/cartographie.css') }}">
@@ -8,7 +9,7 @@
   <div class="card">
     <div class="inline" style="justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
       <div>
-        <h1>🗺️ Carte des partenaires</h1>
+        <h1>{{ ic.icon('map', 20) }} Carte des partenaires</h1>
         <p class="muted" style="max-width:680px;">
           Annuaire cartographié des structures partenaires : un point par partenaire,
           cliquable (adresse, secteurs, domaines d'orientation, contact, lien vers la fiche).
@@ -16,7 +17,7 @@
         </p>
       </div>
       <div class="inline" style="gap:8px;">
-        <a class="btn" href="{{ url_for('partenaires.index') }}">⬅ Partenaires</a>
+        <a class="btn" href="{{ url_for('partenaires.index') }}">{{ ic.icon('arrow-left', 14) }} Partenaires</a>
       </div>
     </div>
   </div>
@@ -36,7 +37,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn" type="submit" data-pending-text="Géocodage…"
                 title="Géocoder les adresses des partenaires via la Base Adresse Nationale">
-          📍 Géocoder les adresses{% if restants %} ({{ restants }} à traiter){% endif %}
+          {{ ic.icon('map-pin', 15) }} Géocoder les adresses{% if restants %} ({{ restants }} à traiter){% endif %}
         </button>
       </form>
       {% endif %}
@@ -51,7 +52,7 @@
          data-centre-lon="2.4750"></div>
 
     <div class="carte-legend">
-      <span class="muted">📍 Un marqueur = un partenaire. Cliquez pour le détail.</span>
+      <span class="muted">{{ ic.icon('map-pin', 15) }} Un marqueur = un partenaire. Cliquez pour le détail.</span>
       <span id="carte-info" class="muted" style="margin-left:auto;"></span>
     </div>
   </div>

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 {% block body %}
 <div class="page-shell long-form-shell stack">
@@ -30,7 +31,7 @@
     </div>
     <div class="hero-actions">
       {% if item %}<a class="btn" href="{{ url_for('participants.synthese_participant', participant_id=item.id) }}">Synthèse</a>{% endif %}
-      <a class="btn" href="{{ url_for('participants.list_participants') }}">⬅ Retour à la liste</a>
+      <a class="btn" href="{{ url_for('participants.list_participants') }}">{{ ic.icon('arrow-left', 14) }} Retour à la liste</a>
     </div>
   </div>
 
@@ -46,7 +47,7 @@
   </div>
 
   {% if item and not is_editable %}
-    <div class="guide-card">🔒 <strong>Lecture seule :</strong> ce participant a été créé pour <strong>{{ item.created_secteur or '—' }}</strong>. Tu peux consulter la fiche et l’utiliser pour l’émargement, mais pas la modifier.</div>
+    <div class="guide-card">{{ ic.icon('lock', 15) }} <strong>Lecture seule :</strong> ce participant a été créé pour <strong>{{ item.created_secteur or '—' }}</strong>. Tu peux consulter la fiche et l’utiliser pour l’émargement, mais pas la modifier.</div>
   {% endif %}
 
   {% if doublons_candidats %}
@@ -57,7 +58,7 @@
         {% for c in doublons_candidats %}
           <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid rgba(15,23,42,.12); border-radius:8px; padding:8px 12px; background:#fff;">
             <span><strong>{{ c.nom }} {{ c.prenom }}</strong>{% if c.ville %} · {{ c.ville }}{% endif %}{% if c.date_naissance %} · né(e) le {{ c.date_naissance.strftime('%d/%m/%Y') }}{% endif %}{% if c.created_secteur %} · secteur {{ c.created_secteur }}{% endif %}</span>
-            <a class="btn" href="{{ url_for('participants.synthese_participant', participant_id=c.id) }}">✔ C'est cette personne</a>
+            <a class="btn" href="{{ url_for('participants.synthese_participant', participant_id=c.id) }}">{{ ic.icon('check', 14) }} C'est cette personne</a>
           </div>
         {% endfor %}
       </div>
@@ -212,7 +213,7 @@
         </form>
         {% endif %}
         {% if can('controle:view') %}
-        <a class="btn" href="{{ url_for('main.purge_rgpd') }}" title="Règles d'anonymisation automatique des personnes inactives.">⚙️ Purge automatique (règles)</a>
+        <a class="btn" href="{{ url_for('main.purge_rgpd') }}" title="Règles d'anonymisation automatique des personnes inactives.">{{ ic.icon('settings', 14) }} Purge automatique (règles)</a>
         {% endif %}
       </div>
       <div class="field-help" style="margin-top:8px;">

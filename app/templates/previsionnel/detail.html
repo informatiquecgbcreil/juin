@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="card">
   <div class="page-head">
@@ -15,7 +16,7 @@
             onsubmit="return confirm('Reconduire ce budget vers l\'année indiquée ?');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input class="in" type="number" name="annee_cible" value="{{ (budget.annee or 0) + 1 }}" style="width:100px;" title="Année cible">
-        <button class="btn" type="submit">🔁 Reconduire</button>
+        <button class="btn" type="submit">{{ ic.icon('rotate-ccw', 14) }} Reconduire</button>
       </form>
       {% endif %}
     </div>

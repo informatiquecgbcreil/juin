@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -8,7 +9,7 @@
         <h1>Questionnaire d’impact</h1>
         <p class="muted">{{ session.secteur }} — {{ atelier.nom if atelier else 'Atelier' }}</p>
       </div>
-      <a class="btn" href="{{ url_for('activite.sessions', atelier_id=session.atelier_id) }}">⬅️ Retour session</a>
+      <a class="btn" href="{{ url_for('activite.sessions', atelier_id=session.atelier_id) }}">{{ ic.icon('arrow-left', 14) }} Retour session</a>
     </div>
   </div>
 

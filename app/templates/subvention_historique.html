@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="page-shell stack">
   <div class="page-header">
@@ -9,7 +10,7 @@
       </p>
     </div>
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=sub.id) }}">⬅ Retour au pilotage</a>
+      <a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=sub.id) }}">{{ ic.icon('arrow-left', 14) }} Retour au pilotage</a>
     </div>
   </div>
 

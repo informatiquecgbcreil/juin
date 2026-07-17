@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Reçu de règlement{% endblock %}
 {% block body %}
 <style>
@@ -30,8 +31,8 @@
       <p class="page-subtitle">À imprimer ou enregistrer en PDF, puis remettre à la personne.</p>
     </div>
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('participants.synthese_participant', participant_id=participant.id) }}">⬅ Fiche</a>
-      <button class="btn ok" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <a class="btn" href="{{ url_for('participants.synthese_participant', participant_id=participant.id) }}">{{ ic.icon('arrow-left', 14) }} Fiche</a>
+      <button class="btn ok" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 

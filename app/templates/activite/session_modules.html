@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
   <div class="card">
@@ -15,7 +16,7 @@
   </div>
 
   <div class="card">
-    <h2>✅ Sélection des modules couverts</h2>
+    <h2>{{ ic.icon('check', 16) }} Sélection des modules couverts</h2>
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="grid" style="grid-template-columns:repeat(2,minmax(260px,1fr)); gap:10px;">

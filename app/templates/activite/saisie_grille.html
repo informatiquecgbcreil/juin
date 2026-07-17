@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Saisie en grille — rattrapage des émargements{% endblock %}
 {% block body %}
 <style>
@@ -29,7 +30,7 @@
 <div class="ui-page">
   <section class="ui-header page-hero-soft">
     <div class="page-title-wrap">
-      <h1 class="ui-title page-title">🗓️ Saisie en grille</h1>
+      <h1 class="ui-title page-title">{{ ic.icon('calendar', 20) }} Saisie en grille</h1>
       <p class="ui-subtitle page-subtitle">
         Pour rattraper les feuilles d'émargement papier : choisis un atelier et un mois,
         coche les présents, enregistre. Les statistiques et bilans se mettent à jour tout seuls —
@@ -38,9 +39,9 @@
     </div>
     <div class="ui-actions inline-actions">
       {% if atelier %}
-        <a class="btn" href="{{ url_for('activite.saisie_grille_imprimer', atelier_id=atelier.id, mois=mois_str) }}" title="La feuille papier du mois, miroir exact de cette grille : l'animateur coche, l'accueil recopie.">🖨️ Feuille du mois (papier)</a>
+        <a class="btn" href="{{ url_for('activite.saisie_grille_imprimer', atelier_id=atelier.id, mois=mois_str) }}" title="La feuille papier du mois, miroir exact de cette grille : l'animateur coche, l'accueil recopie.">{{ ic.icon('printer', 14) }} Feuille du mois (papier)</a>
       {% endif %}
-      <a class="btn" href="{{ url_for('activite.emargements_attente') }}">⏳ Émargements en attente</a>
+      <a class="btn" href="{{ url_for('activite.emargements_attente') }}">{{ ic.icon('hourglass', 14) }} Émargements en attente</a>
       <a class="btn" href="{{ url_for('activite.index') }}">Ateliers</a>
     </div>
   </section>
@@ -90,7 +91,7 @@
                     {% set pres = presences.get((p.id, s.id)) %}
                     <td class="case">
                       {% if pres and (pres.signature_path or (pres.presence_type or 'present') != 'present') %}
-                        <span class="case-protegee" title="Présence protégée ({{ 'signée sur la tablette' if pres.signature_path else pres.presence_type }}) : modifiable uniquement depuis la feuille d'émargement.">🔒</span>
+                        <span class="case-protegee" title="Présence protégée ({{ 'signée sur la tablette' if pres.signature_path else pres.presence_type }}) : modifiable uniquement depuis la feuille d'émargement.">{{ ic.icon('lock', 15) }}</span>
                       {% else %}
                         {% if paires.append(p.id ~ ':' ~ s.id) %}{% endif %}
                         <input type="checkbox" name="cell_{{ p.id }}_{{ s.id }}" value="1" {% if pres %}checked{% endif %}
@@ -107,8 +108,8 @@
         </div>
         <input type="hidden" name="paires" value="{{ paires|join(' ') }}">
         <div class="grille-pied">
-          <button class="btn primary" type="submit">💾 Enregistrer la grille</button>
-          <span class="muted">🔒 = présence signée sur la tablette ou statut particulier : non modifiable depuis la grille.</span>
+          <button class="btn primary" type="submit">{{ ic.icon('save', 14) }} Enregistrer la grille</button>
+          <span class="muted">{{ ic.icon('lock', 15) }} = présence signée sur la tablette ou statut particulier : non modifiable depuis la grille.</span>
         </div>
       </form>
     {% else %}
@@ -136,7 +137,7 @@
           <label>Fin (optionnel)</label>
           <input class="in" type="time" name="heure_fin">
         </div>
-        <button class="btn" type="submit">➕ Créer la séance</button>
+        <button class="btn" type="submit">{{ ic.icon('plus', 14) }} Créer la séance</button>
       </form>
 
       {% if seances %}
@@ -150,7 +151,7 @@
             <input id="grille-personne" class="in" type="search" name="q_personne" value="{{ q_personne or '' }}"
                    placeholder="Taper un nom ou un prénom…">
           </div>
-          <button class="btn" type="submit">🔎 Chercher</button>
+          <button class="btn" type="submit">{{ ic.icon('search', 14) }} Chercher</button>
           <span class="muted">La recherche couvre toutes les fiches. Personne introuvable ? <a href="{{ url_for('participants.new_participant') }}">Créer sa fiche</a> d'abord.</span>
         </form>
         {% if q_personne %}
@@ -163,7 +164,7 @@
                   <input type="hidden" name="atelier_id" value="{{ atelier.id }}">
                   <input type="hidden" name="mois" value="{{ mois_str }}">
                   <input type="hidden" name="participant_id" value="{{ c.id }}">
-                  <button class="btn" type="submit" title="Ajouter cette personne à la grille">➕ {{ c.nom }} {{ c.prenom }}{% if c.ville %} · {{ c.ville }}{% endif %}</button>
+                  <button class="btn" type="submit" title="Ajouter cette personne à la grille">{{ ic.icon('plus', 14) }} {{ c.nom }} {{ c.prenom }}{% if c.ville %} · {{ c.ville }}{% endif %}</button>
                 </form>
               {% endfor %}
             </div>

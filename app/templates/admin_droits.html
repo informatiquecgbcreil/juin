@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 
 {% block body %}
@@ -6,7 +7,7 @@
   <section class="page-hero">
     <div class="hero-top">
       <div>
-        <h1 style="margin:0;">Droits d’accès 🔐</h1>
+        <h1 style="margin:0;">Droits d’accès {{ ic.icon('lock', 20) }}</h1>
         <p class="muted" style="margin:6px 0 0;">Choisissez ce que chaque rôle peut voir ou modifier. Les codes techniques restent affichés en second pour la maintenance.</p>
       </div>
       <div class="hero-actions">

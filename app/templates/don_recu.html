@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .recu-feuille { max-width: 820px; margin: 0 auto; background: #fff; color: #111;
@@ -27,8 +28,8 @@
       <p class="page-subtitle">Modèle CERFA 11580 — à imprimer ou enregistrer en PDF puis remettre au donateur.</p>
     </div>
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('main.dons_registre', annee=don.annee) }}">⬅ Registre</a>
-      <button class="btn ok" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <a class="btn" href="{{ url_for('main.dons_registre', annee=don.annee) }}">{{ ic.icon('arrow-left', 14) }} Registre</a>
+      <button class="btn ok" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="stack">
   <div class="card">
@@ -7,7 +8,7 @@
         <h1>Objectifs sectoriels — {{ secteur }}</h1>
         <p class="muted">Définissez les objectifs propres à ce secteur (ex. OS1 Comprendre, OS2 Expérimenter…). Les actions s'y rattachent ensuite, et la fiche action les reprend automatiquement.</p>
       </div>
-      <a class="btn" href="{{ url_for('projets.objectifs_synthese', secteur=secteur) }}">📊 Voir la consolidation</a>
+      <a class="btn" href="{{ url_for('projets.objectifs_synthese', secteur=secteur) }}">{{ ic.icon('bar-chart', 14) }} Voir la consolidation</a>
     </div>
     {% if secteurs|length > 1 %}
     <form method="get" class="inline" style="gap:8px; margin-top:8px;">
@@ -30,7 +31,7 @@
       <div class="field-stack grow-2"><label>Libellé</label><input class="in" name="libelle" placeholder="Comprendre" required></div>
       <div class="field-stack"><label>Axe (optionnel)</label><input class="in" name="axe" placeholder="Transitions"></div>
       <div class="field-stack"><label>Ordre</label><input class="in" type="number" name="ordre" value="0" style="width:80px;"></div>
-      <button class="btn ok" type="submit">➕ Ajouter</button>
+      <button class="btn ok" type="submit">{{ ic.icon('plus', 14) }} Ajouter</button>
     </form>
   </div>
   {% endif %}
@@ -52,8 +53,8 @@
         <div class="field-stack"><label>Ordre</label><input class="in" type="number" name="ordre" value="{{ obj.ordre }}" style="width:80px;" {% if not peut_gerer %}disabled{% endif %}></div>
         <label class="inline" style="gap:6px;"><input type="checkbox" name="actif" value="1" {% if obj.actif %}checked{% endif %} {% if not peut_gerer %}disabled{% endif %}> actif</label>
         {% if peut_gerer %}
-        <button class="btn" type="submit">💾</button>
-        <button class="btn danger" type="submit" name="action" value="supprimer" onclick="return confirm('Supprimer cet objectif ?');">🗑️</button>
+        <button class="btn" type="submit">{{ ic.icon('save', 14) }}</button>
+        <button class="btn danger" type="submit" name="action" value="supprimer" onclick="return confirm('Supprimer cet objectif ?');">{{ ic.icon('trash', 14) }}</button>
         {% endif %}
       </form>
       {% endfor %}

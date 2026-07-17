@@ -1,10 +1,11 @@
 {% extends 'kiosk/base.html' %}
+{% import "_icons.html" as ic %}
 {% block wrap_class %}k-wrap--wide{% endblock %}
 {% block header_title %}{{ atelier.nom if atelier else 'Émargement' }}{% endblock %}
 {% block body %}
 
   <div id="offlineBanner" class="k-card" style="display:none; background:#fde2e1; color:#7a1f1c; border:1px solid #f5b5b2;">
-    ⚠️ <strong>Hors connexion</strong> — la recherche utilise les noms déjà chargés. Attendez le retour de la connexion avant de valider une signature.
+    {{ ic.icon('alert-triangle', 15) }} <strong>Hors connexion</strong> — la recherche utilise les noms déjà chargés. Attendez le retour de la connexion avant de valider une signature.
   </div>
 
   <div class="k-card">
@@ -13,13 +14,13 @@
     <p class="k-card__sub">Code de la séance : <strong>{{ session.kiosk_pin or '—' }}</strong></p>
     <div class="k-row">
       <a class="k-btn k-btn--ghost" href="{{ url_for('kiosk.kiosk_home') }}">← Changer d'atelier</a>
-      <a class="k-btn k-btn--ghost" href="{{ url_for('kiosk.kiosk_feedback', token=token) }}">💬 Donner mon avis</a>
+      <a class="k-btn k-btn--ghost" href="{{ url_for('kiosk.kiosk_feedback', token=token) }}">{{ ic.icon('message', 14) }} Donner mon avis</a>
     </div>
   </div>
 
   {% if message_ok %}
     <div class="k-card k-bigok">
-      <div class="k-bigok__emoji">✅</div>
+      <div class="k-bigok__emoji">{{ ic.icon('check', 15) }}</div>
       <div class="k-bigok__title">{{ message_ok }}</div>
       <p class="k-card__sub">{% if recu %}Reçu n° <strong>{{ recu }}</strong> · {% endif %}Vous pouvez fermer cette page, ou émarger une autre personne.</p>
     </div>
@@ -78,7 +79,7 @@
     </div>
 
     <div class="k-actionbar">
-      <button class="k-btn k-btn--lg" type="submit">✔ Valider ma présence</button>
+      <button class="k-btn k-btn--lg" type="submit">{{ ic.icon('check', 14) }} Valider ma présence</button>
     </div>
   </form>
 
@@ -89,7 +90,7 @@
     {% for c in doublons_candidats %}
       <div class="k-row" style="justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-top:1px solid #eee; flex-wrap:wrap;">
         <strong>{{ c.nom }} {{ c.prenom }}</strong>{% if c.ville %}<span class="k-hint">{{ c.ville }}</span>{% endif %}
-        <a class="k-btn" href="{{ url_for('kiosk.kiosk_session', token=token, highlight=c.id) }}">✔ C'est moi</a>
+        <a class="k-btn" href="{{ url_for('kiosk.kiosk_session', token=token, highlight=c.id) }}">{{ ic.icon('check', 14) }} C'est moi</a>
       </div>
     {% endfor %}
     <form method="post" style="margin-top:12px;">

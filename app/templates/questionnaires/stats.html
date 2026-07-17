@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .qstat-bar-row { display:grid; grid-template-columns: 90px 1fr 110px; gap:10px; align-items:center; margin:4px 0; }
@@ -20,11 +21,11 @@
       </p>
     </div>
     <div class="hero-actions no-print">
-      <a class="btn" href="{{ url_for('questionnaires.index') }}">⬅ Retour</a>
+      <a class="btn" href="{{ url_for('questionnaires.index') }}">{{ ic.icon('arrow-left', 14) }} Retour</a>
       {% if can('questionnaires:export') %}
-        <a class="btn" href="{{ url_for('questionnaires.export_xlsx', questionnaire_id=questionnaire.id) }}">⬇️ Excel</a>
+        <a class="btn" href="{{ url_for('questionnaires.export_xlsx', questionnaire_id=questionnaire.id) }}">{{ ic.icon('download', 14) }} Excel</a>
       {% endif %}
-      <button class="btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 

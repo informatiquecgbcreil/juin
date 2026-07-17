@@ -1,7 +1,8 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="page-shell long-form-shell stack">
-  <div class="page-header"><div class="page-title-wrap"><h1 class="page-title">{{ 'Nouveau questionnaire' if not questionnaire else 'Questionnaire' }}</h1><p class="page-subtitle">Structure, ciblage et questions du questionnaire.</p></div><div class="hero-actions"><a class="btn" href="{{ url_for('questionnaires.index') }}">⬅ Retour</a></div></div>
+  <div class="page-header"><div class="page-title-wrap"><h1 class="page-title">{{ 'Nouveau questionnaire' if not questionnaire else 'Questionnaire' }}</h1><p class="page-subtitle">Structure, ciblage et questions du questionnaire.</p></div><div class="hero-actions"><a class="btn" href="{{ url_for('questionnaires.index') }}">{{ ic.icon('arrow-left', 20) }} Retour</a></div></div>
   <div class="section-card">
     <form method="post" class="stack stretch-input">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -29,7 +30,7 @@
         <div class="field-stack"><label class="muted">Obligatoire</label><select class="in" name="is_required"><option value="0" selected>Non</option><option value="1">Oui</option></select></div>
         <div class="field-stack grow-2"><label class="muted">Options (une par ligne)</label><textarea class="in" name="options" rows="3"></textarea></div>
       </div>
-      <div class="inline-actions"><button class="btn" type="submit">➕ Ajouter</button></div>
+      <div class="inline-actions"><button class="btn" type="submit">{{ ic.icon('plus', 14) }} Ajouter</button></div>
     </form>
     <div class="tablewrap clean"><table><thead><tr><th>Ordre</th><th>Question</th><th>Type</th><th>Obligatoire</th><th style="width:140px;">Actions</th></tr></thead><tbody>{% for q in questions %}<tr><td>{{ q.position }}</td><td><strong>{{ q.label }}</strong>{% if q.options_json %}<div class="muted" style="font-size:12px;">{{ q.options_json }}</div>{% endif %}</td><td class="muted">{{ q.kind }}</td><td>{% if q.is_required %}<span class="tag">Oui</span>{% else %}—{% endif %}</td><td><form method="post" action="{{ url_for('questionnaires.delete_question', question_id=q.id) }}" onsubmit="return confirm('Supprimer cette question ?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn danger" type="submit">Supprimer</button></form></td></tr>{% else %}<tr><td colspan="5" class="muted">Aucune question.</td></tr>{% endfor %}</tbody></table></div>
   </div>

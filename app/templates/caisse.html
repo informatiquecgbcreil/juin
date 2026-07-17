@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Caisse{% endblock %}
 {% block body %}
 <style>
@@ -23,7 +24,7 @@
 <div class="ui-page">
   <section class="ui-header page-hero-soft">
     <div class="page-title-wrap">
-      <h1 class="ui-title page-title">💶 Caisse</h1>
+      <h1 class="ui-title page-title">{{ ic.icon('euro', 20) }} Caisse</h1>
       <p class="ui-subtitle page-subtitle">
         La caisse, c'est la boîte physique où vivent les espèces et les chèques.
         Les règlements et dons saisis dans l'application y entrent tout seuls — ici, on ne fait
@@ -34,7 +35,7 @@
 
   <div class="caisse-kpis">
     <div class="caisse-kpi">
-      <div class="libelle">💰 Espèces en caisse (théorique)</div>
+      <div class="libelle">{{ ic.icon('euro', 15) }} Espèces en caisse (théorique)</div>
       <div class="valeur">{{ "%.2f"|format(etat.theorique_especes) }} €</div>
       <div class="explication">Ce qu'il devrait y avoir dans la boîte : fond de caisse + encaissements − dépôts. Le comptage vérifie que c'est vrai.</div>
     </div>
@@ -44,12 +45,12 @@
       <div class="explication">La somme permanente pour rendre la monnaie. Elle reste dans la boîte, on ne la dépose jamais.</div>
     </div>
     <div class="caisse-kpi">
-      <div class="libelle">🏦 Recette déposable</div>
+      <div class="libelle">{{ ic.icon('landmark', 15) }} Recette déposable</div>
       <div class="valeur">{{ "%.2f"|format(etat.recette_deposable) }} €</div>
       <div class="explication">Les espèces au-dessus du fond de caisse : c'est ce qu'on peut apporter à la banque.</div>
     </div>
     <div class="caisse-kpi">
-      <div class="libelle">🧾 Chèques en attente de remise</div>
+      <div class="libelle">{{ ic.icon('receipt', 15) }} Chèques en attente de remise</div>
       <div class="valeur">{{ "%.2f"|format(etat.cheques_en_attente) }} €</div>
       <div class="explication">Chèques encaissés mais pas encore déposés. Ils partent avec le prochain dépôt.</div>
     </div>
@@ -79,12 +80,12 @@
         <input type="text" name="montant_constate" placeholder="ex. 137,50" required>
         <label>Commentaire (optionnel)</label>
         <input type="text" name="commentaire" placeholder="ex. comptage du vendredi">
-        <div style="margin-top:10px;"><button class="btn primary" type="submit">✔ Enregistrer le comptage</button></div>
+        <div style="margin-top:10px;"><button class="btn primary" type="submit">{{ ic.icon('check', 14) }} Enregistrer le comptage</button></div>
       </form>
     </div>
 
     <div class="caisse-bloc">
-      <h2>🏦 Faire un dépôt en banque</h2>
+      <h2>{{ ic.icon('landmark', 16) }} Faire un dépôt en banque</h2>
       <div class="pourquoi">On dépose la recette, jamais le fond de caisse. Le bordereau imprimable
         accompagne les fonds jusqu'à la banque.</div>
       <form method="post" action="{{ url_for('main.caisse_depot') }}">
@@ -99,7 +100,7 @@
         <input type="date" name="date_depot" value="{{ today.isoformat() }}">
         <label>Commentaire (optionnel)</label>
         <input type="text" name="commentaire" placeholder="ex. remise n°12">
-        <div style="margin-top:10px;"><button class="btn primary" type="submit">🏦 Enregistrer le dépôt</button></div>
+        <div style="margin-top:10px;"><button class="btn primary" type="submit">{{ ic.icon('landmark', 14) }} Enregistrer le dépôt</button></div>
       </form>
     </div>
 

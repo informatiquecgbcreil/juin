@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 
 {% block body %}
@@ -20,7 +21,7 @@
         <a class="btn" href="{{ url_for('main.subventions_list') }}">← Retour à la liste</a>
         <a class="btn" href="{{ url_for('main.subvention_bilan', subvention_id=sub.id) }}">Bilan</a>
         <a class="btn" href="{{ url_for('main.subvention_historique', subvention_id=sub.id) }}">Historique</a>
-        <a class="btn" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">📊 Justificatif</a>
+        <a class="btn" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">{{ ic.icon('bar-chart', 14) }} Justificatif</a>
         <form method="POST" action="{{ url_for('main.subvention_delete', subvention_id=sub.id) }}" style="margin:0;" onsubmit="return confirm('Supprimer cette subvention ?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn danger" type="submit">Supprimer</button>
@@ -117,7 +118,7 @@
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                           <input type="hidden" name="action" value="del_atelier">
                           <input type="hidden" name="lien_id" value="{{ lien.id }}">
-                          <button class="btn danger" type="submit" style="padding:2px 8px;">🗑</button>
+                          <button class="btn danger" type="submit" style="padding:2px 8px;">{{ ic.icon('trash', 14) }}</button>
                         </form>
                       </td>
                     </tr>
@@ -126,7 +127,7 @@
               </table>
             </div>
             <div style="margin-top:8px;">
-              <a class="btn ok" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">📊 Voir le justificatif chiffré</a>
+              <a class="btn ok" href="{{ url_for('main.subvention_justificatif', subvention_id=sub.id) }}">{{ ic.icon('bar-chart', 14) }} Voir le justificatif chiffré</a>
             </div>
           {% else %}
             <p class="muted">Aucun atelier rattaché : rattache les ateliers que cette subvention finance pour générer automatiquement le justificatif (séances, heures, participants, coût unitaire).</p>

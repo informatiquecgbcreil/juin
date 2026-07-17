@@ -1,11 +1,12 @@
 {% extends 'kiosk/base.html' %}
+{% import "_icons.html" as ic %}
 {% block header_title %}Pointer ma présence{% endblock %}
 {% block body %}
 
   <div class="k-card">
     <h1 class="k-card__title">Bienvenue 👋</h1>
     <p class="k-card__sub">Choisissez votre atelier ci-dessous, ou entrez le code à 4 chiffres affiché par l'animateur.</p>
-    <p class="k-card__sub" style="margin-top:6px;"><a href="{{ url_for('kiosk.kiosk_programme') }}">📋 Voir le programme du jour</a></p>
+    <p class="k-card__sub" style="margin-top:6px;"><a href="{{ url_for('kiosk.kiosk_programme') }}">{{ ic.icon('clipboard', 15) }} Voir le programme du jour</a></p>
   </div>
 
   <div class="k-card">
@@ -18,7 +19,7 @@
             <span class="k-chip">{{ it.secteur }}</span>
             <span class="k-session__atelier">{{ it.atelier }}</span>
             <span class="k-session__meta">
-              {% if it.debut %}🕒 {{ it.debut }}{% if it.fin %} – {{ it.fin }}{% endif %}{% endif %}
+              {% if it.debut %}{{ ic.icon('clock', 15) }} {{ it.debut }}{% if it.fin %} – {{ it.fin }}{% endif %}{% endif %}
               {% if it.type != 'COLLECTIF' %} · rendez-vous{% endif %}
             </span>
             <span class="k-session__go">Je participe →</span>

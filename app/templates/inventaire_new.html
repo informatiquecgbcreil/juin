@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
   <div class="page-shell long-form-shell stack">
     <div class="page-header">
@@ -7,7 +8,7 @@
         <p class="page-subtitle">Crée une fiche matériel claire, puis ajuste si besoin après rattachement budgétaire ou vérification terrain.</p>
       </div>
       <div class="hero-actions">
-        <a class="btn" href="{{ url_for('inventaire_materiel.list_items') }}">⬅ Retour</a>
+        <a class="btn" href="{{ url_for('inventaire_materiel.list_items') }}">{{ ic.icon('arrow-left', 14) }} Retour</a>
       </div>
     </div>
 

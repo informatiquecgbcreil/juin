@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Barème des tarifs{% endblock %}
 {% block body %}
 <style>
@@ -57,7 +58,7 @@
                 <span class="montant">{{ "%.2f"|format(l.montant) }} €</span>
                 <form method="post" action="{{ url_for('main.tarif_ligne_supprimer', tarif_id=l.id, annee=annee) }}" onsubmit="return confirm('Supprimer cette ligne de tarif ?');" style="margin:0;">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn" type="submit" style="padding:2px 7px; font-size:.8rem;">✕</button>
+                  <button class="btn" type="submit" style="padding:2px 7px; font-size:.8rem;">{{ ic.icon('x', 14) }}</button>
                 </form>
               </div>
             </div>
@@ -75,7 +76,7 @@
           <input type="date" name="date_debut" value="{{ annee }}-09-01">
           <label>Commentaire (optionnel)</label>
           <input type="text" name="commentaire" placeholder="ex. tarif de fin d'année">
-          <button class="btn primary" type="submit">➕ Ajouter ce tarif</button>
+          <button class="btn primary" type="submit">{{ ic.icon('plus', 14) }} Ajouter ce tarif</button>
         </form>
       </div>
     {% endfor %}

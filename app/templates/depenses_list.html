@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 {% import "_ux_macros.html" as ui %}
 {% block body %}
@@ -173,7 +174,7 @@
               {% set month_label = d.date_paiement.strftime('%m/%Y') if d.date_paiement else 'Sans date' %}
               {% if ns.current_month != month_key %}
                 {% set ns.current_month = month_key %}
-                <tr class="expense-month-row"><td colspan="7">📅 {{ month_label }}</td></tr>
+                <tr class="expense-month-row"><td colspan="7">{{ ic.icon('calendar', 15) }} {{ month_label }}</td></tr>
               {% endif %}
               <tr>
                 <td><strong>{{ s.nom }}</strong><div class="expense-sub">{{ s.secteur }} · {{ s.annee_exercice }}</div></td>

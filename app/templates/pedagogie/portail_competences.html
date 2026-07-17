@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -25,7 +26,7 @@
       </p>
       <form method="post" action="{{ url_for('pedagogie.portail_competences_sync') }}" data-no-scroll-restore>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit" data-pending-text="Synchronisation en cours…">🔄 Synchroniser maintenant</button>
+        <button class="btn" type="submit" data-pending-text="Synchronisation en cours…">{{ ic.icon('rotate-ccw', 14) }} Synchroniser maintenant</button>
       </form>
       <p class="ux-helper" style="margin-top:6px;">La synchro automatique (tâche planifiée) reste active ; ce bouton force une mise à jour immédiate.</p>
     {% else %}

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Mon agenda{% endblock %}
 {% block body %}
 <style>
@@ -24,7 +25,7 @@
 <div class="ui-page">
   <section class="ui-header page-hero-soft">
     <div class="page-title-wrap">
-      <h1 class="ui-title page-title">📅 Mon agenda — synchro & export</h1>
+      <h1 class="ui-title page-title">{{ ic.icon('calendar', 20) }} Mon agenda — synchro & export</h1>
       <p class="ui-subtitle page-subtitle">
         Ton agenda peut servir de feuille de temps (extraction par les financeurs) : ici tu contrôles
         exactement ce qu'il contient — séances, réunions, préparation, événements — et ce que chaque
@@ -38,8 +39,8 @@
     <p class="muted" style="margin-top:0;">Garde-le pour toi : ce lien secret donne accès à ton planning. Il fonctionne avec Google Agenda, Apple Calendrier, Outlook…</p>
     <div class="agenda-url">
       <code id="agenda-lien">{{ url_https }}</code>
-      <button class="btn primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('agenda-lien').textContent).then(()=>{this.textContent='✔ Copié';setTimeout(()=>this.textContent='📋 Copier le lien',1500);})">📋 Copier le lien</button>
-      <a class="btn" href="{{ url_webcal }}" title="Ouvre directement l'application d'agenda de ton appareil">➕ Ajouter (webcal)</a>
+      <button class="btn primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('agenda-lien').textContent).then(()=>{this.textContent='{{ ic.icon('check', 14) }} Copié';setTimeout(()=>this.textContent='{{ ic.icon('clipboard', 14) }} Copier le lien',1500);})">{{ ic.icon('clipboard', 14) }} Copier le lien</button>
+      <a class="btn" href="{{ url_webcal }}" title="Ouvre directement l'application d'agenda de ton appareil">{{ ic.icon('plus', 14) }} Ajouter (webcal)</a>
     </div>
     <details style="margin-top:6px;">
       <summary class="mini-link" style="cursor:pointer;">Comment l'ajouter dans Google Agenda / iPhone ?</summary>
@@ -55,7 +56,7 @@
 
   <div class="agenda-grid2" style="margin-top:12px;">
     <div class="agenda-carte agenda-form">
-      <h2 style="margin-top:0; font-size:1.05rem;">⚙️ Ce que contient mon agenda</h2>
+      <h2 style="margin-top:0; font-size:1.05rem;">{{ ic.icon('settings', 16) }} Ce que contient mon agenda</h2>
       <form method="post" action="{{ url_for('main.mon_agenda_preferences') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -108,7 +109,7 @@
           </div>
         </div>
 
-        <div style="margin-top:12px;"><button class="btn primary" type="submit">💾 Enregistrer mes réglages</button></div>
+        <div style="margin-top:12px;"><button class="btn primary" type="submit">{{ ic.icon('save', 14) }} Enregistrer mes réglages</button></div>
       </form>
     </div>
 
@@ -117,22 +118,22 @@
       <p class="muted" style="margin-top:0;">Exemple avec tes réglages actuels (enregistre pour actualiser) :</p>
       <div class="apercu-event">
         <div class="titre">{{ apercu.titre }}</div>
-        <div class="ligne">🕒 14:00 – 16:00</div>
+        <div class="ligne">{{ ic.icon('clock', 15) }} 14:00 – 16:00</div>
         {% for l in apercu.lignes %}<div class="ligne">{{ l }}</div>{% endfor %}
       </div>
 
-      <h2 style="font-size:1.05rem; margin-top:18px;">📤 Exporter une période (.ics)</h2>
+      <h2 style="font-size:1.05rem; margin-top:18px;">{{ ic.icon('upload', 16) }} Exporter une période (.ics)</h2>
       <p class="muted" style="margin-top:0;">Le fichier reflète exactement tes réglages ci-contre — pratique pour vérifier ou archiver ce que la plateforme du financeur va extraire (par défaut : le mois dernier).</p>
       <form method="get" action="{{ url_for('main.mon_agenda_export') }}" class="agenda-form" style="display:flex; gap:8px; align-items:end; flex-wrap:wrap;">
         <div><label>Du</label><input type="date" name="du" value="{{ export_du.isoformat() }}" required></div>
         <div><label>Au</label><input type="date" name="au" value="{{ export_au.isoformat() }}" required></div>
-        <button class="btn" type="submit">⬇️ Télécharger le fichier</button>
+        <button class="btn" type="submit">{{ ic.icon('download', 14) }} Télécharger le fichier</button>
       </form>
     </div>
   </div>
 
   <div class="agenda-carte agenda-form" style="margin-top:12px;">
-    <h2 style="margin-top:0; font-size:1.05rem;">🗓️ Mes créneaux hors ateliers</h2>
+    <h2 style="margin-top:0; font-size:1.05rem;">{{ ic.icon('calendar', 16) }} Mes créneaux hors ateliers</h2>
     <p class="muted" style="margin-top:0;">Réunions, temps de préparation, formations, partenariats… Ils apparaissent dans ton agenda comme le reste : ton temps effectif complet, pas seulement le face-à-face.</p>
     <form method="post" action="{{ url_for('main.mon_agenda_creneau_creer') }}" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:8px; align-items:end;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -155,7 +156,7 @@
         </select>
       </div>
       <div style="grid-column:span 2;"><label>Détail (optionnel)</label><input type="text" name="description" maxlength="500" placeholder="ex. point projet CAF"></div>
-      <div><button class="btn primary" type="submit">➕ Ajouter</button></div>
+      <div><button class="btn primary" type="submit">{{ ic.icon('plus', 14) }} Ajouter</button></div>
     </form>
 
     {% if creneaux %}
@@ -167,12 +168,12 @@
               <strong>{{ c.titre }}</strong>
               · {{ c.date_creneau.strftime('%d/%m/%Y') }}
               {% if c.heure_debut %}· {{ c.heure_debut }}{% if c.heure_fin %}–{{ c.heure_fin }}{% endif %}{% endif %}
-              {% if c.subvention %}<span class="creneau-type" style="background:rgba(60,180,110,.16);">💶 {{ c.subvention.nom }}</span>{% endif %}
+              {% if c.subvention %}<span class="creneau-type" style="background:rgba(60,180,110,.16);">{{ ic.icon('euro', 15) }} {{ c.subvention.nom }}</span>{% endif %}
               {% if c.description %}<span class="muted">· {{ c.description }}</span>{% endif %}
             </span>
             <form method="post" action="{{ url_for('main.mon_agenda_creneau_supprimer', creneau_id=c.id) }}" style="margin:0;" onsubmit="return confirm('Supprimer ce créneau ?');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn" type="submit" style="padding:2px 8px; font-size:.8rem;">✕</button>
+              <button class="btn" type="submit" style="padding:2px 8px; font-size:.8rem;">{{ ic.icon('x', 14) }}</button>
             </form>
           </div>
         {% endfor %}
@@ -183,11 +184,11 @@
   </div>
 
   <div class="agenda-carte no-print" style="margin-top:12px;">
-    <h2 style="margin-top:0; font-size:1.05rem;">🔒 Sécurité</h2>
+    <h2 style="margin-top:0; font-size:1.05rem;">{{ ic.icon('lock', 16) }} Sécurité</h2>
     <p class="muted" style="margin-top:0;">Le lien ne contient <strong>aucun nom de participant</strong> — seulement tes ateliers, créneaux, horaires et secteur. Si tu penses l'avoir partagé par erreur, régénère-le : l'ancien cessera aussitôt de fonctionner (tu devras remettre le nouveau lien dans ton agenda).</p>
     <form method="post" action="{{ url_for('main.mon_agenda_regenerer') }}" onsubmit="return confirm('Régénérer le lien ? L\'ancien ne fonctionnera plus.');">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-danger-outline" type="submit">♻️ Régénérer mon lien</button>
+      <button class="btn btn-danger-outline" type="submit">{{ ic.icon('rotate-ccw', 14) }} Régénérer mon lien</button>
     </form>
   </div>
 </div>

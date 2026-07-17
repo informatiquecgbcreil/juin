@@ -1,9 +1,10 @@
 {% extends 'kiosk/base.html' %}
+{% import "_icons.html" as ic %}
 {% block header_title %}Programme du jour{% endblock %}
 {% block body %}
 
   <div class="k-card">
-    <h1 class="k-card__title">Programme en direct 📋</h1>
+    <h1 class="k-card__title">Programme en direct {{ ic.icon('clipboard', 20) }}</h1>
     <p class="k-card__sub">Les ateliers ouverts en ce moment. Cette page se met à jour toute seule.</p>
   </div>
 
@@ -15,7 +16,7 @@
             <span class="k-chip">{{ it.secteur }}</span>
             <span class="k-session__atelier">{{ it.atelier }}</span>
             <span class="k-session__meta">
-              {% if it.debut %}🕒 {{ it.debut }}{% if it.fin %} – {{ it.fin }}{% endif %}{% endif %}
+              {% if it.debut %}{{ ic.icon('clock', 15) }} {{ it.debut }}{% if it.fin %} – {{ it.fin }}{% endif %}{% endif %}
               {% if it.type != 'COLLECTIF' %} · rendez-vous{% endif %}
             </span>
             <span class="k-session__go">Voir / émarger →</span>

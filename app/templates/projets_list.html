@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 {% import "_ux_macros.html" as ui %}
 {% block body %}
@@ -11,7 +12,7 @@
     <div class="hero-actions">
       <a class="btn" href="{{ url_for('projets.finance_secteur') }}">Pilotage annuel</a>
       <a class="btn" href="{{ url_for('projets.objectifs_referentiel') }}">Objectifs sectoriels</a>
-      <a class="btn" href="{{ url_for('projets.projets_export_xlsx', archives=1 if voir_archives else None) }}">⬇ Export Excel</a>
+      <a class="btn" href="{{ url_for('projets.projets_export_xlsx', archives=1 if voir_archives else None) }}">{{ ic.icon('download', 14) }} Export Excel</a>
       {% if voir_archives %}
         <a class="btn" href="{{ url_for('projets.projets_list') }}">← Projets actifs</a>
       {% else %}

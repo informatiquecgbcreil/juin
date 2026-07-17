@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import "_icons.html" as ic %}
 {% import "_ux_macros.html" as ui %}
 
 {% block body %}
@@ -16,13 +17,13 @@
             <a class="btn" href="{{ url_for('activite.sessions', atelier_id=atelier.id, corbeille=1) }}">Corbeille</a>
           {% endif %}
           {% if not corbeille %}
-            <a class="btn" href="{{ url_for('activite.inscriptions_atelier', atelier_id=atelier.id) }}">📋 Inscriptions / liste d'attente</a>
+            <a class="btn" href="{{ url_for('activite.inscriptions_atelier', atelier_id=atelier.id) }}">{{ ic.icon('clipboard', 14) }} Inscriptions / liste d'attente</a>
             <a class="btn" href="{{ url_for('activite.session_new', atelier_id=atelier.id) }}">+ Nouvelle séance / rendez-vous</a>
             {% if atelier.type_atelier != 'INDIVIDUEL_MENSUEL' %}
-              <a class="btn" href="{{ url_for('activite.session_bulk_new', atelier_id=atelier.id) }}">📅 Créer en série</a>
+              <a class="btn" href="{{ url_for('activite.session_bulk_new', atelier_id=atelier.id) }}">{{ ic.icon('calendar', 14) }} Créer en série</a>
             {% endif %}
           {% endif %}
-          <a class="btn" href="{{ url_for('activite.export_csat_sessions', atelier_id=atelier.id) }}" title="Fichier Excel compatible avec l'import « Sessions » du portail CSAT (Centres Sociaux Acteurs des Transitions). N'inclut que les séances jamais exportées.">⬇ Exporter pour CSAT{% if nb_a_exporter_csat is not none %} ({{ nb_a_exporter_csat }} nouvelle{{ 's' if nb_a_exporter_csat != 1 else '' }}){% endif %}</a>
+          <a class="btn" href="{{ url_for('activite.export_csat_sessions', atelier_id=atelier.id) }}" title="Fichier Excel compatible avec l'import « Sessions » du portail CSAT (Centres Sociaux Acteurs des Transitions). N'inclut que les séances jamais exportées.">{{ ic.icon('download', 14) }} Exporter pour CSAT{% if nb_a_exporter_csat is not none %} ({{ nb_a_exporter_csat }} nouvelle{{ 's' if nb_a_exporter_csat != 1 else '' }}){% endif %}</a>
           <a class="btn" href="{{ url_for('activite.index') }}">Retour ateliers</a>
         </div>
       </div>

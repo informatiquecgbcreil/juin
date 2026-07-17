@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Glossaire — le dico du social{% endblock %}
 {% block body %}
 <style>
@@ -52,23 +53,23 @@
 <div class="ui-page">
   <section class="ui-header page-hero-soft">
     <div class="page-title-wrap">
-      <h1 class="ui-title page-title">📖 Glossaire — le dico du social</h1>
+      <h1 class="ui-title page-title">{{ ic.icon('book-open', 20) }} Glossaire — le dico du social</h1>
       <p class="ui-subtitle page-subtitle">
         Tous les mots du métier et de l'application, expliqués simplement.
         Pensé pour les nouveaux salariés et bénévoles — et pour tous les autres.
       </p>
     </div>
     <div class="ui-actions inline-actions">
-      <a class="btn" href="{{ url_for('main.guides_liste') }}">🧭 Guides pas à pas</a>
-      <a class="btn" href="{{ url_for('main.glossaire_export') }}">⬇️ Exporter (XLSX)</a>
-      <button type="button" class="btn no-print" onclick="window.print()" title="Imprimer le glossaire pour l'afficher ou le remettre à un nouvel arrivant">🖨️ Imprimer</button>
+      <a class="btn" href="{{ url_for('main.guides_liste') }}">{{ ic.icon('compass', 14) }} Guides pas à pas</a>
+      <a class="btn" href="{{ url_for('main.glossaire_export') }}">{{ ic.icon('download', 14) }} Exporter (XLSX)</a>
+      <button type="button" class="btn no-print" onclick="window.print()" title="Imprimer le glossaire pour l'afficher ou le remettre à un nouvel arrivant">{{ ic.icon('printer', 14) }} Imprimer</button>
     </div>
   </section>
 
   {% if peut_editer %}
   <div class="glossaire-outils no-print">
     <details class="details-card">
-      <summary>➕ Ajouter un mot</summary>
+      <summary>{{ ic.icon('plus', 15) }} Ajouter un mot</summary>
       <div class="details-body">
         <form method="post" action="{{ url_for('main.glossaire_enregistrer') }}" class="terme-edit-form" style="border:none; padding:0; max-width:640px;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

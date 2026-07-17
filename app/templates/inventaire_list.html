@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_macros.html" as ui %}
 {% block body %}
   {% set has_filters = filtre_q or filtre_secteur or filtre_categorie or filtre_localisation or filtre_etat %}
@@ -9,7 +10,7 @@
         <p class="page-subtitle">Suivi du matériel avec filtres rapides, rattachements budgétaires et informations terrain.</p>
       </div>
       <div class="hero-actions">
-        <a class="btn ok" href="{{ url_for('inventaire_materiel.new_item') }}">➕ Nouvelle entrée</a>
+        <a class="btn ok" href="{{ url_for('inventaire_materiel.new_item') }}">{{ ic.icon('plus', 14) }} Nouvelle entrée</a>
       </div>
     </div>
 

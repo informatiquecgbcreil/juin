@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
   {% set ns = namespace(total=factures|length, validees=0, brouillons=0, montant=0) %}
   {% for f in factures %}
@@ -12,7 +13,7 @@
         <p class="page-subtitle">Une facture peut contenir plusieurs lignes puis générer plusieurs dépenses quand elle est validée.</p>
       </div>
       <div class="hero-actions">
-        <a class="btn ok" href="{{ url_for('inventaire.facture_new') }}">➕ Nouvelle facture</a>
+        <a class="btn ok" href="{{ url_for('inventaire.facture_new') }}">{{ ic.icon('plus', 14) }} Nouvelle facture</a>
       </div>
     </div>
 

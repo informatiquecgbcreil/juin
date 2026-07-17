@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Guides pas à pas{% endblock %}
 {% block body %}
 <style>
@@ -20,14 +21,14 @@
 <div class="ui-page">
   <section class="ui-header page-hero-soft">
     <div class="page-title-wrap">
-      <h1 class="ui-title page-title">🧭 Guides pas à pas</h1>
+      <h1 class="ui-title page-title">{{ ic.icon('compass', 20) }} Guides pas à pas</h1>
       <p class="ui-subtitle page-subtitle">
         Un guide t'accompagne à travers les pages normales de l'application, dans le bon ordre,
         avec une explication à chaque étape. Tu peux le quitter et le reprendre quand tu veux.
       </p>
     </div>
     <div class="ui-actions inline-actions">
-      <a class="btn" href="{{ url_for('main.glossaire') }}">📖 Glossaire — le dico du social</a>
+      <a class="btn" href="{{ url_for('main.glossaire') }}">{{ ic.icon('book-open', 14) }} Glossaire — le dico du social</a>
     </div>
   </section>
 

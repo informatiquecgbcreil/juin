@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_macros.html" as ui %}
 {% block body %}
 <div class="page-shell dense-list-shell stack">
@@ -10,7 +11,7 @@
     </div>
     {% if can('questionnaires:edit') %}
     <div class="hero-actions">
-      <a class="btn" href="{{ url_for('questionnaires.create') }}">➕ Nouveau questionnaire</a>
+      <a class="btn" href="{{ url_for('questionnaires.create') }}">{{ ic.icon('plus', 14) }} Nouveau questionnaire</a>
     </div>
     {% endif %}
   </div>
@@ -74,22 +75,22 @@
               </td>
               <td>
                 <div class="inline-actions">
-                  <a class="btn" href="{{ url_for('questionnaires.statistiques', questionnaire_id=q.id) }}">📊 Dépouiller</a>
+                  <a class="btn" href="{{ url_for('questionnaires.statistiques', questionnaire_id=q.id) }}">{{ ic.icon('bar-chart', 14) }} Dépouiller</a>
                   {% if can('questionnaires:edit') %}
-                    <a class="btn" href="{{ url_for('questionnaires.edit', questionnaire_id=q.id) }}">✏️ Éditer</a>
+                    <a class="btn" href="{{ url_for('questionnaires.edit', questionnaire_id=q.id) }}">{{ ic.icon('pen-line', 14) }} Éditer</a>
                     <form method="post" action="{{ url_for('questionnaires.duplicate', questionnaire_id=q.id) }}" style="display:inline;">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button class="btn" type="submit">📋 Dupliquer</button>
+                      <button class="btn" type="submit">{{ ic.icon('clipboard', 14) }} Dupliquer</button>
                     </form>
                   {% endif %}
                   {% if can('questionnaires:export') %}
-                    <a class="btn" href="{{ url_for('questionnaires.export_csv', questionnaire_id=q.id) }}">⬇️ CSV</a>
-                    <a class="btn" href="{{ url_for('questionnaires.export_xlsx', questionnaire_id=q.id) }}">⬇️ Excel</a>
+                    <a class="btn" href="{{ url_for('questionnaires.export_csv', questionnaire_id=q.id) }}">{{ ic.icon('download', 14) }} CSV</a>
+                    <a class="btn" href="{{ url_for('questionnaires.export_xlsx', questionnaire_id=q.id) }}">{{ ic.icon('download', 14) }} Excel</a>
                   {% endif %}
                   {% if can('questionnaires:delete') %}
                     <form method="post" action="{{ url_for('questionnaires.delete', questionnaire_id=q.id) }}" style="display:inline;">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce questionnaire ?');">🗑️ Supprimer</button>
+                      <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce questionnaire ?');">{{ ic.icon('trash', 14) }} Supprimer</button>
                     </form>
                   {% endif %}
                 </div>
@@ -145,18 +146,18 @@
             </div>
           </dl>
           <div class="inline-actions">
-            <a class="btn" href="{{ url_for('questionnaires.statistiques', questionnaire_id=q.id) }}">📊 Dépouiller</a>
+            <a class="btn" href="{{ url_for('questionnaires.statistiques', questionnaire_id=q.id) }}">{{ ic.icon('bar-chart', 14) }} Dépouiller</a>
             {% if can('questionnaires:edit') %}
-              <a class="btn" href="{{ url_for('questionnaires.edit', questionnaire_id=q.id) }}">✏️ Éditer</a>
+              <a class="btn" href="{{ url_for('questionnaires.edit', questionnaire_id=q.id) }}">{{ ic.icon('pen-line', 14) }} Éditer</a>
             {% endif %}
             {% if can('questionnaires:export') %}
-              <a class="btn" href="{{ url_for('questionnaires.export_csv', questionnaire_id=q.id) }}">⬇️ CSV</a>
-              <a class="btn" href="{{ url_for('questionnaires.export_xlsx', questionnaire_id=q.id) }}">⬇️ Excel</a>
+              <a class="btn" href="{{ url_for('questionnaires.export_csv', questionnaire_id=q.id) }}">{{ ic.icon('download', 14) }} CSV</a>
+              <a class="btn" href="{{ url_for('questionnaires.export_xlsx', questionnaire_id=q.id) }}">{{ ic.icon('download', 14) }} Excel</a>
             {% endif %}
             {% if can('questionnaires:delete') %}
               <form method="post" action="{{ url_for('questionnaires.delete', questionnaire_id=q.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce questionnaire ?');">🗑️ Supprimer</button>
+                <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce questionnaire ?');">{{ ic.icon('trash', 14) }} Supprimer</button>
               </form>
             {% endif %}
           </div>

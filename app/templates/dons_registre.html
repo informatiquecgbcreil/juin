@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <div class="page-shell wide-shell stack">
   <div class="page-header">
@@ -16,7 +17,7 @@
         </label>
         <noscript><button class="btn" type="submit">Afficher</button></noscript>
       </form>
-      <a class="btn" href="{{ url_for('main.dons_export_xlsx', annee=annee) }}">⬇ Export registre (Excel)</a>
+      <a class="btn" href="{{ url_for('main.dons_export_xlsx', annee=annee) }}">{{ ic.icon('download', 14) }} Export registre (Excel)</a>
     </div>
   </div>
 
@@ -79,7 +80,7 @@
               <td>{% if d.est_annule %}<span class="status-badge status-danger">Annulé</span>{% if d.annulation_motif %}<div class="muted" style="font-size:11px;">{{ d.annulation_motif }}</div>{% endif %}{% else %}<span class="status-badge status-success">Valide</span>{% endif %}</td>
               <td>
                 <div class="inline-actions">
-                  <a class="btn" href="{{ url_for('main.don_recu', don_id=d.id) }}">🧾 Reçu</a>
+                  <a class="btn" href="{{ url_for('main.don_recu', don_id=d.id) }}">{{ ic.icon('receipt', 14) }} Reçu</a>
                   {% if can_edit and not d.est_annule %}
                     <form method="post" action="{{ url_for('main.don_annuler', don_id=d.id) }}"
                           onsubmit="var m=prompt('Motif de l\'annulation ?'); if(m===null) return false; this.motif.value=m; return true;">

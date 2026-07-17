@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -13,7 +14,7 @@
       {% if can_manage %}
       <form method="POST" action="{{ url_for('activite.index') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn ok" type="submit">🔄 Synchroniser</button>
+        <button class="btn ok" type="submit">{{ ic.icon('rotate-ccw', 14) }} Synchroniser</button>
       </form>
       {% endif %}
     </div>

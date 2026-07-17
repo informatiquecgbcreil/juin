@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <style>
@@ -20,16 +21,16 @@
 
 <div class="stack">
   <div class="card">
-    <h1>📖 Notice d'utilisation</h1>
+    <h1>{{ ic.icon('book-open', 20) }} Notice d'utilisation</h1>
     <p class="muted">
       Le mode d'emploi complet de l'application, écrit pour des personnes qui ne
       sont pas informaticiennes. Cette notice est toujours à jour : elle vit dans
       l'application elle-même.
     </p>
     <p class="no-print">
-      <button class="btn" onclick="window.print()">🖨️ Imprimer la notice (ou l'enregistrer en PDF)</button>
-      <a class="btn" href="{{ url_for('main.glossaire') }}">📖 Glossaire — le dico du social</a>
-      <a class="btn" href="{{ url_for('main.guides_liste') }}">🧭 Guides pas à pas</a>
+      <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer la notice (ou l'enregistrer en PDF)</button>
+      <a class="btn" href="{{ url_for('main.glossaire') }}">{{ ic.icon('book-open', 14) }} Glossaire — le dico du social</a>
+      <a class="btn" href="{{ url_for('main.guides_liste') }}">{{ ic.icon('compass', 14) }} Guides pas à pas</a>
     </p>
     <div class="notice-sommaire no-print">
       {% for ch in chapitres %}

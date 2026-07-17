@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 {# ---------------------------------------
@@ -253,7 +254,7 @@
 
       {% if hart_evaluations %}
         <details style="margin-top:10px;">
-          <summary style="cursor:pointer; font-weight:700;">🧾 Historique des évaluations ({{ hart_evaluations|length }})</summary>
+          <summary style="cursor:pointer; font-weight:700;">{{ ic.icon('receipt', 15) }} Historique des évaluations ({{ hart_evaluations|length }})</summary>
           <div class="tablewrap clean" style="margin-top:8px;">
             <table>
               <thead><tr><th>Date</th><th>Étape</th><th>Type</th><th>Témoignage</th><th>Remarque pro</th><th></th></tr></thead>
@@ -269,7 +270,7 @@
                       <form method="post" action="{{ url_for('main.hart_evaluation_supprimer', evaluation_id=ev.id) }}" onsubmit="return confirm('Supprimer cette évaluation ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id, tab='participation') }}">
-                        <button class="btn danger" type="submit" style="padding:0 6px; font-size:11px;">🗑</button>
+                        <button class="btn danger" type="submit" style="padding:0 6px; font-size:11px;">{{ ic.icon('trash', 14) }}</button>
                       </form>
                     </td>
                   </tr>
@@ -282,7 +283,7 @@
 
       <div class="spacer"></div>
       <details {% if hart_due %}open{% endif %}>
-        <summary style="cursor:pointer; font-weight:700;">➕ Poser une évaluation</summary>
+        <summary style="cursor:pointer; font-weight:700;">{{ ic.icon('plus', 15) }} Poser une évaluation</summary>
         <form method="post" action="{{ url_for('main.hart_evaluer', participant_id=participant.id) }}" class="stack" style="margin-top:10px; gap:10px;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="next" value="{{ url_for('pedagogie.participant_passeport', participant_id=participant.id, tab='participation') }}">
@@ -335,7 +336,7 @@
      TAB: EVALUATE
   ------------------------------ #}
   <div class="card tabpanel" data-panel="evaluate">
-    <h2 style="margin-top:0;">✅ Évaluer (hors session ou rattachée)</h2>
+    <h2 style="margin-top:0;">{{ ic.icon('check', 16) }} Évaluer (hors session ou rattachée)</h2>
     <div class="muted" style="margin-top:-6px;">
       Astuce : rattache une session si tu veux retrouver l’évaluation dans l’historique “comme si”.
     </div>
@@ -346,7 +347,7 @@
 
     <div class="spacer"></div>
     <div class="ref-card">
-      <h3 class="ref-title" style="margin:0;">📜 Historique rapide</h3>
+      <h3 class="ref-title" style="margin:0;">{{ ic.icon('file-text', 16) }} Historique rapide</h3>
       <div class="tablewrap" style="margin-top:10px;">
         <table class="js-sortable">
           <thead>
@@ -601,7 +602,7 @@
      TAB: FILES
   ------------------------------ #}
   <div class="card tabpanel" data-panel="files">
-    <h2 style="margin-top:0;">📎 Documents ({{ sec }})</h2>
+    <h2 style="margin-top:0;">{{ ic.icon('paperclip', 16) }} Documents ({{ sec }})</h2>
 
     <div class="split">
       <div class="ref-card">
@@ -671,7 +672,7 @@
      TAB: PORTAIL (activités en ligne)
   ------------------------------ #}
   <div class="card tabpanel" data-panel="portail">
-    <h2 style="margin-top:0;">🌐 Activités en ligne (portail des apprenants)</h2>
+    <h2 style="margin-top:0;">{{ ic.icon('globe', 16) }} Activités en ligne (portail des apprenants)</h2>
 
     {% if portail_competences %}
       <h3 style="margin-top:4px;">Compétences alimentées par le portail</h3>
@@ -692,7 +693,7 @@
       </div>
     {% endif %}
 
-    <p class="ux-helper"><a href="{{ url_for('pedagogie.portail_competences') }}">⚙️ Gérer les correspondances exercices → compétences</a></p>
+    <p class="ux-helper"><a href="{{ url_for('pedagogie.portail_competences') }}">{{ ic.icon('settings', 15) }} Gérer les correspondances exercices → compétences</a></p>
 
     {% if participant.portail_code %}
       <p class="muted">Code apprenant : <strong>{{ participant.portail_code }}</strong></p>

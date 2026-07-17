@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_macros.html" as ui %}
 {% block body %}
 {% set has_filters = q or secteurs or competence %}
@@ -12,11 +13,11 @@
         
       </div>
       <div class="inline" style="gap:8px; flex-wrap:wrap;">
-        <a class="btn" href="{{ url_for('partenaires.carte') }}">🗺️ Carte des partenaires</a>
+        <a class="btn" href="{{ url_for('partenaires.carte') }}">{{ ic.icon('map', 14) }} Carte des partenaires</a>
         <a class="btn" href="{{ url_for('partenaires.orientations') }}">Orientations accès aux droits</a>
         {% if can('partenaires:edit') %}
-          <a class="btn" href="{{ url_for('partenaires.import_partenaires') }}">📥 Importer (CSV)</a>
-          <a class="btn" href="{{ url_for('partenaires.create') }}">➕ Ajouter un partenaire</a>
+          <a class="btn" href="{{ url_for('partenaires.import_partenaires') }}">{{ ic.icon('download', 14) }} Importer (CSV)</a>
+          <a class="btn" href="{{ url_for('partenaires.create') }}">{{ ic.icon('plus', 14) }} Ajouter un partenaire</a>
         {% endif %}
       </div>
     </div>
@@ -94,7 +95,7 @@
                   {% if can('partenaires:delete') %}
                     <form method="post" action="{{ url_for('partenaires.delete', partenaire_id=p.id) }}" style="display:inline;">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce partenaire ?');">🗑️ Supprimer</button>
+                      <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce partenaire ?');">{{ ic.icon('trash', 14) }} Supprimer</button>
                     </form>
                   {% endif %}
                 </div>
@@ -186,7 +187,7 @@
             {% if can('partenaires:delete') %}
               <form method="post" action="{{ url_for('partenaires.delete', partenaire_id=p.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce partenaire ?');">🗑️ Supprimer</button>
+                <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce partenaire ?');">{{ ic.icon('trash', 14) }} Supprimer</button>
               </form>
             {% endif %}
           </div>

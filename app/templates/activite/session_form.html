@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 
 {% block body %}
@@ -49,7 +50,7 @@
 
         <label class="inline" style="gap:8px; align-items:center; margin-top:10px;">
           <input type="checkbox" name="est_evenement" value="1">
-          <span>🎉 Séance événementielle (fête de quartier, temps fort, sortie…) — comptée à part dans le volet événementiel du SENACS</span>
+          <span>{{ ic.icon('sparkle', 15) }} Séance événementielle (fête de quartier, temps fort, sortie…) — comptée à part dans le volet événementiel du SENACS</span>
         </label>
 
 <div class="section-card compact" style="margin-top:12px;">

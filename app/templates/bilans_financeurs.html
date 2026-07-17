@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% import "_ux_helpers.html" as ux %}
 
 {% block body %}
@@ -26,7 +27,7 @@
             <noscript><button class="btn" type="submit">Afficher</button></noscript>
           </form>
           <a class="btn" href="{{ url_for('bilans.dashboard', year=year) }}">← Tableau de bord</a>
-          <a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year) }}">🧾 Voir une subvention</a>
+          <a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year) }}">{{ ic.icon('receipt', 14) }} Voir une subvention</a>
         </div>
       </div>
     </section>
@@ -51,7 +52,7 @@
                   <td class="num"><span class="chip {{ tone }}">{{ '%.1f'|format(r.taux) }}%</span></td>
                   <td class="num">{{ '%.2f'|format(r.a_ventiler) }} €</td>
                   <td class="num">{{ r.nb_factures }}</td>
-                  <td class="actions-cell"><div class="table-actions"><a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year, id=r.id) }}">Ouvrir</a><a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year, id=r.id) }}" target="_blank">🖨️ Imprimer</a><a class="btn" href="{{ url_for('main.export_subvention_csv', subvention_id=r.id) }}">CSV</a></div></td>
+                  <td class="actions-cell"><div class="table-actions"><a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year, id=r.id) }}">Ouvrir</a><a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year, id=r.id) }}" target="_blank">{{ ic.icon('printer', 14) }} Imprimer</a><a class="btn" href="{{ url_for('main.export_subvention_csv', subvention_id=r.id) }}">CSV</a></div></td>
                 </tr>
               {% endfor %}
             </tbody>

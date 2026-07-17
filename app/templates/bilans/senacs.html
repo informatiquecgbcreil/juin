@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 
 <div class="stack">
@@ -18,7 +19,7 @@
           <option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>
         {% endfor %}
       </select>
-      <a class="btn" href="{{ url_for('bilans.bilan_senacs_export', annee=annee) }}">📥 Exporter les tableaux de consolidation (Excel)</a>
+      <a class="btn" href="{{ url_for('bilans.bilan_senacs_export', annee=annee) }}">{{ ic.icon('download', 14) }} Exporter les tableaux de consolidation (Excel)</a>
     </form>
   </div>
 
@@ -36,7 +37,7 @@
         {% endfor %}
       </table>
       {% if publics.ages.get('Non renseigné', 0) > 0 %}
-        <p class="muted">⚠️ {{ publics.ages['Non renseigné'] }} fiche(s) sans date de naissance : complétez-les pour fiabiliser la répartition (la somme doit rester cohérente avec le total).</p>
+        <p class="muted">{{ ic.icon('alert-triangle', 15) }} {{ publics.ages['Non renseigné'] }} fiche(s) sans date de naissance : complétez-les pour fiabiliser la répartition (la somme doit rester cohérente avec le total).</p>
       {% endif %}
     </div>
 
@@ -102,18 +103,18 @@
     </div>
 
     <div class="card">
-      <h2>🎉 Événementiel</h2>
+      <h2>{{ ic.icon('sparkle', 16) }} Événementiel</h2>
       <table class="table">
         <tr><th>Événements réalisés</th><td><strong>{{ evenementiel.nb_evenements }}</strong></td></tr>
         <tr><th>Participations</th><td>{{ evenementiel.participations }}</td></tr>
         <tr><th>Participants uniques</th><td>{{ evenementiel.participants_uniques }}</td></tr>
       </table>
-      <p class="muted">Coche « 🎉 Séance événementielle » à la création d'une séance, ou marque-la depuis sa page d'émargement.</p>
+      <p class="muted">Coche « {{ ic.icon('sparkle', 15) }} Séance événementielle » à la création d'une séance, ou marque-la depuis sa page d'émargement.</p>
     </div>
   </div>
 
   <div class="card">
-    <h2>👥 Emplois / ETP ({{ annee }})</h2>
+    <h2>{{ ic.icon('users', 16) }} Emplois / ETP ({{ annee }})</h2>
     {% if emplois.rh_salaries %}
       <h3>Depuis le module RH ({{ emplois.nb_rh }} salarié·e·s, {{ '%g'|format(emplois.rh_etp) }} ETP)</h3>
       <div class="tablewrap">
@@ -143,7 +144,7 @@
                 {% if peut_editer_emplois %}
                 <form method="post" action="{{ url_for('bilans.bilan_senacs_emploi_supprimer', emploi_id=p.id) }}" onsubmit="return confirm('Supprimer ce poste ?');" style="display:inline;">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn danger" type="submit" style="padding:2px 8px;">🗑</button>
+                  <button class="btn danger" type="submit" style="padding:2px 8px;">{{ ic.icon('trash', 14) }}</button>
                 </form>
                 {% endif %}
               </td>
@@ -173,7 +174,7 @@
   </div>
 
   <div class="card">
-    <h2>💶 Finances ({{ annee }})</h2>
+    <h2>{{ ic.icon('euro', 16) }} Finances ({{ annee }})</h2>
     <div class="tablewrap">
       <table class="table">
         <thead><tr><th>Financeur</th><th>Attribué (€)</th><th>Reçu (€)</th></tr></thead>

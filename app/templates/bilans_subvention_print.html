@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 
 {% block head %}
 <style>
@@ -27,8 +28,8 @@
         </div>
         <div class="inline" style="gap:8px; flex-wrap:wrap;">
           <a class="btn" href="{{ url_for('bilans.bilan_subvention', year=year, id=data.subvention.id) }}">← Retour</a>
-          <button class="btn" onclick="window.print()">🖨️ Imprimer</button>
-          <a class="btn" href="{{ url_for('main.export_subvention_csv', subvention_id=data.subvention.id) }}">⬇️ CSV</a>
+          <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer</button>
+          <a class="btn" href="{{ url_for('main.export_subvention_csv', subvention_id=data.subvention.id) }}">{{ ic.icon('download', 14) }} CSV</a>
         </div>
       </div>
     </div>

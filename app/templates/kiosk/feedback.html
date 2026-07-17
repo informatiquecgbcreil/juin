@@ -1,9 +1,10 @@
 {% extends 'kiosk/base.html' %}
+{% import "_icons.html" as ic %}
 {% block header_title %}Donner mon avis{% endblock %}
 {% block body %}
 
   <div class="k-card">
-    <h1 class="k-card__title">Votre ressenti 💬</h1>
+    <h1 class="k-card__title">Votre ressenti {{ ic.icon('message', 20) }}</h1>
     <p class="k-card__sub">{{ session_label }}</p>
     <a class="k-btn k-btn--ghost" href="{{ url_for('kiosk.kiosk_session', token=token) }}">← Retour à l'émargement</a>
   </div>
@@ -49,7 +50,7 @@
             <p class="k-hint">1 = pas du tout · 5 = tout à fait</p>
           {% elif question.kind == 'yesno' %}
             <div class="k-choices">
-              <label class="k-choice"><input type="radio" name="question_{{ question.id }}" value="oui"><span>👍 Oui</span></label>
+              <label class="k-choice"><input type="radio" name="question_{{ question.id }}" value="oui"><span>{{ ic.icon('thumbs-up', 15) }} Oui</span></label>
               <label class="k-choice"><input type="radio" name="question_{{ question.id }}" value="non"><span>👎 Non</span></label>
             </div>
           {% elif question.kind == 'multi' %}

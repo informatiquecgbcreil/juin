@@ -1,18 +1,19 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>@media print { .no-print { display:none !important; } }</style>
 <div class="page-shell wide-shell stack">
   <div class="page-header">
     <div class="page-title-wrap">
-      <h1 class="page-title">🧮 Coût unitaire d'une action</h1>
+      <h1 class="page-title">{{ ic.icon('calculator', 20) }} Coût unitaire d'une action</h1>
       <p class="page-subtitle">Croise un montant (saisi ou repris d'une subvention) avec l'activité réelle mesurée par l'émargement, pour justifier un financement : coût par participant, par présence, par heure, par séance.</p>
     </div>
     <div class="hero-actions no-print">
       {% if montant %}
         {# query_string brut pour préserver les atelier_id multiples #}
-        <a class="btn" href="{{ url_for('main.cout_unitaire_export') }}?{{ request.query_string.decode() }}">⬇ Export Excel</a>
+        <a class="btn" href="{{ url_for('main.cout_unitaire_export') }}?{{ request.query_string.decode() }}">{{ ic.icon('download', 14) }} Export Excel</a>
       {% endif %}
-      <button class="btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 

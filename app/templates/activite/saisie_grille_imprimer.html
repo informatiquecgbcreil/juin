@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block title %}Feuille du mois — {{ atelier.nom }}{% endblock %}
 {% block body %}
 <style>
@@ -27,7 +28,7 @@
 </style>
 <div class="ui-page">
   <div class="ui-actions inline-actions no-print" style="margin:10px 0;">
-    <button type="button" class="btn primary" onclick="window.print()">🖨️ Imprimer</button>
+    <button type="button" class="btn primary" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer</button>
     <a class="btn" href="{{ url_for('activite.saisie_grille', atelier_id=atelier.id, mois=mois_str) }}">← Retour à la grille</a>
   </div>
 
@@ -67,7 +68,7 @@
     </table>
 
     <p class="consigne">
-      ✔ = présent. Nouvelle personne : écrire son nom et prénom en toutes lettres sur une ligne vide.
+      {{ ic.icon('check', 15) }} = présent. Nouvelle personne : écrire son nom et prénom en toutes lettres sur une ligne vide.
       Colonne sans date pré-remplie : noter la date de la séance en haut.
       Feuille à remettre à l'accueil en fin de mois — elle se recopie telle quelle dans l'application (grille de saisie).
     </p>

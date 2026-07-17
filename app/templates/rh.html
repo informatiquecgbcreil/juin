@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .rh-edit summary { cursor:pointer; font-weight:700; }
@@ -7,7 +8,7 @@
 <div class="page-shell wide-shell stack">
   <div class="page-header">
     <div class="page-title-wrap">
-      <h1 class="page-title">👥 RH — Salariés</h1>
+      <h1 class="page-title">{{ ic.icon('users', 20) }} RH — Salariés</h1>
       <p class="page-subtitle">Réservé à la direction. Affecte chaque salarié à son secteur et à son poste : les ETP alimentent le SENACS et la masse salariale les finances.</p>
     </div>
     <div class="hero-actions no-print">
@@ -21,11 +22,11 @@
       <form method="post" action="{{ url_for('main.rh_recup_sync') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="annee" value="{{ annee }}">
-        <button class="btn ok" type="submit" data-pending-text="Synchronisation…">🔄 Synchroniser Récup</button>
+        <button class="btn ok" type="submit" data-pending-text="Synchronisation…">{{ ic.icon('rotate-ccw', 14) }} Synchroniser Récup</button>
       </form>
       {% endif %}
-      <a class="btn" href="{{ url_for('main.rh_export_xlsx', annee=annee) }}">⬇ Export Excel</a>
-      <button class="btn" onclick="window.print()">🖨️ Imprimer</button>
+      <a class="btn" href="{{ url_for('main.rh_export_xlsx', annee=annee) }}">{{ ic.icon('download', 14) }} Export Excel</a>
+      <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer</button>
     </div>
   </div>
 
@@ -107,7 +108,7 @@
     </form>
 
     <details style="margin-top:12px;">
-      <summary style="cursor:pointer; font-weight:700;">📥 Importer depuis votre outil RH (CSV)</summary>
+      <summary style="cursor:pointer; font-weight:700;">{{ ic.icon('download', 15) }} Importer depuis votre outil RH (CSV)</summary>
       <form method="post" action="{{ url_for('main.rh_import') }}" enctype="multipart/form-data" class="inline-actions" style="margin-top:8px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input class="in" type="file" name="fichier" accept=".csv,.txt" required>
@@ -157,7 +158,7 @@
               <td>
                 {% if can_edit %}
                 <details class="rh-edit">
-                  <summary>✏️</summary>
+                  <summary>{{ ic.icon('pen-line', 15) }}</summary>
                   <form method="post" action="{{ url_for('main.rh_salarie_update', salarie_id=s.id) }}" class="stack" style="gap:6px; margin-top:6px; min-width:260px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input class="in" name="nom" value="{{ s.nom }}" required>
@@ -179,7 +180,7 @@
                   </form>
                   <form method="post" action="{{ url_for('main.rh_salarie_supprimer', salarie_id=s.id) }}" onsubmit="return confirm('Supprimer définitivement cette fiche ? Pour un départ, préférez la date de sortie.');" style="margin-top:4px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn danger" type="submit" style="padding:2px 8px;">🗑 Supprimer la fiche</button>
+                    <button class="btn danger" type="submit" style="padding:2px 8px;">{{ ic.icon('trash', 14) }} Supprimer la fiche</button>
                   </form>
                 </details>
                 {% endif %}

@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>@media print { .no-print { display:none !important; } }</style>
 <div class="page-shell wide-shell stack">
   <div class="page-header">
     <div class="page-title-wrap">
-      <h1 class="page-title">📊 Justificatif — {{ sub.nom }}</h1>
+      <h1 class="page-title">{{ ic.icon('bar-chart', 20) }} Justificatif — {{ sub.nom }}</h1>
       <p class="page-subtitle">
         {% if sub.financeur %}Financeur : <strong>{{ sub.financeur }}</strong> · {% endif %}
         exercice {{ annee }} · montant {{ base_label }} : <strong>{{ '%.2f'|format(montant_base) }} €</strong>.
@@ -12,10 +13,10 @@
       </p>
     </div>
     <div class="hero-actions no-print">
-      <a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=sub.id) }}">⬅ Pilotage</a>
-      <a class="btn" href="{{ url_for('main.subvention_justificatif_xlsx', subvention_id=sub.id) }}">⬇ Export Excel</a>
-      <a class="btn" href="{{ url_for('main.subvention_feuille_temps', subvention_id=sub.id) }}">⏱️ Feuille de temps</a>
-      <button class="btn ok" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=sub.id) }}">{{ ic.icon('arrow-left', 14) }} Pilotage</a>
+      <a class="btn" href="{{ url_for('main.subvention_justificatif_xlsx', subvention_id=sub.id) }}">{{ ic.icon('download', 14) }} Export Excel</a>
+      <a class="btn" href="{{ url_for('main.subvention_feuille_temps', subvention_id=sub.id) }}">{{ ic.icon('clock', 14) }} Feuille de temps</a>
+      <button class="btn ok" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 
@@ -50,7 +51,7 @@
     </p>
     {% if total_pct > 100 %}
       <div class="callout-soft" style="border-color: color-mix(in srgb, var(--warn,#f59e0b) 55%, var(--border));">
-        ⚠ La somme des parts dépasse 100 % ({{ '%g'|format(total_pct) }} %) : vérifie les pourcentages des ateliers.
+        {{ ic.icon('alert-triangle', 15) }} La somme des parts dépasse 100 % ({{ '%g'|format(total_pct) }} %) : vérifie les pourcentages des ateliers.
       </div>
     {% endif %}
   </section>

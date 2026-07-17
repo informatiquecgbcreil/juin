@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .wizard-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.wizard-step{border:1px solid var(--border-soft);border-radius:14px;padding:14px;background:var(--surface)}.wizard-step.ok{border-left:4px solid var(--ok)}.wizard-step.todo{border-left:4px solid var(--warn)}
@@ -23,7 +24,7 @@
     <section class="wizard-steps">
       {% for c in checks %}<article class="wizard-step {{ 'ok' if c.ok else 'todo' }}"><h3>{{ '✅' if c.ok else '⚠️' }} {{ c.label }}</h3><p class="muted">{{ c.help }}</p><a class="btn" href="{{ c.url }}">Corriger / vérifier</a></article>{% endfor %}
     </section>
-    <section class="card"><h2>Sorties utiles</h2><div class="inline" style="gap:8px;flex-wrap:wrap;"><a class="btn ok" href="{{ url_for('bilans.redaction_bilan', subvention_id=selected.id, year=year) }}">📝 Rédiger le bilan</a><a class="btn" href="{{ url_for('main.documents_exports', year=year, secteur=selected.secteur) }}">Documents prêts</a><a class="btn" href="{{ url_for('main.qualite_bilans') }}">Qualité bilan</a><a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=selected.id) }}">Pilotage subvention</a></div></section>
+    <section class="card"><h2>Sorties utiles</h2><div class="inline" style="gap:8px;flex-wrap:wrap;"><a class="btn ok" href="{{ url_for('bilans.redaction_bilan', subvention_id=selected.id, year=year) }}">{{ ic.icon('pen-line', 16) }} Rédiger le bilan</a><a class="btn" href="{{ url_for('main.documents_exports', year=year, secteur=selected.secteur) }}">Documents prêts</a><a class="btn" href="{{ url_for('main.qualite_bilans') }}">Qualité bilan</a><a class="btn" href="{{ url_for('main.subvention_pilotage', subvention_id=selected.id) }}">Pilotage subvention</a></div></section>
   {% else %}
     <section class="card"><p class="muted">Aucune subvention disponible sur cette année et ce périmètre.</p></section>
   {% endif %}

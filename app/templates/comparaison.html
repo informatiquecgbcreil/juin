@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_icons.html" as ic %}
 {% block body %}
 <style>
   .delta-up { color: var(--ok, #2e7d32); font-weight:700; }
@@ -26,8 +27,8 @@
         </label>
         <noscript><button class="btn" type="submit">Afficher</button></noscript>
       </form>
-      <a class="btn" href="{{ url_for('main.comparaison_export_xlsx', annee=year_n) }}">⬇ Export Excel</a>
-      <button class="btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+      <a class="btn" href="{{ url_for('main.comparaison_export_xlsx', annee=year_n) }}">{{ ic.icon('download', 14) }} Export Excel</a>
+      <button class="btn" onclick="window.print()">{{ ic.icon('printer', 14) }} Imprimer / PDF</button>
     </div>
   </div>
 

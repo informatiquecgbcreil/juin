@@ -1,3 +1,4 @@
+{% import "_icons.html" as ic %}
 {# Poste de travail « Ma journée » : les grandes actions du rôle, en verbes. #}
 {% if poste_travail and (poste_travail.actions or poste_travail.signals) %}
 <style>
@@ -88,13 +89,13 @@
   <div class="poste-hero__head">
     <h2 class="poste-hero__title">Mes actions du jour</h2>
     <span class="poste-hero__meta">Bonjour {{ poste_travail.prenom or '' }} · {{ poste_travail.date_fr }}</span>
-    <a class="mini-link" style="margin-left:auto;" href="{{ url_for('main.guides_liste') }}">🧭 Guides pas à pas</a>
+    <a class="mini-link" style="margin-left:auto;" href="{{ url_for('main.guides_liste') }}">{{ ic.icon('compass', 15) }} Guides pas à pas</a>
   </div>
   {% if poste_travail.signals %}
   <div class="poste-signal-grid" aria-label="Points de vigilance du jour">
     {% for signal in poste_travail.signals %}
       {% if signal.url %}<a class="poste-signal" data-tone="{{ signal.tone }}" href="{{ signal.url }}">{% else %}<div class="poste-signal" data-tone="{{ signal.tone }}">{% endif %}
-        <span class="poste-signal__icon" aria-hidden="true">{{ signal.icon }}</span>
+        <span class="poste-signal__icon" aria-hidden="true">{{ ic.emoji(signal.icon, 18) }}</span>
         <span class="poste-signal__main">
           <span class="poste-signal__value">{{ signal.value }}</span>
           <span class="poste-signal__label">{{ signal.label }}</span>
@@ -109,7 +110,7 @@
   <div class="poste-grid">
     {% for a in poste_travail.actions %}
       <a class="poste-card" href="{{ a.url }}">
-        <span class="poste-card__icon" aria-hidden="true">{{ a.icon }}</span>
+        <span class="poste-card__icon" aria-hidden="true">{{ ic.emoji(a.icon, 22) }}</span>
         <span class="poste-card__label">{{ a.label }}</span>
         <span class="poste-card__desc">{{ a.desc }}</span>
         {% if a.badge %}<span class="poste-card__badge" data-tone="{{ a.tone }}">{{ a.badge }}</span>{% endif %}
