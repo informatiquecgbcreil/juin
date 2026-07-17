@@ -111,7 +111,7 @@
       <tbody>
         {% for r in a_valider %}
           <tr>
-            <td>{{ r.date_reservation.strftime('%a %d/%m') }}<br><span class="muted">{{ r.heure_debut }}–{{ r.heure_fin }}</span></td>
+            <td>{{ jours_noms[r.date_reservation.weekday()] }} {{ r.date_reservation.strftime('%d/%m') }}<br><span class="muted">{{ r.heure_debut }}–{{ r.heure_fin }}</span></td>
             <td>{{ r.salle.nom if r.salle else '—' }}{% if r.secteur %}<br><span class="muted">{{ r.secteur }}</span>{% endif %}</td>
             <td><strong>{{ r.titre }}</strong>{% if r.motif %}<br><span class="muted">{{ r.motif }}</span>{% endif %}</td>
             <td>{{ r.created_by.nom if r.created_by else '—' }}</td>
