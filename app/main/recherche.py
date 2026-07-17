@@ -18,6 +18,11 @@ from app.models import (
     Participant,
     Partenaire,
     Quartier,
+    Salle,
+    InventaireItem,
+    InstanceGouvernance,
+    Mandat,
+    Reunion,
 )
 
 
@@ -31,6 +36,11 @@ SEARCH_TYPE_PRIORITY = {
     "Subvention": 3,
     "Atelier": 4,
     "Partenaire": 5,
+    "Salle": 6,
+    "Matériel": 7,
+    "Instance": 8,
+    "Mandat": 9,
+    "Réunion": 10,
 }
 
 SEARCH_TYPE_ALIASES = {
@@ -56,6 +66,31 @@ SEARCH_TYPE_ALIASES = {
     "activites": "Atelier",
     "partenaire": "Partenaire",
     "partenaires": "Partenaire",
+    "salle": "Salle",
+    "salles": "Salle",
+    "lieu": "Salle",
+    "lieux": "Salle",
+    "materiel": "Matériel",
+    "matériel": "Matériel",
+    "materiels": "Matériel",
+    "matériels": "Matériel",
+    "matos": "Matériel",
+    "inventaire": "Matériel",
+    "instance": "Instance",
+    "instances": "Instance",
+    "commission": "Instance",
+    "commissions": "Instance",
+    "mandat": "Mandat",
+    "mandats": "Mandat",
+    "elu": "Mandat",
+    "elus": "Mandat",
+    "élu": "Mandat",
+    "élus": "Mandat",
+    "reunion": "Réunion",
+    "reunions": "Réunion",
+    "réunion": "Réunion",
+    "réunions": "Réunion",
+    "ag": "Réunion",
 }
 
 
@@ -334,6 +369,119 @@ def _run_global_search(term: str, *, panel_limit: int = 20, page_limit: int = 10
                 "secteur": "",
                 "url": url_for("partenaires.edit", partenaire_id=row.id),
                 "score": _score_item(label, meta, row.description, row.contact_nom, row.contact_prenom, row.adresse),
+            })
+
+    if (wanted_type in {None, "Salle"}) and can("planning:view"):
+        rows = _run_ranked_rows(
+            Salle.query,
+            [Salle.nom, Salle.localisation, Salle.adresse, Salle.contact, Salle.secteur],
+            [Salle.actif.desc(), Salle.nom.asc()],
+        )
+        for row in rows:
+            label = row.nom
+            meta_bits = [
+                row.type_label,
+                row.adresse if row.est_externe else (row.localisation or ""),
+                f"{row.capacite} pl." if row.capacite else "",
+                "" if row.actif else "désactivée",
+            ]
+            meta = " · ".join([bit for bit in meta_bits if bit][:4])
+            results.append({
+                "type": "Salle",
+                "label": label,
+                "meta": meta,
+                "secteur": row.secteur or "",
+                "url": url_for("planning.salles"),
+                "score": _score_item(label, meta, row.localisation, row.adresse, row.contact),
+            })
+
+    if (wanted_type in {None, "Matériel"}) and can("inventaire:view"):
+        materiel_q = InventaireItem.query
+        if active_secteur_filter:
+            materiel_q = materiel_q.filter(InventaireItem.secteur == active_secteur_filter)
+        rows = _run_ranked_rows(
+            materiel_q,
+            [InventaireItem.designation, InventaireItem.id_interne, InventaireItem.marque,
+             InventaireItem.modele, InventaireItem.categorie, InventaireItem.numero_serie],
+            [InventaireItem.designation.asc()],
+        )
+        for row in rows:
+            label = row.designation
+            meta_bits = [row.id_interne or "", row.marque or "", row.secteur or ""]
+            meta = " · ".join([bit for bit in meta_bits if bit][:3])
+            results.append({
+                "type": "Matériel",
+                "label": label,
+                "meta": meta,
+                "secteur": row.secteur or "",
+                "url": url_for("inventaire_materiel.edit_item", item_id=row.id),
+                "score": _score_item(label, meta, row.marque, row.modele, row.categorie, row.id_interne),
+            })
+
+    if (wanted_type in {None, "Instance"}) and can("gouvernance:view"):
+        rows = _run_ranked_rows(
+            InstanceGouvernance.query,
+            [InstanceGouvernance.nom, InstanceGouvernance.description],
+            [InstanceGouvernance.actif.desc(), InstanceGouvernance.nom.asc()],
+        )
+        for row in rows:
+            label = row.nom
+            meta_bits = [row.type_label, f"{len(row.mandats_actifs)} membre(s)", "" if row.actif else "archivée"]
+            meta = " · ".join([bit for bit in meta_bits if bit][:3])
+            results.append({
+                "type": "Instance",
+                "label": label,
+                "meta": meta,
+                "secteur": "",
+                "url": url_for("gouvernance.instance_detail", instance_id=row.id),
+                "score": _score_item(label, meta, row.description),
+            })
+
+    if (wanted_type in {None, "Mandat"}) and can("gouvernance:view"):
+        rows = _run_ranked_rows(
+            Mandat.query,
+            [Mandat.nom, Mandat.email, Mandat.fonction],
+            [Mandat.actif.desc(), Mandat.nom.asc()],
+        )
+        for row in rows:
+            label = row.nom
+            meta_bits = [
+                row.fonction_label,
+                row.instance.nom if row.instance else "",
+                f"échéance {row.date_fin.strftime('%d/%m/%Y')}" if row.date_fin else "",
+                "" if row.actif else "clôturé",
+            ]
+            meta = " · ".join([bit for bit in meta_bits if bit][:4])
+            results.append({
+                "type": "Mandat",
+                "label": label,
+                "meta": meta,
+                "secteur": "",
+                "url": url_for("gouvernance.instance_detail", instance_id=row.instance_id),
+                "score": _score_item(label, meta, row.email, row.fonction),
+            })
+
+    if (wanted_type in {None, "Réunion"}) and can("gouvernance:view"):
+        rows = _run_ranked_rows(
+            Reunion.query,
+            [Reunion.titre, Reunion.lieu, Reunion.ordre_du_jour],
+            [Reunion.date_reunion.desc()],
+        )
+        for row in rows:
+            label = row.titre
+            meta_bits = [
+                row.type_label,
+                row.instance.nom if row.instance else "",
+                row.date_reunion.strftime("%d/%m/%Y") if row.date_reunion else "",
+            ]
+            meta = " · ".join([bit for bit in meta_bits if bit][:3])
+            results.append({
+                "type": "Réunion",
+                "label": label,
+                "meta": meta,
+                "secteur": "",
+                "url": url_for("gouvernance.reunion_detail", reunion_id=row.id),
+                "score": _score_item(label, meta, row.lieu, row.ordre_du_jour),
             })
 
     results_sorted = sorted(
